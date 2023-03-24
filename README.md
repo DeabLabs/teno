@@ -1,16 +1,15 @@
-# 👂 Recorder Bot
+# 📝 Teno
 
-This example shows how you can use the voice receive functionality in @discordjs/voice to record users in voice channels
-and save the audio to local Ogg files.
+Teno is a Discord bot that records voice channels and saves them as transcribed text files.
 
 ## Usage
 
 ```sh-session
-# Clone the examples repository, copy the `recorder` files in a folder and then run:
+# Clone teno, and then inside the directory:
 $ npm install
 $ npm run build
 
-# Set a bot token (see config.example.json)
+# Set up tokens (see .env.example)
 $ cp .env.example .env
 $ code .env
 

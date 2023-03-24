@@ -1,7 +1,7 @@
 {
-	"name": "receiver-bot",
+	"name": "teno-bot",
 	"version": "0.0.1",
-	"description": "An example receiver bot written using @discordjs/voice",
+	"description": "Discord Stenographer bot written using @discordjs/voice",
 	"main": "dist/bot.js",
 	"scripts": {
 		"start": "npm run build && node dist/bot",
@@ -10,7 +10,7 @@
 		"build": "rimraf dist && tsc",
 		"build:check": "tsc --noEmit --incremental false"
 	},
-	"author": "Amish Shah <contact@shah.gg>",
+	"author": "Blindmansion <blindmansion@gmail.com>",
 	"license": "MIT",
 	"dependencies": {
 		"@deepgram/sdk": "^1.18.3",
