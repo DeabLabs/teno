@@ -1,20 +1,15 @@
 import { readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { Deepgram } from '@deepgram/sdk';
-import { config } from 'dotenv';
-config({ path: '../.env' });
 import { TranscriptionQueue } from './transcriptionQueue';
 import { promises as fsPromises } from 'fs';
-
-const { deepgram_token } = require('./config.json'); //as { deepgram_token };
-
-// The API key we created in step 3
-//const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
+import { Config } from './config';
 
 // Replace with your file path and audio mimetype
 const mimetype = 'audio/ogg';
 
 // Initializes the Deepgram SDK
-const deepgram = new Deepgram(deepgram_token);
+const deepgramToken = Config.get('DEEPGRAM');
+const deepgram = new Deepgram(deepgramToken);
 const transcriptionQueue = new TranscriptionQueue();
 
 let transcriptFilePath = '';
