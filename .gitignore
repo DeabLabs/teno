@@ -4,3 +4,6 @@ tsconfig.tsbuildinfo
 recordings/*.ogg
 dist
 .env
+node_modules
+.DS_Store
+transcripts
