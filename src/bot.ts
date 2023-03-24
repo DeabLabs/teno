@@ -21,8 +21,7 @@ client.on(Events.CLIENT_READY, async () => {
 	for (const guild of client.guilds.cache.values()) {
 		await deploy(guild);
 	}
-
-	// Uncomment the following line if you want to deploy the commands globally
+	// Uncomment the following line if you want to deploy the commands globally (this had to do with the !deploy command not working)
 	// await deploy(client.guilds.cache.first());
 });
 
