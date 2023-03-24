@@ -1,6 +1,5 @@
 import { promises as fsPromises } from 'fs';
 import path from 'path';
-import { TextLoader } from 'langchain/document_loaders';
 
 const transcriptExtension = '.txt';
 
@@ -31,7 +30,8 @@ export const makeTranscriptPath = (timestamp: string, userId: string) =>
  * @param userId - The discord user id of the recording's author.
  * @returns A TextLoader for the transcription. Call .load() to get the text.
  */
-export const transcriptionLoader = (timestamp: string, userId: string) => {
+export const transcriptionLoader = async (timestamp: string, userId: string) => {
+	const { TextLoader } = await import('langchain/document_loaders');
 	const transcriptionPath = makeTranscriptPath(timestamp, userId);
 	const loader = new TextLoader(transcriptionPath);
 

@@ -1,9 +1,8 @@
-import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream';
 import { EndBehaviorType, VoiceReceiver } from '@discordjs/voice';
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
-import { transcribe } from './deepgram';
+import { createTranscribeStream } from './deepgram';
 
 function getDisplayName(userId: string, user?: User) {
 	return user ? `${user.username}_${user.discriminator}` : userId;
@@ -27,24 +26,15 @@ export function createListeningStream(receiver: VoiceReceiver, userId: string, u
 		},
 	});
 
-	const filename = `./recordings/${Date.now()}-${getDisplayName(userId, user)}.ogg`;
+	const transcribeStream = createTranscribeStream();
 
-	const out = createWriteStream(filename);
+	console.log(`👂 Started recording ${getDisplayName(userId, user)}`);
 
-	// eslint-disable-next-line @typescript-eslint/no-empty-function
-	const onEnd = () => {};
-
-	console.log(`👂 Started recording ${filename}`);
-
-	pipeline(opusStream, oggStream, out, (err) => {
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define, @typescript-eslint/no-unsafe-argument
-		opusStream.removeListener('end', onEnd);
+	pipeline(opusStream, oggStream, transcribeStream, (err) => {
 		if (err) {
-			console.warn(`❌ Error recording file ${filename} - ${err.message}`);
+			console.warn(`❌ Error recording`);
 		} else {
-			console.log(`✅ Recorded ${filename}`);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-			transcribe(filename);
+			console.log(`✅ Recorded ${getDisplayName(userId, user)}`);
 		}
 	});
 }

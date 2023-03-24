@@ -15,43 +15,36 @@ const transcriptionQueue = new TranscriptionQueue();
 
 let transcriptFilePath = '';
 
-export async function transcribe(filePath) {
+export async function transcribe(audioBuffer, callback) {
 	const task = async () => {
 		try {
 			const transcription = await deepgram.transcription.preRecorded(
-				{ buffer: readFileSync(filePath), mimetype: 'audio/ogg' },
+				{ buffer: audioBuffer, mimetype: 'audio/ogg' },
 				{ punctuate: true, model: 'general', language: 'en-US', tier: 'enhanced' },
 			);
 
 			console.log(transcription.results.channels[0].alternatives[0].transcript);
-			deleteRecording(filePath);
+			//deleteRecording(filePath);
 
 			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
 			await transcriptionWriter(transcriptFilePath, transcriptionText);
+			callback(null, transcriptionText);
 		} catch (err) {
 			console.log(err);
 		}
 	};
 	await transcriptionQueue.add(task);
+}
 
-	// deepgram.transcription
-	// 	.preRecorded(
-	// 		{ buffer: readFileSync(filePath), mimetype },
-	// 		{ punctuate: true, model: 'general', language: 'en-US', tier: 'enhanced' },
-	// 	)
-	// 	.then(async (transcription) => {
-	// 		//console.dir(transcription, { depth: null });
-	// 		console.log(transcription.results.channels[0].alternatives[0].transcript);
-	// 		deleteRecording(filePath);
+import { Transform } from 'stream';
 
-	// 		const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
-	// 		const outputFileName = `transcriptions/transcription.txt`; // Changed to a constant filename
-	// 		await writeTranscriptionToFile(transcriptionText, outputFileName);
-	// 	})
-	// 	.catch((err) => {
-	// 		console.log(err);
-	// 	});
-	// await transcriptionQueue.add(task);
+export function createTranscribeStream() {
+	return new Transform({
+		objectMode: true,
+		async transform(audioBuffer, encoding, callback) {
+			transcribe(Buffer.from(audioBuffer), callback);
+		},
+	});
 }
 
 function deleteRecording(filePath) {
@@ -68,6 +61,6 @@ export function createFile(userId) {
 
 	transcriptFilePath = makeTranscriptPath(timestamp.toString(), userId);
 
-	const content = '[Beginning of Transcript]';
+	const content = '[Beginning of Transcript]\n';
 	transcriptionWriter(transcriptFilePath, content);
 }

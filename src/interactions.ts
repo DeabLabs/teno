@@ -1,7 +1,6 @@
 import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus } from '@discordjs/voice';
 import { Client, CommandInteraction, GuildMember, Snowflake } from 'discord.js';
 import { createListeningStream } from './createListeningStream';
-import { createFile } from './deepgram';
 
 async function join(
 	interaction: CommandInteraction,
@@ -20,6 +19,10 @@ async function join(
 				selfMute: true,
 				// @ts-expect-error Currently voice is built in mind with API v10 whereas discord.js v13 uses API v9.
 				adapterCreator: channel.guild.voiceAdapterCreator,
+			});
+			// Add all members in the channel to the recordable set
+			channel.members.forEach((member) => {
+				recordable.add(member.id);
 			});
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
@@ -44,27 +47,30 @@ async function join(
 	await interaction.followUp('Ready!');
 }
 
-async function record(
-	interaction: CommandInteraction,
-	recordable: Set<Snowflake>,
-	client: Client,
-	connection?: VoiceConnection,
-) {
-	if (connection) {
-		const userId = interaction.options.get('speaker')!.value! as Snowflake;
-		recordable.add(userId);
+// async function record(
+// 	interaction: CommandInteraction,
+// 	recordable: Set<Snowflake>,
+// 	client: Client,
+// 	connection?: VoiceConnection,
+// ) {
+// 	if (connection) {
+// 		const userId = interaction.options.get('speaker')!.value! as Snowflake;
+// 		recordable.add(userId);
 
-		const receiver = connection.receiver;
-		if (connection.receiver.speaking.users.has(userId)) {
-			createListeningStream(receiver, userId, client.users.cache.get(userId));
-		}
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-		createFile(userId);
-		await interaction.reply({ ephemeral: true, content: 'Listening!' });
-	} else {
-		await interaction.reply({ ephemeral: true, content: 'Join a voice channel and then try that again!' });
-	}
-}
+// 		const receiver = connection.receiver;
+// 		if (!connection.receiver.speaking.users.has(userId)) {
+// 			await interaction.reply({ ephemeral: true, content: 'No speakers available' });
+// 			return;
+// 		}
+// 		createFile(userId);
+
+// 		createListeningStream(receiver, userId, client.users.cache.get(userId));
+
+// 		await interaction.reply({ ephemeral: true, content: 'Listening!' });
+// 	} else {
+// 		await interaction.reply({ ephemeral: true, content: 'Join a voice channel and then try that again!' });
+// 	}
+// }
 
 async function leave(
 	interaction: CommandInteraction,
@@ -90,6 +96,7 @@ export const interactionHandlers = new Map<
 		connection?: VoiceConnection,
 	) => Promise<void>
 >();
+
 interactionHandlers.set('join', join);
-interactionHandlers.set('record', record);
+// interactionHandlers.set('record', record);
 interactionHandlers.set('leave', leave);
