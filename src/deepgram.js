@@ -3,6 +3,7 @@ import { Deepgram } from '@deepgram/sdk';
 import { TranscriptionQueue } from './transcriptionQueue';
 import { promises as fsPromises } from 'fs';
 import { Config } from './config';
+import { makeTranscriptPath, transcriptionWriter } from './transcripts';
 
 // Replace with your file path and audio mimetype
 const mimetype = 'audio/ogg';
@@ -13,15 +14,6 @@ const deepgram = new Deepgram(deepgramToken);
 const transcriptionQueue = new TranscriptionQueue();
 
 let transcriptFilePath = '';
-
-async function writeTranscriptionToFile(transcriptionText, fileName) {
-	try {
-		await fsPromises.appendFile(fileName, transcriptionText + '\n', 'utf-8');
-		console.log(`Transcription appended to file: ${fileName}`);
-	} catch (error) {
-		console.error(`Error appending transcription to file: ${error.message}`);
-	}
-}
 
 export async function transcribe(filePath) {
 	const task = async () => {
@@ -35,7 +27,7 @@ export async function transcribe(filePath) {
 			deleteRecording(filePath);
 
 			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
-			await writeTranscriptionToFile(transcriptionText, transcriptFilePath);
+			await transcriptionWriter(transcriptFilePath, transcriptionText);
 		} catch (err) {
 			console.log(err);
 		}
@@ -74,8 +66,8 @@ function deleteRecording(filePath) {
 export function createFile(userId) {
 	const timestamp = Date.now();
 
-	transcriptFilePath = `./transcripts/${timestamp}-${userId}.txt`;
+	transcriptFilePath = makeTranscriptPath(timestamp.toString(), userId);
 
 	const content = '[Beginning of Transcript]';
-	writeFileSync(transcriptFilePath, content);
+	transcriptionWriter(transcriptFilePath, content);
 }
