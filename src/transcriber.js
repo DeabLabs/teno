@@ -16,7 +16,7 @@ const transcriptionQueue = new TranscriptionQueue();
 
 let transcriptFilePath = '';
 
-export async function streamTranscribe(audioBuffer, callback) {
+export async function streamTranscribe(audioBuffer, callback, displayName) {
 	const task = async () => {
 		try {
 			const transcription = await deepgram.transcription.preRecorded(
@@ -27,7 +27,7 @@ export async function streamTranscribe(audioBuffer, callback) {
 			console.log(transcription.results.channels[0].alternatives[0].transcript);
 
 			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
-			await transcriptionWriter(transcriptFilePath, transcriptionText);
+			await transcriptionWriter(transcriptFilePath, transcriptionText, displayName);
 			callback(null, transcriptionText);
 		} catch (err) {
 			console.log(err);
@@ -36,7 +36,7 @@ export async function streamTranscribe(audioBuffer, callback) {
 	await transcriptionQueue.add(task);
 }
 
-export async function downloadTranscribe(filePath) {
+export async function downloadTranscribe(filePath, displayName) {
 	const task = async () => {
 		try {
 			const transcription = await deepgram.transcription.preRecorded(
@@ -47,7 +47,7 @@ export async function downloadTranscribe(filePath) {
 			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
 			console.log(transcriptionText);
 			if (transcriptionText.length > 0) {
-				await transcriptionWriter(transcriptFilePath, transcriptionText);
+				await transcriptionWriter(transcriptFilePath, transcriptionText, displayName);
 			}
 		} catch (err) {
 			console.log(err);
@@ -56,11 +56,11 @@ export async function downloadTranscribe(filePath) {
 	await transcriptionQueue.add(task);
 }
 
-export function createTranscribeStream() {
+export function createTranscribeStream(displayName) {
 	return new Transform({
 		objectMode: true,
 		async transform(audioBuffer, encoding, callback) {
-			streamTranscribe(Buffer.from(audioBuffer), callback);
+			streamTranscribe(Buffer.from(audioBuffer), callback, displayName);
 		},
 	});
 }

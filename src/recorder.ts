@@ -3,7 +3,7 @@ import { pipeline } from 'node:stream';
 import { AudioReceiveStream, EndBehaviorType, VoiceReceiver } from '@discordjs/voice';
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
-import { createTranscribeStream, downloadTranscribe } from './deepgram';
+import { createTranscribeStream, downloadTranscribe } from './transcriber';
 
 function getDisplayName(userId: string, user?: User) {
 	return user ? `${user.username}_${user.discriminator}` : userId;
@@ -24,7 +24,7 @@ export function downloadRecording(
 		} else {
 			console.log(`✅ Recorded ${filename}`);
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-			downloadTranscribe(filename);
+			void downloadTranscribe(filename, getDisplayName(userId, user));
 		}
 	});
 }
@@ -36,7 +36,7 @@ export function streamRecording(
 	user?: User,
 ) {
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-	const transcribeStream = createTranscribeStream();
+	const transcribeStream = createTranscribeStream(getDisplayName(userId, user));
 	console.log(`👂 Started recording ${getDisplayName(userId, user)}`);
 	pipeline(opusStream, oggStream, transcribeStream, (err) => {
 		if (err) {

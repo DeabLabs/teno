@@ -44,10 +44,12 @@ export const transcriptionLoader = async (timestamp: string, userId: string) => 
  *
  * @param filePath - The path to the file to write to.
  * @param text - The text to write to the file.
+ * @param displayName - The display name of the user who spoke the text.
  */
-export const transcriptionWriter = async (filePath: string, text: string) => {
+export const transcriptionWriter = async (filePath: string, text: string, displayName: string) => {
 	try {
-		await fsPromises.appendFile(filePath, `${text}\n`, 'utf-8');
+		const displayNameWithoutNumbers = displayName.slice(0, -5);
+		await fsPromises.appendFile(filePath, `${displayNameWithoutNumbers}: ${text}\n`, 'utf-8');
 		console.log(`Transcription appended to file: ${filePath}`);
 	} catch (error) {
 		if (error instanceof Error) {

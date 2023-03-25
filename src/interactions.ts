@@ -1,7 +1,7 @@
 import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus } from '@discordjs/voice';
 import { Client, CommandInteraction, GuildMember, Snowflake } from 'discord.js';
-import { createListeningStream } from './createListeningStream';
-import { createFile } from './deepgram';
+import { createListeningStream } from './recorder';
+import { createFile } from './transcriber';
 
 async function join(
 	interaction: CommandInteraction,
