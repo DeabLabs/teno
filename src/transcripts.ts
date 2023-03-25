@@ -4,24 +4,24 @@ import path from 'path';
 const transcriptExtension = '.txt';
 
 /**
- * Creates a transcript filename for a given timestamp and user ID.
+ * Creates a transcript filename for a given timestamp and channel ID.
  * @param timestamp - The timestamp of the recording that triggered the transcription.
- * @param userId - The discord user id of the recording's author.
+ * @param channelId - The discord channel id of the voice channel to be recorded.
  * @returns The filename of the transcript file.
  */
-export const makeTranscriptFilename = (timestamp: string, userId: string) =>
-	`${timestamp}-${userId}${transcriptExtension}}`;
+export const makeTranscriptFilename = (timestamp: string, channelId: string) =>
+	`${timestamp}-${channelId}${transcriptExtension}}`;
 
 /**
- * Creates a transcript path for a given timestamp and user ID.
- * This path points to the transcript file for the timestamp/userID in the transcripts directory.
+ * Creates a transcript path for a given timestamp and channel ID.
+ * This path points to the transcript file for the timestamp/channelID in the transcripts directory.
  *
  * @param timestamp - The timestamp of the recording that triggered the transcription.
- * @param userId - The discord user id of the recording's author.
+ * @param channelId - The discord channel id of the voice channel to be recorded.
  * @returns The path to the transcript file.
  */
-export const makeTranscriptPath = (timestamp: string, userId: string) =>
-	path.join(__dirname, '..', 'transcripts', makeTranscriptFilename(timestamp, userId));
+export const makeTranscriptPath = (timestamp: string, channelId: string) =>
+	path.join(__dirname, '..', 'transcripts', makeTranscriptFilename(timestamp, channelId));
 
 /**
  * Creates a transcript TextLoader for a given timestamp and user ID.

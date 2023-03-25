@@ -1,6 +1,7 @@
 import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus } from '@discordjs/voice';
 import { Client, CommandInteraction, GuildMember, Snowflake } from 'discord.js';
 import { createListeningStream } from './createListeningStream';
+import { createFile } from './deepgram';
 
 async function join(
 	interaction: CommandInteraction,
@@ -24,6 +25,9 @@ async function join(
 			channel.members.forEach((member) => {
 				recordable.add(member.id);
 			});
+
+			// Create transcipt file
+			createFile(channel.id);
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;
@@ -46,31 +50,6 @@ async function join(
 
 	await interaction.followUp('Ready!');
 }
-
-// async function record(
-// 	interaction: CommandInteraction,
-// 	recordable: Set<Snowflake>,
-// 	client: Client,
-// 	connection?: VoiceConnection,
-// ) {
-// 	if (connection) {
-// 		const userId = interaction.options.get('speaker')!.value! as Snowflake;
-// 		recordable.add(userId);
-
-// 		const receiver = connection.receiver;
-// 		if (!connection.receiver.speaking.users.has(userId)) {
-// 			await interaction.reply({ ephemeral: true, content: 'No speakers available' });
-// 			return;
-// 		}
-// 		createFile(userId);
-
-// 		createListeningStream(receiver, userId, client.users.cache.get(userId));
-
-// 		await interaction.reply({ ephemeral: true, content: 'Listening!' });
-// 	} else {
-// 		await interaction.reply({ ephemeral: true, content: 'Join a voice channel and then try that again!' });
-// 	}
-// }
 
 async function leave(
 	interaction: CommandInteraction,

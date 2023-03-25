@@ -4,6 +4,7 @@ import { TranscriptionQueue } from './transcriptionQueue';
 import { promises as fsPromises } from 'fs';
 import { Config } from './config';
 import { makeTranscriptPath, transcriptionWriter } from './transcripts';
+import { Transform } from 'stream';
 
 // Replace with your file path and audio mimetype
 const mimetype = 'audio/ogg';
@@ -15,7 +16,7 @@ const transcriptionQueue = new TranscriptionQueue();
 
 let transcriptFilePath = '';
 
-export async function transcribe(audioBuffer, callback) {
+export async function streamTranscribe(audioBuffer, callback) {
 	const task = async () => {
 		try {
 			const transcription = await deepgram.transcription.preRecorded(
@@ -24,7 +25,6 @@ export async function transcribe(audioBuffer, callback) {
 			);
 
 			console.log(transcription.results.channels[0].alternatives[0].transcript);
-			//deleteRecording(filePath);
 
 			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
 			await transcriptionWriter(transcriptFilePath, transcriptionText);
@@ -36,13 +36,31 @@ export async function transcribe(audioBuffer, callback) {
 	await transcriptionQueue.add(task);
 }
 
-import { Transform } from 'stream';
+export async function downloadTranscribe(filePath) {
+	const task = async () => {
+		try {
+			const transcription = await deepgram.transcription.preRecorded(
+				{ buffer: readFileSync(filePath), mimetype: 'audio/ogg' },
+				{ punctuate: true, model: 'general', language: 'en-US', tier: 'enhanced' },
+			);
+			deleteRecording(filePath);
+			const transcriptionText = transcription.results.channels[0].alternatives[0].transcript;
+			console.log(transcriptionText);
+			if (transcriptionText.length > 0) {
+				await transcriptionWriter(transcriptFilePath, transcriptionText);
+			}
+		} catch (err) {
+			console.log(err);
+		}
+	};
+	await transcriptionQueue.add(task);
+}
 
 export function createTranscribeStream() {
 	return new Transform({
 		objectMode: true,
 		async transform(audioBuffer, encoding, callback) {
-			transcribe(Buffer.from(audioBuffer), callback);
+			streamTranscribe(Buffer.from(audioBuffer), callback);
 		},
 	});
 }
@@ -56,11 +74,11 @@ function deleteRecording(filePath) {
 	}
 }
 
-export function createFile(userId) {
+export function createFile(channelId) {
 	const timestamp = Date.now();
 
-	transcriptFilePath = makeTranscriptPath(timestamp.toString(), userId);
+	transcriptFilePath = makeTranscriptPath(timestamp.toString(), channelId);
 
-	const content = '[Beginning of Transcript]\n';
+	const content = '[Beginning of Transcript]';
 	transcriptionWriter(transcriptFilePath, content);
 }
