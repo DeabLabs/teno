@@ -2,7 +2,11 @@
 	"name": "teno-bot",
 	"version": "0.0.1",
 	"description": "Discord Stenographer bot written using @discordjs/voice",
-	"main": "dist/bot.js",
+	"exports": "./dist/bot.js",
+	"type": "module",
+	"engines": {
+		"node": ">=18.0.0"
+	},
 	"scripts": {
 		"start": "npm run build && node dist/bot",
 		"lint": "prettier --cache --check . && eslint src --ext mjs,js,ts --cache",
@@ -16,6 +20,7 @@
 		"@deepgram/sdk": "^1.18.3",
 		"@discordjs/opus": "^0.8.0",
 		"@discordjs/voice": "^0.11.0",
+		"@google-cloud/text-to-speech": "^4.2.1",
 		"discord.js": "^13.10.3",
 		"dotenv": "^16.0.3",
 		"langchain": "^0.0.40",
