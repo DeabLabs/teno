@@ -68,6 +68,14 @@ export class Meeting {
 		// writeUserJoined(userId);
 	}
 
+	public getStartMessage(): Message {
+		return this.meetingStartMessage;
+	}
+
+	public getTranscriptFilePath(): string {
+		return this.transcriptFilePath;
+	}
+
 	public timeSinceStart(): string {
 		const currentTime = new Date();
 		const timeDiff = currentTime.getTime() - this.startTime.getTime();

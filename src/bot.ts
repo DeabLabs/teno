@@ -1,9 +1,11 @@
 import { getVoiceConnection } from '@discordjs/voice';
 import { GatewayIntentBits } from 'discord-api-types/v10';
-import { Interaction, Constants, Client } from 'discord.js';
+import { Interaction, Constants, Client, Message } from 'discord.js';
 import { Config } from './config';
 import { deploy } from './deploy';
 import { interactionHandlers } from './interactions';
+import { answerQuestionOnTranscript } from './langchain';
+import type { Meeting } from './meeting';
 
 const botToken = Config.get('TOKEN');
 
@@ -12,6 +14,12 @@ const client = new Client({
 });
 
 const { Events } = Constants;
+
+const meetings: Meeting[] = [];
+
+export function addMeeting(meeting: Meeting) {
+	meetings.push(meeting);
+}
 
 client.on(Events.CLIENT_READY, () => console.log('Ready!'));
 
@@ -42,6 +50,34 @@ client.on(Events.INTERACTION_CREATE, async (interaction: Interaction) => {
 		}
 	} catch (error) {
 		console.warn(error);
+	}
+});
+
+client.on('messageCreate', async (message: Message) => {
+	// Create an array to store all your Meeting objects
+	// You need to properly manage the array to add and remove Meeting objects as they are created and finished
+
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+	const targetMeeting = meetings.find(
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+		(meeting) => meeting.getStartMessage().reference?.messageId === message.reference?.messageId,
+	);
+
+	if (targetMeeting) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+		const question = message.content;
+		const transcriptFilePath = targetMeeting.getTranscriptFilePath();
+
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+			const answer = await answerQuestionOnTranscript(question, transcriptFilePath);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+			await message.reply(answer); // Send the answer as a reply to the question
+		} catch (error) {
+			console.error('Error answering question:', error);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+			await message.reply('An error occurred while trying to answer your question. Please try again.');
+		}
 	}
 });
 

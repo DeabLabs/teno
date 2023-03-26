@@ -1,5 +1,6 @@
 import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus } from '@discordjs/voice';
 import { Client, CommandInteraction, GuildMember, Snowflake, TextChannel, Message } from 'discord.js';
+import { addMeeting } from './bot.js';
 import { Meeting } from './meeting.js';
 import { createListeningStream } from './recorder';
 import { createFile } from './transcriber';
@@ -33,10 +34,10 @@ async function join(
 			const startMessage = (await interaction.followUp(
 				`Teno started listening to a meeting in the voice channel "${channel.name}". Reply to this message to ask Teno about it!`,
 			)) as Message;
-			// Create a new Meeting object
 			const textChannel = interaction.channel as TextChannel;
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-call
 			meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);
+			addMeeting(meeting);
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;
