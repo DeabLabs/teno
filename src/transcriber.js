@@ -1,10 +1,12 @@
 import { readFileSync, unlinkSync, writeFileSync } from 'fs';
-import { Deepgram } from '@deepgram/sdk';
-import { TranscriptionQueue } from './transcriptionQueue';
+import DeepgramPkg from '@deepgram/sdk';
+import { TranscriptionQueue } from './transcriptionQueue.js';
 import { promises as fsPromises } from 'fs';
-import { Config } from './config';
-import { makeTranscriptPath, transcriptionWriter } from './transcripts';
+import { Config } from './config.js';
+import { makeTranscriptPath, transcriptionWriter } from './transcripts.js';
 import { Transform } from 'stream';
+
+const { Deepgram } = DeepgramPkg;
 
 // Replace with your file path and audio mimetype
 const mimetype = 'audio/ogg';

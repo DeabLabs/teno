@@ -2,8 +2,8 @@ import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus }
 import { Client, CommandInteraction, GuildMember, Snowflake, TextChannel, Message } from 'discord.js';
 import { addMeeting } from './bot.js';
 import { Meeting } from './meeting.js';
-import { createListeningStream } from './recorder';
-import { createFile } from './transcriber';
+import { createListeningStream } from './recorder.js';
+import { createFile } from './transcriber.js';
 
 async function join(
 	interaction: CommandInteraction,

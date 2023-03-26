@@ -1,11 +1,11 @@
 import { getVoiceConnection } from '@discordjs/voice';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Interaction, Constants, Client, Message } from 'discord.js';
-import { Config } from './config';
-import { deploy } from './deploy';
-import { interactionHandlers } from './interactions';
-import { answerQuestionOnTranscript } from './langchain';
-import type { Meeting } from './meeting';
+import { Config } from './config.js';
+import { deploy } from './deploy.js';
+import { interactionHandlers } from './interactions.js';
+import { answerQuestionOnTranscript } from './langchain.js';
+import type { Meeting } from './meeting.js';
 
 const botToken = Config.get('TOKEN');
 
