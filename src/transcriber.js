@@ -81,4 +81,5 @@ export function createFile(channelId) {
 
 	const content = '[Beginning of Transcript]';
 	transcriptionWriter(transcriptFilePath, content);
+	return transcriptFilePath;
 }

@@ -43,6 +43,6 @@
 		"target": "ES2021",
 		"useDefineForClassFields": true
 	},
-	"include": ["src/*.ts"],
+	"include": ["src/*.ts", "src/tts.js"],
 	"exclude": []
 }

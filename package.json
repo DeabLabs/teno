@@ -16,6 +16,7 @@
 		"@deepgram/sdk": "^1.18.3",
 		"@discordjs/opus": "^0.8.0",
 		"@discordjs/voice": "^0.11.0",
+		"@google-cloud/text-to-speech": "^4.2.1",
 		"discord.js": "^13.10.3",
 		"dotenv": "^16.0.3",
 		"langchain": "^0.0.40",
