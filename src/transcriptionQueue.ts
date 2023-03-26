@@ -12,11 +12,9 @@ export class TranscriptionQueue {
 	}
 
 	private async processQueue(): Promise<void> {
-		console.log('Processing queue', this.queue.length);
 		this.isProcessing = true;
 		while (this.queue.length > 0) {
 			const task = this.queue.shift();
-			console.log('Items left', this.queue.length);
 			if (task) {
 				await task();
 			}

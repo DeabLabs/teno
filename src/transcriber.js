@@ -70,7 +70,6 @@ export function createTranscribeStream(displayName) {
 function deleteRecording(filePath) {
 	try {
 		unlinkSync(filePath);
-		console.log('File removed:', filePath);
 	} catch (err) {
 		console.error(err);
 	}

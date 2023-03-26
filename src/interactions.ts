@@ -34,6 +34,7 @@ async function join(
 			const startMessage = (await interaction.followUp(
 				`Teno started listening to a meeting in the voice channel "${channel.name}". Reply to this message to ask Teno about it!`,
 			)) as Message;
+			console.log('Start message id: ', startMessage.id);
 			const textChannel = interaction.channel as TextChannel;
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-call
 			meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);

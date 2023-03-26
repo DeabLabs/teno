@@ -23,7 +23,7 @@ const secretary = ChatPromptTemplate.fromPromptMessages([
 export async function answerQuestionOnTranscript(question: string, transcriptFilePath: string) {
 	// Return the contents of the file at the given filepath as a string
 	const contents = await fsPromises.readFile(transcriptFilePath, 'utf-8');
-
+	console.log(contents);
 	const answer = await model.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
