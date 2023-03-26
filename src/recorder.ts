@@ -3,6 +3,7 @@ import { pipeline } from 'node:stream';
 import { AudioReceiveStream, EndBehaviorType, VoiceReceiver } from '@discordjs/voice';
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
+import type { Meeting } from './meeting';
 import { createTranscribeStream, downloadTranscribe } from './transcriber';
 
 function getDisplayName(userId: string, user?: User) {
@@ -12,6 +13,7 @@ function getDisplayName(userId: string, user?: User) {
 export function downloadRecording(
 	opusStream: AudioReceiveStream,
 	oggStream: prism.opus.OggLogicalBitstream,
+	meeting: Meeting,
 	userId: string,
 	user?: User,
 ) {
@@ -22,6 +24,8 @@ export function downloadRecording(
 		if (err) {
 			console.warn(`❌ Error recording file ${filename} - ${err.message}`);
 		} else {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			meeting.stoppedSpeaking(userId);
 			console.log(`✅ Recorded ${filename}`);
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			void downloadTranscribe(filename, getDisplayName(userId, user));
@@ -32,6 +36,7 @@ export function downloadRecording(
 export function streamRecording(
 	opusStream: AudioReceiveStream,
 	oggStream: prism.opus.OggLogicalBitstream,
+	meeting: Meeting,
 	userId: string,
 	user?: User,
 ) {
@@ -42,12 +47,13 @@ export function streamRecording(
 		if (err) {
 			console.warn(`❌ Error recording`);
 		} else {
+			meeting.stoppedSpeaking(userId);
 			console.log(`✅ Recorded ${getDisplayName(userId, user)}`);
 		}
 	});
 }
 
-export function createListeningStream(receiver: VoiceReceiver, userId: string, user?: User) {
+export function createListeningStream(receiver: VoiceReceiver, userId: string, meeting: Meeting, user?: User) {
 	const opusStream = receiver.subscribe(userId, {
 		end: {
 			behavior: EndBehaviorType.AfterSilence,
@@ -65,6 +71,6 @@ export function createListeningStream(receiver: VoiceReceiver, userId: string, u
 		},
 	});
 
-	downloadRecording(opusStream, oggStream, userId, user);
-	// streamRecording(opusStream, oggStream, userId, user);
+	downloadRecording(opusStream, oggStream, meeting, userId, user);
+	// streamRecording(opusStream, oggStream, meeting, userId, user);
 }

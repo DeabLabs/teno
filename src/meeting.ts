@@ -31,6 +31,10 @@ export class Meeting {
 		this.speaking.add(userId);
 	}
 
+	public stoppedSpeaking(userId: string): void {
+		this.speaking.delete(userId);
+	}
+
 	public addMember(userId: string): void {
 		this.members.add(userId);
 	}

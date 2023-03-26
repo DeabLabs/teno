@@ -10,6 +10,7 @@ async function join(
 	client: Client,
 	connection?: VoiceConnection,
 ) {
+	let meeting: Meeting;
 	await interaction.deferReply();
 	if (!connection) {
 		if (interaction.member instanceof GuildMember && interaction.member.voice.channel) {
@@ -35,7 +36,7 @@ async function join(
 			// Create a new Meeting object
 			const textChannel = interaction.channel as TextChannel;
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-call
-			const meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);
+			meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;
@@ -47,8 +48,11 @@ async function join(
 		const receiver = connection.receiver;
 
 		receiver.speaking.on('start', (userId) => {
-			if (recordable.has(userId)) {
-				createListeningStream(receiver, userId, client.users.cache.get(userId));
+			if (!meeting.isSpeaking(userId)) {
+				if (recordable.has(userId)) {
+					meeting.addSpeaking(userId);
+					createListeningStream(receiver, userId, meeting, client.users.cache.get(userId));
+				}
 			}
 		});
 	} catch (error) {
