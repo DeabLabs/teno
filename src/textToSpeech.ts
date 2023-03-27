@@ -2,7 +2,7 @@ import { Readable } from 'stream';
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import * as fetch from 'node-fetch';
-import { Config } from './config.js'; // Import your Config module
+import { Config } from './config.js';
 
 export async function textToSpeech(
 	voiceId: string,
@@ -62,9 +62,9 @@ export async function playAudioBuffer(arrayBuffer: ArrayBuffer, connection: Voic
 }
 
 export async function playTextToSpeech(connection: VoiceConnection, text: string): Promise<void> {
-	const defaultVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Replace with the default Voice ID you want to use
-	const defaultStability = 0;
-	const defaultSimilarityBoost = 0;
+	const defaultVoiceId = 'WSS2tQv38AU3q7jpFVPd'; // Replace with the default Voice ID you want to use
+	const defaultStability = 0.3;
+	const defaultSimilarityBoost = 0.8;
 
 	const apiKey = Config.ELEVENLABS_API_KEY;
 	if (!apiKey) {

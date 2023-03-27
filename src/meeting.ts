@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/prefer-readonly */
 import type { VoiceBasedChannel, TextChannel, Message } from 'discord.js';
-// import { writeUserJoined } from './transcripts';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class Meeting {
 	private speaking: Set<string>;
 	private members: Set<string>;
@@ -65,7 +62,6 @@ export class Meeting {
 
 	public userJoined(userId: string): void {
 		this.addMember(userId);
-		// writeUserJoined(userId);
 	}
 
 	public getStartMessage(): Message {

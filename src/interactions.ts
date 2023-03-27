@@ -53,6 +53,25 @@ async function join(
 
 	try {
 		await entersState(connection, VoiceConnectionStatus.Ready, 20e3);
+		// https://discordjs.guide/voice/voice-connections.html#handling-disconnects
+		connection.on(VoiceConnectionStatus.Disconnected, async () => {
+			if (!connection) return;
+
+			try {
+				console.log('Disconnected! Attempting to reconnect...');
+				await Promise.race([
+					entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+					entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+				]);
+				console.log('Reconnected!');
+				// Seems to be reconnecting to a new channel - ignore disconnect
+			} catch (error) {
+				console.warn('Failed to reconnect, destroying connection');
+				// Seems to be a real disconnect which SHOULDN'T be recovered from
+				connection.destroy();
+			}
+		});
+
 		const receiver = connection.receiver;
 
 		receiver.speaking.on('start', (userId) => {
@@ -95,5 +114,4 @@ export const interactionHandlers = new Map<
 >();
 
 interactionHandlers.set('join', join);
-// interactionHandlers.set('record', record);
 interactionHandlers.set('leave', leave);

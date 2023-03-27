@@ -13,7 +13,7 @@ const transcriptExtension = '.txt';
  * @returns The filename of the transcript file.
  */
 export const makeTranscriptFilename = (timestamp: string, channelId: string) =>
-	`${timestamp}-${channelId}${transcriptExtension}}`;
+	`${timestamp}-${channelId}${transcriptExtension}`;
 
 /**
  * Creates a transcript path for a given timestamp and channel ID.

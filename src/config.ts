@@ -1,7 +1,6 @@
-import { config } from 'dotenv';
-import { parseEnv } from 'znv';
-import { z } from 'zod';
-config();
+import dotenv from 'dotenv';
+import { parseEnv, z } from 'znv';
+dotenv.config();
 
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
