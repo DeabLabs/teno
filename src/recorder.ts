@@ -4,7 +4,7 @@ import { AudioReceiveStream, EndBehaviorType, VoiceReceiver } from '@discordjs/v
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
 import type { Meeting } from './meeting.js';
-import { createTranscribeStream, downloadTranscribe } from './transcriber.js';
+import { downloadTranscribe } from './transcriber.js';
 
 function getDisplayName(userId: string, user?: User) {
 	return user ? `${user.username}_${user.discriminator}` : userId;
@@ -33,25 +33,25 @@ export function downloadRecording(
 	});
 }
 
-export function streamRecording(
-	opusStream: AudioReceiveStream,
-	oggStream: prism.opus.OggLogicalBitstream,
-	meeting: Meeting,
-	userId: string,
-	user?: User,
-) {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-	const transcribeStream = createTranscribeStream(getDisplayName(userId, user));
-	console.log(`👂 Started recording ${getDisplayName(userId, user)}`);
-	pipeline(opusStream, oggStream, transcribeStream, (err) => {
-		if (err) {
-			console.warn(`❌ Error recording`);
-		} else {
-			meeting.stoppedSpeaking(userId);
-			console.log(`✅ Recorded ${getDisplayName(userId, user)}`);
-		}
-	});
-}
+// export function streamRecording(
+// 	opusStream: AudioReceiveStream,
+// 	oggStream: prism.opus.OggLogicalBitstream,
+// 	meeting: Meeting,
+// 	userId: string,
+// 	user?: User,
+// ) {
+// 	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+// 	const transcribeStream = createTranscribeStream(getDisplayName(userId, user));
+// 	console.log(`👂 Started recording ${getDisplayName(userId, user)}`);
+// 	pipeline(opusStream, oggStream, transcribeStream, (err) => {
+// 		if (err) {
+// 			console.warn(`❌ Error recording`);
+// 		} else {
+// 			meeting.stoppedSpeaking(userId);
+// 			console.log(`✅ Recorded ${getDisplayName(userId, user)}`);
+// 		}
+// 	});
+// }
 
 export function createListeningStream(receiver: VoiceReceiver, userId: string, meeting: Meeting, user?: User) {
 	const opusStream = receiver.subscribe(userId, {
