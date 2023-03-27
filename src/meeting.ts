@@ -1,27 +1,65 @@
-import type { VoiceBasedChannel, TextChannel, Message } from 'discord.js';
+import { getVoiceConnection } from '@discordjs/voice';
+import type { Message, CommandInteraction, Client } from 'discord.js';
+import { TextChannel } from 'discord.js';
+import { GuildMember } from 'discord.js';
+import { makeTranscriptFilename, makeTranscriptPath } from './transcripts.js';
 
 export class Meeting {
+	public id: string;
+	public initialized = false;
+	public transcriptFilePath: string;
+	public transcriptFileName: string;
+	private guildId: string;
+	private textChannelId: string;
 	private speaking: Set<string>;
 	private members: Set<string>;
 	private ignore: Set<string>;
 	private startTime: Date;
-	private voiceChannel: VoiceBasedChannel;
-	private meetingStartMessage!: Message;
-	private transcriptFilePath: string;
 
-	public constructor(
-		textChannel: TextChannel,
-		voiceChannel: VoiceBasedChannel,
-		startMessage: Message,
-		transcriptFilePath: string,
-	) {
+	public constructor({
+		meetingMessageId,
+		textChannelId,
+		guildId,
+	}: {
+		meetingMessageId: string;
+		textChannelId: string;
+		guildId: string;
+	}) {
+		this.id = meetingMessageId;
+		this.textChannelId = textChannelId;
+		this.guildId = guildId;
 		this.speaking = new Set<string>();
 		this.members = new Set<string>();
 		this.ignore = new Set<string>();
 		this.startTime = new Date();
-		this.voiceChannel = voiceChannel;
-		this.meetingStartMessage = startMessage;
-		this.transcriptFilePath = transcriptFilePath;
+
+		this.transcriptFileName = makeTranscriptFilename(guildId, textChannelId, meetingMessageId);
+		this.transcriptFilePath = makeTranscriptPath(this.transcriptFileName);
+	}
+
+	static async sendMeetingMessage(interaction: CommandInteraction) {
+		const member = interaction.member;
+		if (member instanceof GuildMember && member.voice.channel) {
+			const meetingMessage = (await interaction.followUp(
+				`Teno is listening to a meeting in ${member.voice.channel.name}. Reply to this message to ask Teno about it!`,
+			)) as Message;
+			return meetingMessage;
+		} else {
+			console.error('Could not get member from interaction');
+		}
+		return;
+	}
+
+	public async getStartMessage(client: Client) {
+		const channel = await client.channels.fetch(this.textChannelId);
+		if (channel instanceof TextChannel) {
+			return channel.messages.fetch(this.id);
+		}
+		return;
+	}
+
+	public getConnection() {
+		return getVoiceConnection(this.guildId);
 	}
 
 	public addSpeaking(userId: string): void {
@@ -64,20 +102,12 @@ export class Meeting {
 		this.addMember(userId);
 	}
 
-	public getStartMessage(): Message {
-		return this.meetingStartMessage;
-	}
-
-	public getTranscriptFilePath(): string {
-		return this.transcriptFilePath;
-	}
-
 	public timeSinceStart(): string {
 		const currentTime = new Date();
 		const timeDiff = currentTime.getTime() - this.startTime.getTime();
 		const hours = Math.floor(timeDiff / (1000 * 60 * 60));
 		const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-		return `${hours} hours and ${minutes} minutes`;
+		return `${hours}:${minutes}`;
 	}
 }

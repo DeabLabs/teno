@@ -1,28 +1,16 @@
-import { getVoiceConnection } from '@discordjs/voice';
 import { GatewayIntentBits } from 'discord-api-types/v10';
-import type { Interaction, Message } from 'discord.js';
 import { Constants, Client } from 'discord.js';
 import { Config } from './config.js';
 import { deploy } from './deploy.js';
-import { interactionHandlers } from './interactions.js';
-import { answerQuestionOnTranscript } from './langchain.js';
-import type { Meeting } from './meeting.js';
+import { Teno } from './teno.js';
 
+const { Events } = Constants;
 const botToken = Config.TOKEN;
-
 const client = new Client({
 	intents: [GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.Guilds],
 });
 
-const { Events } = Constants;
-
-const meetings: Meeting[] = [];
-
-export function addMeeting(meeting: Meeting) {
-	meetings.push(meeting);
-}
-
-client.on(Events.CLIENT_READY, () => console.log('Ready!'));
+client.on(Events.CLIENT_READY, () => console.log('App started'));
 
 client.on(Events.CLIENT_READY, async () => {
 	// Automatically deploy the commands to all guilds the bot is in
@@ -33,51 +21,24 @@ client.on(Events.CLIENT_READY, async () => {
 	// await deploy(client.guilds.cache.first());
 });
 
-/**
- * The IDs of the users that can be recorded by the bot.
- */
-const recordable = new Set<string>();
-
-client.on(Events.INTERACTION_CREATE, async (interaction: Interaction) => {
-	if (!interaction.isCommand() || !interaction.guildId) return;
-
-	const handler = interactionHandlers.get(interaction.commandName);
-
-	try {
-		if (handler) {
-			await handler(interaction, recordable, client, getVoiceConnection(interaction.guildId));
-		} else {
-			await interaction.reply('Unknown command');
-		}
-	} catch (error) {
-		console.warn(error);
-	}
-});
-
-client.on('messageCreate', async (message: Message) => {
-	// Create an array to store all your Meeting objects
-	// You need to properly manage the array to add and remove Meeting objects as they are created and finished
-
-	const targetMeeting = meetings.find((meeting) => meeting.getStartMessage().id === message.reference?.messageId);
-	console.log('Target meeting', targetMeeting);
-
-	if (targetMeeting) {
-		const question = message.content;
-		const transcriptFilePath = targetMeeting.getTranscriptFilePath();
-		console.log('Transcription file path:', transcriptFilePath);
-
-		try {
-			console.log('Question: ', question);
-			const answer = await answerQuestionOnTranscript(question, transcriptFilePath);
-			console.log('Answer: ', answer);
-			await message.reply(answer); // Send the answer as a reply to the question
-		} catch (error) {
-			console.error('Error answering question:', error);
-			await message.reply('An error occurred while trying to answer your question. Please try again.');
-		}
-	}
-});
-
 client.on(Events.ERROR, console.warn);
+
+// Instantiate Tenos for each guild
+const tenoInstances = new Map<string, Teno>();
+client.on(Events.CLIENT_READY, () => {
+	client.guilds.cache.forEach((guild) => {
+		const tenoInstance = new Teno({ client, guild });
+		tenoInstances.set(guild.id, tenoInstance);
+	});
+});
+
+client.on('guildCreate', (guild) => {
+	const tenoInstance = new Teno({ client, guild });
+	tenoInstances.set(guild.id, tenoInstance);
+});
+
+client.on('guildDelete', (guild) => {
+	tenoInstances.delete(guild.id);
+});
 
 void client.login(botToken);

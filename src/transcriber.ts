@@ -1,7 +1,7 @@
 import DeepgramPkg from '@deepgram/sdk';
 import { Config } from './config.js';
 import { TranscriptionQueue } from './transcriptionQueue.js';
-import { makeTranscriptPath, transcriptionWriter } from './transcripts.js';
+import { transcriptionWriter } from './transcripts.js';
 
 const { Deepgram } = DeepgramPkg;
 
@@ -13,9 +13,7 @@ const deepgramToken = Config.DEEPGRAM;
 const deepgram = new Deepgram(deepgramToken);
 const transcriptionQueue = new TranscriptionQueue();
 
-let transcriptFilePath = '';
-
-export async function streamTranscribe(audioBuffer: Buffer, displayName: string) {
+export async function streamTranscribe(audioBuffer: Buffer, displayName: string, transcriptFilePath: string) {
 	const task = async () => {
 		try {
 			const transcription = await deepgram.transcription.preRecorded(
@@ -27,7 +25,8 @@ export async function streamTranscribe(audioBuffer: Buffer, displayName: string)
 
 			if (transcriptionText) {
 				console.log(transcriptionText);
-				await transcriptionWriter(transcriptFilePath, transcriptionText, displayName);
+				const content = `${displayName}: ${transcriptionText}`;
+				await transcriptionWriter(transcriptFilePath, content);
 			} else {
 				console.log('No transcription text from deepgram');
 			}
@@ -44,12 +43,7 @@ export async function streamTranscribe(audioBuffer: Buffer, displayName: string)
 	await transcriptionQueue.add(task);
 }
 
-export async function createFile(channelId: string) {
-	const timestamp = Date.now();
-
-	transcriptFilePath = makeTranscriptPath(timestamp.toString(), channelId);
-
+export async function createFile(filepath: string) {
 	const content = '[Beginning of Transcript]';
-	await transcriptionWriter(transcriptFilePath, content, '');
-	return transcriptFilePath;
+	await transcriptionWriter(filepath, content);
 }
