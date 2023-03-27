@@ -30,7 +30,7 @@ async function join(
 			});
 
 			// Create transcipt file
-			const transcriptFilePath = createFile(channel.id);
+			const transcriptFilePath = await createFile(channel.id);
 			const startMessage = (await interaction.followUp(
 				`Teno started listening to a meeting in the voice channel "${channel.name}". Reply to this message to ask Teno about it!`,
 			)) as Message;
