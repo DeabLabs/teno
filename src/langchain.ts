@@ -8,7 +8,7 @@ import { Config } from './config.js';
 const model = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-3.5-turbo',
-	openAIApiKey: Config.get('OPENAI_API_KEY')!,
+	openAIApiKey: Config.OPENAI_API_KEY,
 });
 
 const secretary = ChatPromptTemplate.fromPromptMessages([

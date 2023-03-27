@@ -1,5 +1,7 @@
-import { entersState, joinVoiceChannel, VoiceConnection, VoiceConnectionStatus } from '@discordjs/voice';
-import { Client, CommandInteraction, GuildMember, Snowflake, TextChannel, Message } from 'discord.js';
+import type { VoiceConnection } from '@discordjs/voice';
+import { entersState, joinVoiceChannel, VoiceConnectionStatus } from '@discordjs/voice';
+import type { Client, CommandInteraction, Snowflake, TextChannel, Message } from 'discord.js';
+import { GuildMember } from 'discord.js';
 import { addMeeting } from './bot.js';
 import { Meeting } from './meeting.js';
 import { createListeningStream } from './recorder.js';

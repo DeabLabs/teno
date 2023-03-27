@@ -11,8 +11,7 @@ const { Deepgram } = DeepgramPkg;
 const mimetype = 'audio/ogg';
 
 // Initializes the Deepgram SDK
-const deepgramToken = Config.get('DEEPGRAM');
-if (!deepgramToken) throw new Error('Missing DEEPGRAM in .env file');
+const deepgramToken = Config.DEEPGRAM;
 const deepgram = new Deepgram(deepgramToken);
 const transcriptionQueue = new TranscriptionQueue();
 

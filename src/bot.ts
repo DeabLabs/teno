@@ -1,13 +1,14 @@
 import { getVoiceConnection } from '@discordjs/voice';
 import { GatewayIntentBits } from 'discord-api-types/v10';
-import { Interaction, Constants, Client, Message } from 'discord.js';
+import type { Interaction, Message } from 'discord.js';
+import { Constants, Client } from 'discord.js';
 import { Config } from './config.js';
 import { deploy } from './deploy.js';
 import { interactionHandlers } from './interactions.js';
 import { answerQuestionOnTranscript } from './langchain.js';
 import type { Meeting } from './meeting.js';
 
-const botToken = Config.get('TOKEN');
+const botToken = Config.TOKEN;
 
 const client = new Client({
 	intents: [GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.Guilds],
@@ -57,26 +58,21 @@ client.on('messageCreate', async (message: Message) => {
 	// Create an array to store all your Meeting objects
 	// You need to properly manage the array to add and remove Meeting objects as they are created and finished
 
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 	const targetMeeting = meetings.find((meeting) => meeting.getStartMessage().id === message.reference?.messageId);
 	console.log('Target meeting', targetMeeting);
 
 	if (targetMeeting) {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
 		const question = message.content;
 		const transcriptFilePath = targetMeeting.getTranscriptFilePath();
 		console.log('Transcription file path:', transcriptFilePath);
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 			console.log('Question: ', question);
 			const answer = await answerQuestionOnTranscript(question, transcriptFilePath);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
 			console.log('Answer: ', answer);
 			await message.reply(answer); // Send the answer as a reply to the question
 		} catch (error) {
 			console.error('Error answering question:', error);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
 			await message.reply('An error occurred while trying to answer your question. Please try again.');
 		}
 	}

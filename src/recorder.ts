@@ -1,6 +1,7 @@
 import { createWriteStream } from 'fs';
 import { pipeline } from 'node:stream';
-import { AudioReceiveStream, EndBehaviorType, VoiceReceiver } from '@discordjs/voice';
+import type { AudioReceiveStream, VoiceReceiver } from '@discordjs/voice';
+import { EndBehaviorType } from '@discordjs/voice';
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
 import type { Meeting } from './meeting.js';

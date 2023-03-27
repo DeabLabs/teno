@@ -1,5 +1,6 @@
 import { Readable } from 'stream';
-import { AudioPlayerStatus, createAudioPlayer, createAudioResource, VoiceConnection } from '@discordjs/voice';
+import type { VoiceConnection } from '@discordjs/voice';
+import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import * as fetch from 'node-fetch';
 import { Config } from './config.js'; // Import your Config module
 
@@ -65,7 +66,7 @@ export async function playTextToSpeech(connection: VoiceConnection, text: string
 	const defaultStability = 0;
 	const defaultSimilarityBoost = 0;
 
-	const apiKey = Config.get('ELEVENLABS_API_KEY');
+	const apiKey = Config.ELEVENLABS_API_KEY;
 	if (!apiKey) {
 		throw new Error('ELEVENLABS_API_KEY is not set in the configuration');
 	}
