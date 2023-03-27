@@ -1,7 +1,7 @@
 // import { LLMChain } from 'langchain/chains';
 import { promises as fsPromises } from 'fs';
 import { ChatOpenAI } from 'langchain/chat_models';
-import { SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate } from 'langchain/prompts';
+import { HumanMessagePromptTemplate, ChatPromptTemplate } from 'langchain/prompts';
 // import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
 import { Config } from './config.js';
 
@@ -12,11 +12,8 @@ const model = new ChatOpenAI({
 });
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
-	SystemMessagePromptTemplate.fromTemplate(
-		'You are a neutral secretary, you are responsible for answering questions about the transcript of a meeting. Your job is to read a transcript, then answer questions about it in a clear, concise manner.',
-	),
 	HumanMessagePromptTemplate.fromTemplate(
-		'Read the following meeting transcript, then answer this question about the transcript: {question}.\n\n{transcript}',
+		'You are a secretary, and you will be given a rough transcript of a voice call. Your job is to read a transcript, then answer questions about it in a clear, concise manner. In your answer, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context. Limit all unnecessary prose.\n\nRead the following meeting transcript, then answer this question about the transcript: {question}.\n\n[Transcript start]\n{transcript}',
 	),
 ]);
 

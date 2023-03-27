@@ -3,6 +3,7 @@ import { Client, CommandInteraction, GuildMember, Snowflake, TextChannel, Messag
 import { addMeeting } from './bot.js';
 import { Meeting } from './meeting.js';
 import { createListeningStream } from './recorder.js';
+import { playTextToSpeech } from './textToSpeech.js';
 import { createFile } from './transcriber.js';
 
 async function join(
@@ -20,7 +21,7 @@ async function join(
 				channelId: channel.id,
 				guildId: channel.guild.id,
 				selfDeaf: false,
-				selfMute: true,
+				selfMute: false,
 				// @ts-expect-error Currently voice is built in mind with API v10 whereas discord.js v13 uses API v9.
 				adapterCreator: channel.guild.voiceAdapterCreator,
 			});
@@ -32,13 +33,16 @@ async function join(
 			// Create transcipt file
 			const transcriptFilePath = createFile(channel.id);
 			const startMessage = (await interaction.followUp(
-				`Teno started listening to a meeting in the voice channel "${channel.name}". Reply to this message to ask Teno about it!`,
+				`Teno is listening to a meeting in ${channel.name}. Reply to this message to ask Teno about it!`,
 			)) as Message;
 			console.log('Start message id: ', startMessage.id);
 			const textChannel = interaction.channel as TextChannel;
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-call
 			meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);
 			addMeeting(meeting);
+
+			// Play a sound to indicate that the bot has joined the channel
+			await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know, ya dig?');
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;

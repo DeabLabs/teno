@@ -3,7 +3,7 @@ config();
 
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
-const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY'] as const;
+const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY', 'ELEVENLABS_API_KEY'] as const;
 
 /**
  * A map of environment variables.

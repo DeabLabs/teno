@@ -54,7 +54,6 @@ client.on(Events.INTERACTION_CREATE, async (interaction: Interaction) => {
 });
 
 client.on('messageCreate', async (message: Message) => {
-	console.log('Reply reference id: ', message.reference?.messageId);
 	// Create an array to store all your Meeting objects
 	// You need to properly manage the array to add and remove Meeting objects as they are created and finished
 

@@ -1,0 +1,75 @@
+import { Readable } from 'stream';
+import { AudioPlayerStatus, createAudioPlayer, createAudioResource, VoiceConnection } from '@discordjs/voice';
+import * as fetch from 'node-fetch';
+import { Config } from './config.js'; // Import your Config module
+
+export async function textToSpeech(
+	voiceId: string,
+	text: string,
+	apiKey: string,
+	stability: number,
+	similarity_boost: number,
+): Promise<ArrayBuffer> {
+	const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`;
+	const headers = {
+		'Content-Type': 'application/json',
+		'xi-api-key': apiKey,
+		accept: 'audio/mpeg',
+	};
+
+	const body = JSON.stringify({
+		text,
+		voice_settings: {
+			stability,
+			similarity_boost,
+		},
+	});
+
+	const response = await fetch.default(url, {
+		method: 'POST',
+		headers: headers,
+		body: body,
+	});
+
+	if (!response.ok) {
+		throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+	}
+
+	const arrayBuffer = await response.arrayBuffer();
+	return arrayBuffer;
+}
+
+export async function playAudioBuffer(arrayBuffer: ArrayBuffer, connection: VoiceConnection): Promise<void> {
+	const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+	const bufferStream = Readable.from(buffer);
+	const audioResource = createAudioResource(bufferStream);
+	const audioPlayer = createAudioPlayer();
+
+	audioPlayer.play(audioResource);
+	connection.subscribe(audioPlayer);
+
+	return new Promise((resolve, reject) => {
+		audioPlayer.on(AudioPlayerStatus.Idle, () => {
+			resolve();
+		});
+
+		audioPlayer.on('error', (error) => {
+			console.error('Error while playing audio:', error);
+			reject(error);
+		});
+	});
+}
+
+export async function playTextToSpeech(connection: VoiceConnection, text: string): Promise<void> {
+	const defaultVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Replace with the default Voice ID you want to use
+	const defaultStability = 0;
+	const defaultSimilarityBoost = 0;
+
+	const apiKey = Config.get('ELEVENLABS_API_KEY');
+	if (!apiKey) {
+		throw new Error('ELEVENLABS_API_KEY is not set in the configuration');
+	}
+
+	const buffer = await textToSpeech(defaultVoiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
+	await playAudioBuffer(buffer, connection);
+}
