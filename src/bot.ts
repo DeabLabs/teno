@@ -15,10 +15,10 @@ const client = new Client({
 
 const { Events } = Constants;
 
-const calls: Meeting[] = [];
+const conferences: Meeting[] = [];
 
 export function addMeeting(meeting: Meeting) {
-	calls.push(meeting);
+	conferences.push(meeting);
 }
 
 client.on(Events.CLIENT_READY, () => console.log('Ready!'));
@@ -58,7 +58,7 @@ client.on('messageCreate', async (message: Message) => {
 	// You need to properly manage the array to add and remove Meeting objects as they are created and finished
 
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-	const targetMeeting = calls.find((meeting) => meeting.getStartMessage().id === message.reference?.messageId);
+	const targetMeeting = conferences.find((meeting) => meeting.getStartMessage().id === message.reference?.messageId);
 	console.log('Target meeting', targetMeeting);
 
 	if (targetMeeting) {
