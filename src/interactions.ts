@@ -1,21 +1,18 @@
 import type { VoiceConnection } from '@discordjs/voice';
+import { getVoiceConnection } from '@discordjs/voice';
 import { entersState, joinVoiceChannel, VoiceConnectionStatus } from '@discordjs/voice';
-import type { Client, CommandInteraction, Snowflake, TextChannel, Message } from 'discord.js';
+import type { Client, CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { addMeeting } from './bot.js';
 import { Meeting } from './meeting.js';
 import { createListeningStream } from './recorder.js';
+import type { Teno } from './teno.js';
 import { playTextToSpeech } from './textToSpeech.js';
 import { createFile } from './transcriber.js';
 
-async function join(
-	interaction: CommandInteraction,
-	recordable: Set<Snowflake>,
-	client: Client,
-	connection?: VoiceConnection,
-) {
-	let meeting: Meeting;
+async function join(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply();
+	let connection = getVoiceConnection(interaction.guildId as Snowflake);
+
 	if (!connection) {
 		if (interaction.member instanceof GuildMember && interaction.member.voice.channel) {
 			const channel = interaction.member.voice.channel;
@@ -27,30 +24,47 @@ async function join(
 				// @ts-expect-error Currently voice is built in mind with API v10 whereas discord.js v13 uses API v9.
 				adapterCreator: channel.guild.voiceAdapterCreator,
 			});
-			// Add all members in the channel to the recordable set
-			channel.members.forEach((member) => {
-				recordable.add(member.id);
+
+			const newMeetingMessage = await Meeting.sendMeetingMessage(interaction);
+			if (!newMeetingMessage) {
+				await interaction.followUp('Could not send meeting message');
+				return;
+			}
+
+			const newMeeting = new Meeting({
+				meetingMessageId: newMeetingMessage.id,
+				textChannelId: interaction.channelId,
+				guildId: interaction.guildId as Snowflake,
 			});
 
 			// Create transcipt file
-			const transcriptFilePath = await createFile(channel.id);
-			const startMessage = (await interaction.followUp(
-				`Teno is listening to a meeting in ${channel.name}. Reply to this message to ask Teno about it!`,
-			)) as Message;
-			console.log('Start message id: ', startMessage.id);
-			const textChannel = interaction.channel as TextChannel;
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-call
-			meeting = new Meeting(textChannel, channel, startMessage, transcriptFilePath);
-			addMeeting(meeting);
+			await createFile(newMeeting.transcriptFilePath);
+			// Add meeting to Teno
+			teno.addMeeting(newMeeting);
 
 			// Play a sound to indicate that the bot has joined the channel
 			await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know, ya dig?');
+
+			// Start listening
+			startListening({ connection, meeting: newMeeting, interaction, client: teno.client });
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;
 		}
 	}
+}
 
+async function startListening({
+	connection,
+	meeting,
+	interaction,
+	client,
+}: {
+	connection: VoiceConnection;
+	meeting: Meeting;
+	interaction: CommandInteraction;
+	client: Client;
+}) {
 	try {
 		await entersState(connection, VoiceConnectionStatus.Ready, 20e3);
 		// https://discordjs.guide/voice/voice-connections.html#handling-disconnects
@@ -76,10 +90,8 @@ async function join(
 
 		receiver.speaking.on('start', (userId) => {
 			if (!meeting.isSpeaking(userId)) {
-				if (recordable.has(userId)) {
-					meeting.addSpeaking(userId);
-					createListeningStream(receiver, userId, meeting, client.users.cache.get(userId));
-				}
+				meeting.addSpeaking(userId);
+				createListeningStream(receiver, userId, meeting, client.users.cache.get(userId));
 			}
 		});
 	} catch (error) {
@@ -88,30 +100,17 @@ async function join(
 	}
 }
 
-async function leave(
-	interaction: CommandInteraction,
-	recordable: Set<Snowflake>,
-	_client: Client,
-	connection?: VoiceConnection,
-) {
+async function leave(interaction: CommandInteraction) {
+	const connection = getVoiceConnection(interaction.guildId as Snowflake);
 	if (connection) {
 		connection.destroy();
-		recordable.clear();
 		await interaction.reply({ ephemeral: true, content: 'Left the channel!' });
 	} else {
 		await interaction.reply({ ephemeral: true, content: 'Not playing in this server!' });
 	}
 }
 
-export const interactionHandlers = new Map<
-	string,
-	(
-		interaction: CommandInteraction,
-		recordable: Set<Snowflake>,
-		client: Client,
-		connection?: VoiceConnection,
-	) => Promise<void>
->();
+export const interactionHandlers = new Map<string, (interaction: CommandInteraction, teno: Teno) => Promise<void>>();
 
 interactionHandlers.set('join', join);
 interactionHandlers.set('leave', leave);
