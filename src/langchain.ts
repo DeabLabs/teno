@@ -17,14 +17,18 @@ const secretary = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
-export async function answerQuestionOnTranscript(question: string, transcriptFilePath: string) {
+export async function answerQuestionOnTranscript(question: string, transcriptText: string | null) {
 	// Return the contents of the file at the given filepath as a string
-	const contents = await fsPromises.readFile(transcriptFilePath, 'utf-8');
-	console.log(contents);
+	if (!transcriptText) {
+		return 'No transcript found';
+	}
+
+	console.log('Transcript text: ', transcriptText);
+
 	const answer = await model.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
-			transcript: contents,
+			transcript: transcriptText,
 		}),
 	]);
 	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';

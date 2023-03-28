@@ -34,7 +34,7 @@ export async function downloadRecording(
 				meeting.stoppedSpeaking(userId);
 				console.log(`✅ Recorded`);
 				const combinedBuffer = Buffer.concat(chunks);
-				await streamTranscribe(combinedBuffer, getDisplayName(userId, user), meeting.transcriptFilePath);
+				await streamTranscribe(combinedBuffer, getDisplayName(userId, user), meeting.transcript.addUtterance);
 				resolve(combinedBuffer);
 			}
 		});

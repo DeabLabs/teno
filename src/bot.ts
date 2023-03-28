@@ -3,7 +3,25 @@ import { Constants, Client } from 'discord.js';
 import { Config } from './config.js';
 import { deploy } from './deploy.js';
 import { Teno } from './teno.js';
+import { createClient } from 'redis';
 
+export type RedisClient = typeof redisClient;
+
+// Initialize Redis client
+const redisClient = createClient();
+
+redisClient.on('error', (err) => {
+	console.log('Redis Client Error', err);
+	process.exit(1);
+});
+
+redisClient.on('connect', () => {
+	console.log('Redis Client Connected');
+});
+
+await redisClient.connect();
+
+// Initialize Discord client
 const { Events } = Constants;
 const botToken = Config.TOKEN;
 const client = new Client({
@@ -27,13 +45,13 @@ client.on(Events.ERROR, console.warn);
 const tenoInstances = new Map<string, Teno>();
 client.on(Events.CLIENT_READY, () => {
 	client.guilds.cache.forEach((guild) => {
-		const tenoInstance = new Teno({ client, guild });
+		const tenoInstance = new Teno({ client, guild, redisClient });
 		tenoInstances.set(guild.id, tenoInstance);
 	});
 });
 
 client.on('guildCreate', (guild) => {
-	const tenoInstance = new Teno({ client, guild });
+	const tenoInstance = new Teno({ client, guild, redisClient });
 	tenoInstances.set(guild.id, tenoInstance);
 });
 

@@ -1,5 +1,6 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { Constants } from 'discord.js';
+import type { RedisClient } from './bot.js';
 import { interactionHandlers } from './interactions.js';
 import { answerQuestionOnTranscript } from './langchain.js';
 import type { Meeting } from './meeting.js';
@@ -12,11 +13,13 @@ export class Teno {
 	client: Client;
 	meetings: Meeting[] = [];
 	guild: Guild;
+	redisClient: RedisClient;
 
-	constructor({ client, guild }: { client: Client; guild: Guild }) {
+	constructor({ client, guild, redisClient }: { client: Client; guild: Guild; redisClient: RedisClient }) {
 		this.client = client;
 		this.guild = guild;
 		this.id = guild.id;
+		this.redisClient = redisClient;
 		this.setupClient();
 	}
 
@@ -44,10 +47,11 @@ export class Teno {
 
 			if (targetMeeting) {
 				const question = message.content;
-				const transcriptFilePath = targetMeeting.transcriptFilePath;
+				const transcript = targetMeeting.transcript;
 				try {
+					const transcriptText = await transcript.getTranscript();
 					console.log('Question: ', question);
-					const answer = await answerQuestionOnTranscript(question, transcriptFilePath);
+					const answer = await answerQuestionOnTranscript(question, transcriptText);
 					console.log('Answer: ', answer);
 					await message.reply(answer);
 					await playTextToSpeech(targetMeeting.getConnection(), answer);

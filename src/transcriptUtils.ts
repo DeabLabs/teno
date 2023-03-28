@@ -5,17 +5,15 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const transcriptExtension = '.txt';
-
 /**
- * Creates a transcript filename for a given timestamp and channel ID.
+ * Creates a transcript key for a given message, guild, and text channel.
  * @param guildId - The discord guild id of the voice channel to be recorded.
  * @param textChannelId - The discord text channel id of the channel to send the transcript to.
  * @param meetingMessageId - The discord message id of the message that started the meeting.
  * @returns The filename of the transcript file.
  */
-export const makeTranscriptFilename = (guildId: string, textChannelId: string, meetingMessageId: string) =>
-	`${guildId}-${textChannelId}-${meetingMessageId}${transcriptExtension}`;
+export const makeTranscriptKey = (guildId: string, textChannelId: string, meetingMessageId: string) =>
+	`${guildId}-${textChannelId}-${meetingMessageId}`;
 
 /**
  * Creates a transcript path for a given timestamp and channel ID.

@@ -2,13 +2,14 @@ import { getVoiceConnection } from '@discordjs/voice';
 import type { Message, CommandInteraction, Client } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { makeTranscriptFilename, makeTranscriptPath } from './transcripts.js';
+import type { RedisClient } from './bot.js';
+import { Transcript } from './transcript.js';
+import { makeTranscriptKey } from './transcriptUtils.js';
 
 export class Meeting {
 	public id: string;
 	public initialized = false;
-	public transcriptFilePath: string;
-	public transcriptFileName: string;
+	public transcript: Transcript;
 	private guildId: string;
 	private textChannelId: string;
 	private speaking: Set<string>;
@@ -20,10 +21,12 @@ export class Meeting {
 		meetingMessageId,
 		textChannelId,
 		guildId,
+		redisClient,
 	}: {
 		meetingMessageId: string;
 		textChannelId: string;
 		guildId: string;
+		redisClient: RedisClient;
 	}) {
 		this.id = meetingMessageId;
 		this.textChannelId = textChannelId;
@@ -32,9 +35,7 @@ export class Meeting {
 		this.members = new Set<string>();
 		this.ignore = new Set<string>();
 		this.startTime = new Date();
-
-		this.transcriptFileName = makeTranscriptFilename(guildId, textChannelId, meetingMessageId);
-		this.transcriptFilePath = makeTranscriptPath(this.transcriptFileName);
+		this.transcript = new Transcript(redisClient, makeTranscriptKey(guildId, textChannelId, meetingMessageId));
 	}
 
 	static async sendMeetingMessage(interaction: CommandInteraction) {

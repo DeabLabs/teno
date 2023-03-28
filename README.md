@@ -14,6 +14,7 @@ $ cp .env.example .env
 $ code .env
 
 # Start the bot!
+$ docker compose up -d
 $ npm start
 ```
 

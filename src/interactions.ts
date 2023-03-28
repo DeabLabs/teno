@@ -7,7 +7,6 @@ import { Meeting } from './meeting.js';
 import { createListeningStream } from './recorder.js';
 import type { Teno } from './teno.js';
 import { playTextToSpeech } from './textToSpeech.js';
-import { createFile } from './transcriber.js';
 
 async function join(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply();
@@ -35,10 +34,9 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				meetingMessageId: newMeetingMessage.id,
 				textChannelId: interaction.channelId,
 				guildId: interaction.guildId as Snowflake,
+				redisClient: teno.redisClient,
 			});
 
-			// Create transcipt file
-			await createFile(newMeeting.transcriptFilePath);
 			// Add meeting to Teno
 			teno.addMeeting(newMeeting);
 
