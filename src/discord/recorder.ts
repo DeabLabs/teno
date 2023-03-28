@@ -3,8 +3,8 @@ import type { AudioReceiveStream, VoiceReceiver } from '@discordjs/voice';
 import { EndBehaviorType } from '@discordjs/voice';
 import type { User } from 'discord.js';
 import * as prism from 'prism-media';
-import type { Meeting } from './meeting.js';
-import { streamTranscribe } from './transcriber.js';
+import type { Meeting } from '../classes/meeting.js';
+import { streamTranscribe } from '../services/transcriber.js';
 import { PassThrough } from 'node:stream';
 
 function getDisplayName(userId: string, user?: User) {

@@ -43,6 +43,21 @@
 		"target": "ES2021",
 		"useDefineForClassFields": true
 	},
-	"include": ["src/*.ts", "src/tts.js"],
+	"include": [
+		"src/*.ts",
+		"src/tts.js",
+		"src/classes/transcript.ts",
+		"src/classes/meeting.ts",
+		"src/classes/teno.ts",
+		"src/utils/transcriptUtils.ts",
+		"src/utils/transcriptionQueue.ts",
+		"src/classes/utterance.ts",
+		"src/services/langchain.ts",
+		"src/services/textToSpeech.ts",
+		"src/services/transcriber.ts",
+		"src/discord/interactions.ts",
+		"src/discord/deploy.ts",
+		"src/discord/recorder.ts"
+	],
 	"exclude": []
 }

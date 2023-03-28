@@ -3,10 +3,10 @@ import { getVoiceConnection } from '@discordjs/voice';
 import { entersState, joinVoiceChannel, VoiceConnectionStatus } from '@discordjs/voice';
 import type { Client, CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { Meeting } from './meeting.js';
+import { Meeting } from '../classes/meeting.js';
 import { createListeningStream } from './recorder.js';
-import type { Teno } from './teno.js';
-import { playTextToSpeech } from './textToSpeech.js';
+import type { Teno } from '../classes/teno.js';
+import { playTextToSpeech } from '../services/textToSpeech.js';
 
 async function join(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply();

@@ -1,6 +1,6 @@
 import DeepgramPkg from '@deepgram/sdk';
-import { Config } from './config.js';
-import { TranscriptionQueue } from './transcriptionQueue.js';
+import { Config } from '../config.js';
+import { TranscriptionQueue } from '../utils/transcriptionQueue.js';
 
 const { Deepgram } = DeepgramPkg;
 

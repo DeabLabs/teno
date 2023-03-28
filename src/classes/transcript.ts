@@ -1,4 +1,4 @@
-import type { RedisClient } from './bot.js';
+import type { RedisClient } from '../bot.js';
 
 export class Transcript {
 	private redisClient: RedisClient;
