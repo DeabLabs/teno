@@ -61,7 +61,7 @@ export async function playAudioBuffer(arrayBuffer: ArrayBuffer, connection: Voic
 	});
 }
 
-export async function playTextToSpeech(connection: VoiceConnection, text: string): Promise<void> {
+export async function playTextToSpeech(connection: VoiceConnection | undefined, text: string): Promise<void> {
 	const defaultVoiceId = 'jXGD6D7Soa4LhEXXsVq1'; // Replace with the default Voice ID you want to use
 	const defaultStability = 0.3;
 	const defaultSimilarityBoost = 0.8;
@@ -70,7 +70,14 @@ export async function playTextToSpeech(connection: VoiceConnection, text: string
 	if (!apiKey) {
 		throw new Error('ELEVENLABS_API_KEY is not set in the configuration');
 	}
-
-	const buffer = await textToSpeech(defaultVoiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
-	await playAudioBuffer(buffer, connection);
+	try {
+		if (connection) {
+			const buffer = await textToSpeech(defaultVoiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
+			await playAudioBuffer(buffer, connection);
+		} else {
+			console.error('No voice connection found for the meeting');
+		}
+	} catch (error) {
+		console.error('Error error playing text to speech:', error);
+	}
 }

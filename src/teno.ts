@@ -3,6 +3,7 @@ import { Constants } from 'discord.js';
 import { interactionHandlers } from './interactions.js';
 import { answerQuestionOnTranscript } from './langchain.js';
 import type { Meeting } from './meeting.js';
+import { playTextToSpeech } from './textToSpeech.js';
 
 const { Events } = Constants;
 
@@ -49,6 +50,7 @@ export class Teno {
 					const answer = await answerQuestionOnTranscript(question, transcriptFilePath);
 					console.log('Answer: ', answer);
 					await message.reply(answer);
+					await playTextToSpeech(targetMeeting.getConnection(), answer);
 				} catch (error) {
 					console.error('Error answering question:', error);
 					await message.reply('An error occurred while trying to answer your question. Please try again.');
