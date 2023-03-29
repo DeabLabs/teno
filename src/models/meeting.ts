@@ -7,35 +7,40 @@ import type { RedisClient } from '../bot.js';
 import { Transcript } from './transcript.js';
 import { makeTranscriptKey } from '../utils/transcriptUtils.js';
 import { Utterance } from './utterance.js';
-import { number } from 'zod';
 
 export class Meeting {
-	public id: string;
-	public initialized = false;
-	public transcript: Transcript;
 	private guildId: string;
 	private textChannelId: string;
 	private speaking: Set<string>;
-	private members: Set<string>;
 	private ignore: Set<string>;
 	private startTime: number;
+	inMeeting: Set<string>;
+	voiceChannelId: string;
+	members: Set<string>;
+	id: string;
+	initialized = false;
+	transcript: Transcript;
 
 	public constructor({
 		meetingMessageId,
 		textChannelId,
+		voiceChannelId,
 		guildId,
 		redisClient,
 	}: {
 		meetingMessageId: string;
 		textChannelId: string;
+		voiceChannelId: string;
 		guildId: string;
 		redisClient: RedisClient;
 	}) {
 		this.id = meetingMessageId;
 		this.textChannelId = textChannelId;
+		this.voiceChannelId = voiceChannelId;
 		this.guildId = guildId;
 		this.speaking = new Set<string>();
 		this.members = new Set<string>();
+		this.inMeeting = new Set<string>();
 		this.ignore = new Set<string>();
 		this.startTime = Date.now();
 		this.transcript = new Transcript(redisClient, makeTranscriptKey(guildId, textChannelId, meetingMessageId));

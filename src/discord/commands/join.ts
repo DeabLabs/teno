@@ -37,15 +37,19 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 			const newMeeting = new Meeting({
 				meetingMessageId: newMeetingMessage.id,
 				textChannelId: interaction.channelId,
+				voiceChannelId: channel.id,
 				guildId: interaction.guildId as Snowflake,
 				redisClient: teno.redisClient,
+			});
+			channel.members.forEach((member) => {
+				newMeeting.addMember(member.id);
 			});
 
 			// Add meeting to Teno
 			teno.addMeeting(newMeeting);
 
 			// Play a sound to indicate that the bot has joined the channel
-			await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know, ya dig?');
+			await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
 
 			// Start listening
 			startListening({ connection, meeting: newMeeting, interaction, client: teno.client });
@@ -88,12 +92,7 @@ async function startListening({
 			}
 		});
 
-		connection.on(VoiceConnectionStatus.Ready, () => {
-			console.log('Connection Ready!');
-		});
-
 		connection.on(VoiceConnectionStatus.Signalling, () => {
-			console.log('Signalling, attempting to configure networking...');
 			connection.configureNetworking();
 		});
 
@@ -102,6 +101,7 @@ async function startListening({
 		receiver.speaking.on('start', async (userId) => {
 			if (!meeting.isSpeaking(userId)) {
 				meeting.addSpeaking(userId);
+				meeting.addMember(userId);
 				meeting.createUtterance(receiver, userId, client);
 			}
 		});
