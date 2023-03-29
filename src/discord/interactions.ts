@@ -3,9 +3,9 @@ import { getVoiceConnection } from '@discordjs/voice';
 import { entersState, joinVoiceChannel, VoiceConnectionStatus } from '@discordjs/voice';
 import type { Client, CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { Meeting } from './meeting.js';
-import type { Teno } from './teno.js';
-import { playTextToSpeech } from './textToSpeech.js';
+import { Meeting } from '../models/meeting.js';
+import type { Teno } from '../models/teno.js';
+import { playTextToSpeech } from '../services/textToSpeech.js';
 
 async function join(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply();

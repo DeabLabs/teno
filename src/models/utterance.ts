@@ -3,7 +3,7 @@ import { EndBehaviorType } from '@discordjs/voice';
 import * as prism from 'prism-media';
 import { PassThrough } from 'stream';
 import { pipeline } from 'node:stream';
-import { deepgramPrerecordedTranscribe } from './transcriber.js';
+import { deepgramPrerecordedTranscribe } from '../services/transcriber.js';
 
 // Utterance class
 export class Utterance {

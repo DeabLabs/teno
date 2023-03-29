@@ -1,10 +1,10 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { Constants } from 'discord.js';
-import type { RedisClient } from './bot.js';
-import { interactionHandlers } from './interactions.js';
-import { answerQuestionOnTranscript } from './langchain.js';
+import type { RedisClient } from '../bot.js';
+import { interactionHandlers } from '../discord/interactions.js';
+import { answerQuestionOnTranscript } from '../services/langchain.js';
 import type { Meeting } from './meeting.js';
-import { playTextToSpeech } from './textToSpeech.js';
+import { playTextToSpeech } from '../services/textToSpeech.js';
 
 const { Events } = Constants;
 

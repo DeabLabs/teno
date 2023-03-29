@@ -1,5 +1,5 @@
 import DeepgramPkg from '@deepgram/sdk';
-import { Config } from './config.js';
+import { Config } from '../config.js';
 
 const { Deepgram } = DeepgramPkg;
 

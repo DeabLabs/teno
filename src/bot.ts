@@ -1,8 +1,8 @@
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Constants, Client } from 'discord.js';
 import { Config } from './config.js';
-import { deploy } from './deploy.js';
-import { Teno } from './teno.js';
+import { deploy } from './discord/deploy.js';
+import { Teno } from './models/teno.js';
 import { createClient } from 'redis';
 
 export type RedisClient = typeof redisClient;
