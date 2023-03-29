@@ -6,7 +6,7 @@ import { Config } from '../config.js';
 
 const model = new ChatOpenAI({
 	temperature: 0.9,
-	modelName: 'gpt-3.5-turbo',
+	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
 });
 

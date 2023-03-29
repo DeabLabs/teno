@@ -22,8 +22,8 @@ export class Transcript {
 			console.log('No transcript found at key: ', this.transcriptKey);
 		}
 		// loop through the results, turning them into a single string while removing the <timestamp> part
-		const timestampRegex = /<\d+>$/;
-		const cleanedArray = result.map((str) => str.replace(timestampRegex, ''));
+		const timestampRegex = /<\d+>/g;
+		const cleanedArray = result.map((str) => str.replaceAll(timestampRegex, ''));
 
 		// Join the cleaned strings into a single string
 		const cleanedResult = cleanedArray.join(' ');

@@ -7,6 +7,7 @@ import type { RedisClient } from '../bot.js';
 import { Transcript } from './transcript.js';
 import { makeTranscriptKey } from '../utils/transcriptUtils.js';
 import { Utterance } from './utterance.js';
+import { number } from 'zod';
 
 export class Meeting {
 	public id: string;
@@ -17,7 +18,7 @@ export class Meeting {
 	private speaking: Set<string>;
 	private members: Set<string>;
 	private ignore: Set<string>;
-	private startTime: Date;
+	private startTime: number;
 
 	public constructor({
 		meetingMessageId,
@@ -36,7 +37,7 @@ export class Meeting {
 		this.speaking = new Set<string>();
 		this.members = new Set<string>();
 		this.ignore = new Set<string>();
-		this.startTime = new Date();
+		this.startTime = Date.now();
 		this.transcript = new Transcript(redisClient, makeTranscriptKey(guildId, textChannelId, meetingMessageId));
 	}
 
@@ -72,20 +73,15 @@ export class Meeting {
 			receiver,
 			userId,
 			user.username,
-			this.timeSinceStart(),
+			this.secondsSinceStart(),
 			this.onRecordingEnd.bind(this),
 			this.onTranscriptionComplete.bind(this),
 		);
 		utterance.process();
 	}
 
-	public timeSinceStart(): string {
-		const currentTime = new Date();
-		const timeDiff = currentTime.getTime() - this.startTime.getTime();
-		const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-		const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-
-		return `${hours}:${minutes}`;
+	public secondsSinceStart(): number {
+		return (Date.now() - this.startTime) / 1000;
 	}
 
 	private onRecordingEnd(utterance: Utterance): void {
@@ -140,7 +136,7 @@ export class Meeting {
 		return this.ignore.has(userId);
 	}
 
-	public getTimestamp(): Date {
+	public getTimestamp(): number {
 		return this.startTime;
 	}
 

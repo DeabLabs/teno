@@ -1,10 +1,8 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { Constants } from 'discord.js';
+import { interactionCommandHandlers, interactionMessageHandlers } from '../discord/interactions.js';
 import type { RedisClient } from '../bot.js';
-import { interactionHandlers } from '../discord/interactions.js';
-import { answerQuestionOnTranscript } from '../services/langchain.js';
 import type { Meeting } from './meeting.js';
-import { playTextToSpeech } from '../services/textToSpeech.js';
 
 const { Events } = Constants;
 
@@ -28,11 +26,11 @@ export class Teno {
 		this.client.on(Events.INTERACTION_CREATE, async (interaction: Interaction) => {
 			if (!interaction.isCommand() || !interaction.guildId || interaction.guildId != this.id) return;
 
-			const handler = interactionHandlers.get(interaction.commandName);
+			const command = interactionCommandHandlers.get(interaction.commandName);
 
 			try {
-				if (handler) {
-					await handler(interaction, this);
+				if (command) {
+					await command.handler(interaction, this);
 				} else {
 					await interaction.reply('Unknown command');
 				}
@@ -41,23 +39,10 @@ export class Teno {
 			}
 		});
 
-		// meetingMessage reply listener
 		this.client.on('messageCreate', async (message: Message) => {
-			const targetMeeting = this.meetings.find((meeting) => meeting.id === message.reference?.messageId);
-
-			if (targetMeeting) {
-				const question = message.content;
-				const transcript = targetMeeting.transcript;
-				try {
-					const transcriptText = await transcript.getTranscript();
-					console.log('Question: ', question);
-					const answer = await answerQuestionOnTranscript(question, transcriptText);
-					console.log('Answer: ', answer);
-					await message.reply(answer);
-					await playTextToSpeech(targetMeeting.getConnection(), answer);
-				} catch (error) {
-					console.error('Error answering question:', error);
-					await message.reply('An error occurred while trying to answer your question. Please try again.');
+			for (const messageHandler of interactionMessageHandlers) {
+				if (messageHandler.filter(message, this)) {
+					messageHandler.handler(message, this);
 				}
 			}
 		});

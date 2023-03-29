@@ -4,6 +4,7 @@ import * as prism from 'prism-media';
 import { PassThrough } from 'stream';
 import { pipeline } from 'node:stream';
 import { deepgramPrerecordedTranscribe } from '../services/transcriber.js';
+import { formatTime } from '../utils/transcriptUtils.js';
 
 // Utterance class
 export class Utterance {
@@ -15,21 +16,21 @@ export class Utterance {
 	public username: string;
 	public audioContent: Buffer | null = null;
 	public textContent: string | undefined;
-	public timeSinceStart: string;
+	public secondsSinceStart: number;
 	public timestamp: number;
 
 	constructor(
 		receiver: VoiceReceiver,
 		userId: string,
 		username: string,
-		timeSinceStart: string,
+		secondsSinceStart: number,
 		onRecordingComplete: (utterance: Utterance) => void,
 		onTranscriptionComplete: (utterance: Utterance) => void,
 	) {
 		this.receiver = receiver;
 		this.userId = userId;
 		this.username = username;
-		this.timeSinceStart = timeSinceStart;
+		this.secondsSinceStart = secondsSinceStart;
 		this.onRecordingComplete = onRecordingComplete;
 		this.onTranscriptionComplete = onTranscriptionComplete;
 
@@ -101,6 +102,6 @@ export class Utterance {
 	}
 
 	public formatForTranscript(): string {
-		return `${this.username} (${this.timeSinceStart}): ${this.textContent}<${this.timestamp}>\n`;
+		return `${this.username} (${formatTime(this.secondsSinceStart)}): ${this.textContent}<${this.timestamp}>\n`;
 	}
 }
