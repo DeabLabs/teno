@@ -1,10 +1,12 @@
+import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Message, CommandInteraction, Client } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import type { RedisClient } from '../bot.js';
+import type { RedisClient } from './bot.js';
 import { Transcript } from './transcript.js';
-import { makeTranscriptKey } from '../utils/transcriptUtils.js';
+import { makeTranscriptKey } from './transcriptUtils.js';
+import { Utterance } from './utterance.js';
 
 export class Meeting {
 	public id: string;
@@ -59,6 +61,49 @@ export class Meeting {
 		return;
 	}
 
+	public createUtterance(receiver: VoiceReceiver, userId: string, client: Client) {
+		const user = client.users.cache.get(userId);
+		if (!user) {
+			console.error('User not found.');
+			return;
+		}
+
+		const utterance = new Utterance(
+			receiver,
+			userId,
+			user.username,
+			this.timeSinceStart(),
+			this.onRecordingEnd.bind(this),
+			this.onTranscriptionComplete.bind(this),
+		);
+		utterance.process();
+	}
+
+	public timeSinceStart(): string {
+		const currentTime = new Date();
+		const timeDiff = currentTime.getTime() - this.startTime.getTime();
+		const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+		const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+		return `${hours}:${minutes}`;
+	}
+
+	private onRecordingEnd(utterance: Utterance): void {
+		this.stoppedSpeaking(utterance.userId);
+	}
+
+	private async writeToTranscript(utterance: Utterance): Promise<void> {
+		if (utterance.textContent) {
+			await this.transcript.addUtterance(utterance);
+		} else {
+			console.error('Utterance has no text content');
+		}
+	}
+
+	private onTranscriptionComplete(utterance: Utterance): void {
+		this.writeToTranscript(utterance);
+	}
+
 	public getConnection() {
 		return getVoiceConnection(this.guildId);
 	}
@@ -101,14 +146,5 @@ export class Meeting {
 
 	public userJoined(userId: string): void {
 		this.addMember(userId);
-	}
-
-	public timeSinceStart(): string {
-		const currentTime = new Date();
-		const timeDiff = currentTime.getTime() - this.startTime.getTime();
-		const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-		const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-
-		return `${hours}:${minutes}`;
 	}
 }

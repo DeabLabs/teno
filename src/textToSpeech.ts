@@ -2,7 +2,7 @@ import { Readable } from 'stream';
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import * as fetch from 'node-fetch';
-import { Config } from '../config.js';
+import { Config } from './config.js';
 
 export async function textToSpeech(
 	voiceId: string,
