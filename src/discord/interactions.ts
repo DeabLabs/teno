@@ -83,6 +83,15 @@ async function startListening({
 			}
 		});
 
+		connection.on(VoiceConnectionStatus.Ready, () => {
+			console.log('Connection Ready!');
+		});
+
+		connection.on(VoiceConnectionStatus.Signalling, () => {
+			console.log('Signalling, attempting to configure networking...');
+			connection.configureNetworking();
+		});
+
 		const receiver = connection.receiver;
 
 		receiver.speaking.on('start', async (userId) => {

@@ -80,7 +80,6 @@ export class Utterance {
 					console.warn(`❌ Error recording - ${err.message}`);
 					reject(err);
 				} else {
-					console.log(`✅ Recorded`);
 					this.audioContent = Buffer.concat(chunks);
 					this.onRecordingComplete(this);
 					resolve(undefined);

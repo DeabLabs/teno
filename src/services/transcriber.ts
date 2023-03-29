@@ -25,7 +25,6 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 		if (result) {
 			return result;
 		} else {
-			console.log('No transcription result');
 			return undefined;
 		}
 	} catch (err) {

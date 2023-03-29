@@ -62,7 +62,7 @@ export async function playAudioBuffer(arrayBuffer: ArrayBuffer, connection: Voic
 }
 
 export async function playTextToSpeech(connection: VoiceConnection | undefined, text: string): Promise<void> {
-	const defaultVoiceId = 'jXGD6D7Soa4LhEXXsVq1'; // Replace with the default Voice ID you want to use
+	const defaultVoiceId = 'WSS2tQv38AU3q7jpFVPd'; // Replace with the default Voice ID you want to use
 	const defaultStability = 0.3;
 	const defaultSimilarityBoost = 0.8;
 

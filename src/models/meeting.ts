@@ -96,7 +96,7 @@ export class Meeting {
 		if (utterance.textContent) {
 			await this.transcript.addUtterance(utterance);
 		} else {
-			console.error('Utterance has no text content');
+			return;
 		}
 	}
 
