@@ -21,7 +21,6 @@
 		"#db commands#": "",
 		"db:push": "prisma db push",
 		"db:generate": "prisma generate",
-		"db:migrate": "prisma migrate dev --name",
 		"db:studio": "prisma studio"
 	},
 	"author": "Blindmansion <blindmansion@gmail.com>",
