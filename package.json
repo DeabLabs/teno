@@ -17,7 +17,12 @@
 		"ci": "yarn build:check && yarn lint",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
-		"d-down": "docker-compose down"
+		"d-down": "docker-compose down",
+		"#db commands#": "",
+		"db:push": "prisma db push",
+		"db:generate": "prisma generate",
+		"db:migrate": "prisma migrate dev --name",
+		"db:studio": "prisma studio"
 	},
 	"author": "Blindmansion <blindmansion@gmail.com>",
 	"license": "MIT",
@@ -48,6 +53,7 @@
 		"eslint-import-resolver-typescript": "^3.5.0",
 		"eslint-plugin-import": "^2.26.0",
 		"prettier": "^2.7.1",
+		"prisma": "^4.12.0",
 		"rimraf": "^3.0.2",
 		"tsup": "^6.7.0",
 		"typescript": "^4.8.2"
