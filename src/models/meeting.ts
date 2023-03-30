@@ -1,11 +1,13 @@
 import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
-import type { Message, CommandInteraction, Client } from 'discord.js';
+import type { Client, CommandInteraction, Message } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import type { RedisClient } from '../bot.js';
+
+import type { RedisClient } from '@/bot.js';
+import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
+
 import { Transcript } from './transcript.js';
-import { makeTranscriptKey } from '../utils/transcriptUtils.js';
 import { Utterance } from './utterance.js';
 
 export class Meeting {

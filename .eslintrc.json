@@ -4,7 +4,12 @@
 		"es2021": true,
 		"node": true
 	},
-	"extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
+	"extends": [
+		"eslint:recommended",
+		"plugin:@typescript-eslint/recommended",
+		"plugin:@dword-design/eslint-plugin-import-alias/recommended",
+		"prettier"
+	],
 	"overrides": [],
 	"parser": "@typescript-eslint/parser",
 	"parserOptions": {
@@ -23,8 +28,22 @@
 	},
 	"plugins": ["@typescript-eslint", "import"],
 	"rules": {
-		// turn on errors for missing imports
 		"import/no-unresolved": "error",
+		"import/order": [
+			"error",
+			{
+				"groups": ["builtin", "external", "internal", "index"],
+				"newlines-between": "always"
+			}
+		],
+		"@dword-design/import-alias/prefer-alias": [
+			"error",
+			{
+				"alias": {
+					"@": "./src"
+				}
+			}
+		],
 		"@typescript-eslint/consistent-type-imports": [
 			"error",
 			{

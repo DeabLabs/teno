@@ -1,5 +1,6 @@
 import type { CommandInteraction } from 'discord.js';
-import type { Teno } from '../models/teno.js';
+
+import type { Teno } from '@/models/teno.js';
 
 /**
  * The shape of a user 'option' (argument) to a slash command

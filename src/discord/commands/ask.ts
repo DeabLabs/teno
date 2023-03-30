@@ -1,10 +1,10 @@
-import { getVoiceConnection } from '@discordjs/voice';
-import type { CommandInteraction, Snowflake } from 'discord.js';
-import { createCommand } from '../createCommand.js';
+import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { answerQuestionOnTranscript } from '../../services/langchain.js';
-import { playTextToSpeech } from '../../services/textToSpeech.js';
-import type { Teno } from '../../models/teno.js';
+
+import { createCommand } from '@/discord/createCommand.js';
+import { answerQuestionOnTranscript } from '@/services/langchain.js';
+import { playTextToSpeech } from '@/services/textToSpeech.js';
+import type { Teno } from '@/models/teno.js';
 
 export const askCommand = createCommand(
 	{

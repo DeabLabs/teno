@@ -1,11 +1,12 @@
 import type { VoiceConnection } from '@discordjs/voice';
-import { entersState, getVoiceConnection, joinVoiceChannel, VoiceConnectionStatus } from '@discordjs/voice';
+import { VoiceConnectionStatus, entersState, getVoiceConnection, joinVoiceChannel } from '@discordjs/voice';
 import type { Client, CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import { Meeting } from '../../models/meeting.js';
-import type { Teno } from '../../models/teno.js';
-import { playTextToSpeech } from '../../services/textToSpeech.js';
-import { createCommand } from '../createCommand.js';
+
+import { Meeting } from '@/models/meeting.js';
+import type { Teno } from '@/models/teno.js';
+import { playTextToSpeech } from '@/services/textToSpeech.js';
+import { createCommand } from '@/discord/createCommand.js';
 
 export const joinCommand = createCommand(
 	{ name: 'join', description: 'Join a voice channel and start a meeting' },

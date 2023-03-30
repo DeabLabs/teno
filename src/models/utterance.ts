@@ -1,10 +1,12 @@
+import { PassThrough } from 'stream';
+import { pipeline } from 'node:stream';
+
 import type { AudioReceiveStream, VoiceReceiver } from '@discordjs/voice';
 import { EndBehaviorType } from '@discordjs/voice';
 import * as prism from 'prism-media';
-import { PassThrough } from 'stream';
-import { pipeline } from 'node:stream';
-import { deepgramPrerecordedTranscribe } from '../services/transcriber.js';
-import { formatTime } from '../utils/transcriptUtils.js';
+
+import { deepgramPrerecordedTranscribe } from '@/services/transcriber.js';
+import { formatTime } from '@/utils/transcriptUtils.js';
 
 // Utterance class
 export class Utterance {

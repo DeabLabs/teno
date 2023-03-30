@@ -1,6 +1,7 @@
 import { getVoiceConnection } from '@discordjs/voice';
 import type { CommandInteraction, Snowflake } from 'discord.js';
-import { createCommand } from '../createCommand.js';
+
+import { createCommand } from '@/discord/createCommand.js';
 
 export const leaveCommand = createCommand(
 	{

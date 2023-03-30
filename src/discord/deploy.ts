@@ -1,5 +1,6 @@
 import type { Guild } from 'discord.js';
 import { SlashCommandBuilder } from '@discordjs/builders';
+
 import type { Command } from './createCommand.js';
 import { interactionCommandHandlers } from './interactions.js';
 

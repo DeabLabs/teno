@@ -1,7 +1,9 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { Constants } from 'discord.js';
-import { interactionCommandHandlers, interactionMessageHandlers } from '../discord/interactions.js';
-import type { RedisClient } from '../bot.js';
+
+import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
+import type { RedisClient } from '@/bot.js';
+
 import type { Meeting } from './meeting.js';
 
 const { Events } = Constants;

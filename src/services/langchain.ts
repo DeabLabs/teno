@@ -1,8 +1,9 @@
 // import { LLMChain } from 'langchain/chains';
 import { ChatOpenAI } from 'langchain/chat_models';
-import { HumanMessagePromptTemplate, ChatPromptTemplate } from 'langchain/prompts';
+import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
+
 // import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
-import { Config } from '../config.js';
+import { Config } from '@/config.js';
 
 const model = new ChatOpenAI({
 	temperature: 0.9,

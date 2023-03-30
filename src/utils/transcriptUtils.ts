@@ -1,7 +1,8 @@
 import { promises as fsPromises } from 'fs';
-import { TextLoader } from 'langchain/document_loaders';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { TextLoader } from 'langchain/document_loaders';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

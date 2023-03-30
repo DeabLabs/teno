@@ -1,5 +1,6 @@
 import type { Message } from 'discord.js';
-import type { Teno } from '../models/teno.js';
+
+import type { Teno } from '@/models/teno.js';
 
 /**
  * The basic shape of a discord message parser

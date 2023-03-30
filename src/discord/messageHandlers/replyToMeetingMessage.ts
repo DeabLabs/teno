@@ -1,8 +1,9 @@
 import type { Message } from 'discord.js';
-import type { Teno } from '../../models/teno.js';
-import { answerQuestionOnTranscript } from '../../services/langchain.js';
-import { playTextToSpeech } from '../../services/textToSpeech.js';
-import { createMessageHandler } from '../createMessageHandler.js';
+
+import type { Teno } from '@/models/teno.js';
+import { answerQuestionOnTranscript } from '@/services/langchain.js';
+import { playTextToSpeech } from '@/services/textToSpeech.js';
+import { createMessageHandler } from '@/discord/createMessageHandler.js';
 
 export const replyToMeetingMessageHandler = createMessageHandler(
 	(message, teno) => {

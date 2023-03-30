@@ -41,7 +41,12 @@
 		"experimentalDecorators": true,
 		"lib": ["ESNext"],
 		"target": "ES2021",
-		"useDefineForClassFields": true
+		"useDefineForClassFields": true,
+		"baseUrl": ".",
+		"paths": {
+			// If you add new aliases, update eslintrc.json as well
+			"@/*": ["src/*"]
+		}
 	},
 	"include": [
 		"src/*.ts",
