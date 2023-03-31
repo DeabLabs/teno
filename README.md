@@ -6,8 +6,9 @@ Teno is a Discord bot that records voice channels and saves them as transcribed 
 
 ```sh-session
 # Clone teno, and then inside the directory:
-$ npm install
-$ npm run build
+$ npm i -g yarn
+$ yarn
+$ yarn build
 
 # Set up tokens (see .env.example)
 $ cp .env.example .env
@@ -15,7 +16,7 @@ $ code .env
 
 # Start the bot!
 $ docker compose up -d
-$ npm start
+$ yarn start
 ```
 
 ## ESM Usage
