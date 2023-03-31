@@ -12,7 +12,7 @@
 		"dev": "tsup --watch --onSuccess \"node dist/bot.js\"",
 		"lint": "prettier --cache --check . && eslint src --ext mjs,js,ts --cache",
 		"format": "prettier --cache --write . && eslint src --ext mjs,js,ts --fix --cache",
-		"build": "tsup",
+		"build": "npm run db:generate && tsup",
 		"build:check": "tsc --noEmit --incremental false",
 		"ci": "yarn build:check && yarn lint",
 		"#docker commands#": "",
