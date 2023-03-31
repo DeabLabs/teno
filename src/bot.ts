@@ -68,4 +68,13 @@ client.on('guildDelete', (guild) => {
 	tenoInstances.delete(guild.id);
 });
 
+const cleanup = () => {
+	redisClient.disconnect();
+	prismaClient.$disconnect();
+	client.destroy();
+};
+
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
+
 void client.login(botToken);
