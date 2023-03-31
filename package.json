@@ -9,9 +9,10 @@
 	},
 	"scripts": {
 		"start": "npm run build && node dist/bot",
+		"dev": "tsup --watch --onSuccess \"node dist/bot.js\"",
 		"lint": "prettier --cache --check . && eslint src --ext mjs,js,ts --cache",
 		"format": "prettier --cache --write . && eslint src --ext mjs,js,ts --fix --cache",
-		"build": "rimraf dist && tsc",
+		"build": "tsup",
 		"build:check": "tsc --noEmit --incremental false"
 	},
 	"author": "Blindmansion <blindmansion@gmail.com>",
@@ -44,6 +45,7 @@
 		"eslint-plugin-import": "^2.26.0",
 		"prettier": "^2.7.1",
 		"rimraf": "^3.0.2",
+		"tsup": "^6.7.0",
 		"typescript": "^4.8.2"
 	}
 }
