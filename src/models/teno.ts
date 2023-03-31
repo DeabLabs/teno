@@ -8,12 +8,12 @@ import type { RedisClient } from '@/bot.js';
 import type { Meeting } from './meeting.js';
 
 export class Teno {
-	id: string;
-	client: Client;
-	meetings: Meeting[] = [];
-	guild: Guild;
-	redisClient: RedisClient;
-	prismaClient: PrismaClient;
+	private id: string;
+	private client: Client;
+	private meetings: Meeting[] = [];
+	private guild: Guild;
+	private redisClient: RedisClient;
+	private prismaClient: PrismaClient;
 
 	constructor({
 		client,
@@ -65,5 +65,21 @@ export class Teno {
 
 	public addMeeting(meeting: Meeting) {
 		this.meetings.push(meeting);
+	}
+
+	getClient(): Client {
+		return this.client;
+	}
+
+	getPrismaClient(): PrismaClient {
+		return this.prismaClient;
+	}
+
+	getRedisClient(): RedisClient {
+		return this.redisClient;
+	}
+
+	getMeetings() {
+		return this.meetings;
 	}
 }

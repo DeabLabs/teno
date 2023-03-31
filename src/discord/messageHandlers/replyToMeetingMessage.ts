@@ -2,12 +2,13 @@ import type { Message } from 'discord.js';
 
 import type { Teno } from '@/models/teno.js';
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
-import { playTextToSpeech } from '@/services/textToSpeech.js';
 import { createMessageHandler } from '@/discord/createMessageHandler.js';
 
 export const replyToMeetingMessageHandler = createMessageHandler(
 	(message, teno) => {
-		const isTargetMeeting = teno.meetings.find((meeting) => meeting.meetingMessageId === message.reference?.messageId);
+		const isTargetMeeting = teno
+			.getMeetings()
+			.find((meeting) => meeting.getMeetingMessageId() === message.reference?.messageId);
 		return Boolean(isTargetMeeting);
 	},
 	(message, teno) => {
@@ -16,12 +17,14 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 );
 
 async function replyToMeetingMessage(message: Message, teno: Teno) {
-	const targetMeeting = teno.meetings.find((meeting) => meeting.meetingMessageId === message.reference?.messageId);
+	const targetMeeting = teno
+		.getMeetings()
+		.find((meeting) => meeting.getMeetingMessageId() === message.reference?.messageId);
 
 	if (targetMeeting) {
 		const loadingMessage = await message.reply('One sec...');
 		const question = message.content;
-		const transcript = targetMeeting.transcript;
+		const transcript = targetMeeting.getTranscript();
 		try {
 			const transcriptText = await transcript.getTranscript();
 			console.log('Question: ', question);

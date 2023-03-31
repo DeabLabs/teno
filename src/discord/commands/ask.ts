@@ -3,7 +3,6 @@ import { GuildMember } from 'discord.js';
 
 import { createCommand } from '@/discord/createCommand.js';
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
-import { playTextToSpeech } from '@/services/textToSpeech.js';
 import type { Teno } from '@/models/teno.js';
 
 export const askCommand = createCommand(
@@ -26,15 +25,15 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 	const member = interaction.member;
 	if (member instanceof GuildMember && member.voice.channel) {
 		const channel = member.voice.channel.id;
-		const meeting = [...teno.meetings]
+		const meeting = [...teno.getMeetings()]
 			.sort(
 				// Sort by most recent meeting
 				(a, b) => b.getTimestamp() - a.getTimestamp(),
 			)
-			.find((meeting) => meeting.voiceChannelId === channel && meeting.members.has(member.id));
+			.find((meeting) => meeting.getVoiceChannelId() === channel && meeting.isAttendee(member.id));
 		if (meeting) {
 			const question = interaction.options.get('question')?.value;
-			const transcript = meeting.transcript;
+			const transcript = meeting.getTranscript();
 			try {
 				const transcriptText = await transcript.getTranscript();
 				console.log('Question: ', question);

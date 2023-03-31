@@ -18,11 +18,11 @@ type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
 };
 
 export class Transcript {
-	public id: number;
-	public meetingId: number;
+	private id: number;
+	private meetingId: number;
 	private prismaClient: PrismaClient;
 	private redisClient: RedisClient;
-	public transcriptKey: string;
+	private transcriptKey: string;
 
 	private constructor({ redisClient, transcriptKey, prismaClient, meetingId, id }: TranscriptArgs) {
 		this.redisClient = redisClient;

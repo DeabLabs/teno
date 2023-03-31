@@ -42,8 +42,8 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 					textChannelId: interaction.channelId,
 					voiceChannelId: channel.id,
 					guildId: interaction.guildId as Snowflake,
-					redisClient: teno.redisClient,
-					prismaClient: teno.prismaClient,
+					redisClient: teno.getRedisClient(),
+					prismaClient: teno.getPrismaClient(),
 					userDiscordId: interaction.user.id,
 				});
 				invariant(newMeeting);
@@ -59,7 +59,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
 
 				// Start listening
-				startListening({ connection, meeting: newMeeting, interaction, client: teno.client });
+				startListening({ connection, meeting: newMeeting, interaction, client: teno.getClient() });
 			} catch (e) {
 				console.error('Error while joining voice channel', e);
 				await interaction.followUp('Error while joining voice channel');
