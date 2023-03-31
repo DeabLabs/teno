@@ -80,7 +80,9 @@ export class Meeting {
 				where: { id: args?.id ?? -1 },
 				create: {
 					name: Meeting.createMeetingName(args.voiceChannelId, Date.now()),
+					guildId: args.guildId,
 					authorId: user.id,
+					active: true,
 				},
 				update: {},
 			});

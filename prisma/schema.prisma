@@ -36,6 +36,7 @@ model User {
 // Meetings that have been created by joining Teno to a call
 model Meeting {
   id              Int         @id @default(autoincrement())
+  guildId         String
   // Teno will name the meeting after the voice channel name and the date
   // The author of the meeting can rename it afterwards, or, GPT can rename it during summarization
   name            String
@@ -46,6 +47,7 @@ model Meeting {
   updatedAt       DateTime    @updatedAt
   // If the meeting has been unlocked, non-attendees can view the meeting and its transcript
   locked          Boolean     @default(true)
+  active          Boolean     @default(false)
   attendees       User[]
   author          User        @relation("author", fields: [authorId], references: [id])
   authorId        Int

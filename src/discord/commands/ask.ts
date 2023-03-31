@@ -42,7 +42,6 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 				const answer = await answerQuestionOnTranscript(String(question), transcriptText);
 				console.log('Answer: ', answer);
 				await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
-				playTextToSpeech(meeting.getConnection(), answer);
 			} catch (error) {
 				console.error('Error answering question:', error);
 				await interaction.editReply('An error occurred while trying to answer your question. Please try again.');
