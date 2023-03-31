@@ -33,13 +33,13 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 			)
 			.find((meeting) => meeting.voiceChannelId === channel && meeting.members.has(member.id));
 		if (meeting) {
-			const question = interaction.options.getString('question');
+			const question = interaction.options.get('question')?.value;
 			const transcript = meeting.transcript;
 			try {
 				const transcriptText = await transcript.getTranscript();
 				console.log('Question: ', question);
-				if (!question) throw new Error('Question is undefined');
-				const answer = await answerQuestionOnTranscript(question, transcriptText);
+				if (!question && typeof question !== 'string') throw new Error('Question is undefined');
+				const answer = await answerQuestionOnTranscript(String(question), transcriptText);
 				console.log('Answer: ', answer);
 				await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
 				playTextToSpeech(meeting.getConnection(), answer);

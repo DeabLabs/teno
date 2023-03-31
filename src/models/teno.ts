@@ -1,12 +1,10 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
-import { Constants } from 'discord.js';
+import { Events } from 'discord.js';
 
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
 
 import type { Meeting } from './meeting.js';
-
-const { Events } = Constants;
 
 export class Teno {
 	id: string;
@@ -25,7 +23,7 @@ export class Teno {
 
 	private setupClient() {
 		// Command listener
-		this.client.on(Events.INTERACTION_CREATE, async (interaction: Interaction) => {
+		this.client.on(Events.InteractionCreate, async (interaction: Interaction) => {
 			if (!interaction.isCommand() || !interaction.guildId || interaction.guildId != this.id) return;
 
 			const command = interactionCommandHandlers.get(interaction.commandName);
@@ -41,7 +39,7 @@ export class Teno {
 			}
 		});
 
-		this.client.on('messageCreate', async (message: Message) => {
+		this.client.on(Events.MessageCreate, async (message: Message) => {
 			for (const messageHandler of interactionMessageHandlers) {
 				if (messageHandler.filter(message, this)) {
 					messageHandler.handler(message, this);

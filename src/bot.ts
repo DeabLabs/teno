@@ -1,5 +1,5 @@
 import { GatewayIntentBits } from 'discord-api-types/v10';
-import { Client, Constants } from 'discord.js';
+import { Client, Events } from 'discord.js';
 import { createClient } from 'redis';
 
 import { Config } from './config.js';
@@ -23,15 +23,14 @@ redisClient.on('connect', () => {
 await redisClient.connect();
 
 // Initialize Discord client
-const { Events } = Constants;
 const botToken = Config.TOKEN;
 const client = new Client({
 	intents: [GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.Guilds],
 });
 
-client.on(Events.CLIENT_READY, () => console.log('App started'));
+client.on(Events.ClientReady, () => console.log('App started'));
 
-client.on(Events.CLIENT_READY, async () => {
+client.on(Events.ClientReady, async () => {
 	// Automatically deploy the commands to all guilds the bot is in
 	for (const guild of client.guilds.cache.values()) {
 		await deploy(guild);
@@ -40,11 +39,11 @@ client.on(Events.CLIENT_READY, async () => {
 	// await deploy(client.guilds.cache.first());
 });
 
-client.on(Events.ERROR, console.warn);
+client.on(Events.Error, console.warn);
 
 // Instantiate Tenos for each guild
 const tenoInstances = new Map<string, Teno>();
-client.on(Events.CLIENT_READY, () => {
+client.on(Events.ClientReady, () => {
 	client.guilds.cache.forEach((guild) => {
 		const tenoInstance = new Teno({ client, guild, redisClient });
 		tenoInstances.set(guild.id, tenoInstance);

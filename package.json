@@ -14,6 +14,7 @@
 		"format": "prettier --cache --write . && eslint src --ext mjs,js,ts --fix --cache",
 		"build": "tsup",
 		"build:check": "tsc --noEmit --incremental false",
+		"ci": "yarn build:check && yarn lint",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
 		"d-down": "docker-compose down"
@@ -25,7 +26,7 @@
 		"@discordjs/opus": "^0.8.0",
 		"@discordjs/voice": "^0.11.0",
 		"@google-cloud/text-to-speech": "^4.2.1",
-		"discord.js": "^13.10.3",
+		"discord.js": "^14.8.0",
 		"dotenv": "^16.0.3",
 		"langchain": "^0.0.40",
 		"libsodium-wrappers": "^0.7.10",
