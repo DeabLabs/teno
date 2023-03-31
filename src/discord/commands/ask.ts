@@ -48,7 +48,7 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 				await interaction.editReply('An error occurred while trying to answer your question. Please try again.');
 			}
 		} else {
-			await interaction.editReply('Teno needs to be in a meeting with you to use /ask');
+			await interaction.editReply('An error occurred while trying to answer your question. Please try again.');
 		}
 	} else {
 		console.error('Could not get member from interaction');

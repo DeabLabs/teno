@@ -2,6 +2,7 @@ import type { VoiceConnection } from '@discordjs/voice';
 import { VoiceConnectionStatus, entersState, getVoiceConnection, joinVoiceChannel } from '@discordjs/voice';
 import type { Client, CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
+import invariant from 'tiny-invariant';
 
 import { Meeting } from '@/models/meeting.js';
 import type { Teno } from '@/models/teno.js';
@@ -35,25 +36,35 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				return;
 			}
 
-			const newMeeting = new Meeting({
-				meetingMessageId: newMeetingMessage.id,
-				textChannelId: interaction.channelId,
-				voiceChannelId: channel.id,
-				guildId: interaction.guildId as Snowflake,
-				redisClient: teno.redisClient,
-			});
-			channel.members.forEach((member) => {
-				newMeeting.addMember(member.id);
-			});
+			try {
+				const newMeeting = await Meeting.load({
+					meetingMessageId: newMeetingMessage.id,
+					textChannelId: interaction.channelId,
+					voiceChannelId: channel.id,
+					guildId: interaction.guildId as Snowflake,
+					redisClient: teno.redisClient,
+					prismaClient: teno.prismaClient,
+					userDiscordId: interaction.user.id,
+				});
+				invariant(newMeeting);
 
-			// Add meeting to Teno
-			teno.addMeeting(newMeeting);
+				channel.members.forEach((member) => {
+					newMeeting.addMember(member.id);
+				});
 
-			// Play a sound to indicate that the bot has joined the channel
-			await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+				// Add meeting to Teno
+				teno.addMeeting(newMeeting);
 
-			// Start listening
-			startListening({ connection, meeting: newMeeting, interaction, client: teno.client });
+				// Play a sound to indicate that the bot has joined the channel
+				await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+
+				// Start listening
+				startListening({ connection, meeting: newMeeting, interaction, client: teno.client });
+			} catch (e) {
+				console.error('Error while joining voice channel', e);
+				await interaction.followUp('Error while joining voice channel');
+				return;
+			}
 		} else {
 			await interaction.followUp('Join a voice channel and then try that again!');
 			return;

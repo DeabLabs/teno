@@ -3,49 +3,114 @@ import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, CommandInteraction, Message } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
+import type { PrismaClient } from '@prisma/client';
+import invariant from 'tiny-invariant';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
+import { createOrGetUser } from '@/queries/user.js';
 
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
 
-export class Meeting {
-	private guildId: string;
-	private textChannelId: string;
-	private speaking: Set<string>;
-	private ignore: Set<string>;
-	private startTime: number;
-	inMeeting: Set<string>;
+type MeetingArgs = {
+	id: number;
+	meetingMessageId: string;
+	textChannelId: string;
 	voiceChannelId: string;
-	members: Set<string>;
-	id: string;
-	initialized = false;
+	guildId: string;
+	redisClient: RedisClient;
+	prismaClient: PrismaClient;
+	startTime: number;
 	transcript: Transcript;
+};
 
-	public constructor({
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime'> & {
+	id?: number;
+	userDiscordId: string;
+};
+
+export class Meeting {
+	private prismaClient: PrismaClient;
+	private redisClient: RedisClient;
+	public guildId: string;
+	public textChannelId: string;
+	public speaking: Set<string>;
+	public ignore: Set<string>;
+	public startTime: number;
+	public inMeeting: Set<string>;
+	public voiceChannelId: string;
+	public members: Set<string>;
+	public id: number;
+	public initialized = false;
+	public transcript: Transcript;
+	public meetingMessageId: string;
+
+	private constructor({
 		meetingMessageId,
 		textChannelId,
 		voiceChannelId,
 		guildId,
 		redisClient,
-	}: {
-		meetingMessageId: string;
-		textChannelId: string;
-		voiceChannelId: string;
-		guildId: string;
-		redisClient: RedisClient;
-	}) {
-		this.id = meetingMessageId;
+		prismaClient,
+		startTime,
+		transcript,
+		id,
+	}: MeetingArgs) {
+		this.id = id;
 		this.textChannelId = textChannelId;
 		this.voiceChannelId = voiceChannelId;
 		this.guildId = guildId;
+		this.meetingMessageId = meetingMessageId;
+		this.startTime = startTime;
+		this.prismaClient = prismaClient;
+		this.redisClient = redisClient;
+
 		this.speaking = new Set<string>();
 		this.members = new Set<string>();
 		this.inMeeting = new Set<string>();
 		this.ignore = new Set<string>();
-		this.startTime = Date.now();
-		this.transcript = new Transcript(redisClient, makeTranscriptKey(guildId, textChannelId, meetingMessageId));
+		this.transcript = transcript;
+	}
+
+	static async load(args: MeetingLoadArgs) {
+		try {
+			const user = await createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
+			const _meeting = await args.prismaClient.meeting.upsert({
+				where: { id: args?.id ?? -1 },
+				create: {
+					name: Meeting.createMeetingName(args.voiceChannelId, Date.now()),
+					authorId: user.id,
+				},
+				update: {},
+			});
+			const transcript = await Transcript.load({
+				redisClient: args.redisClient,
+				meetingId: _meeting.id,
+				prismaClient: args.prismaClient,
+				transcriptKey: makeTranscriptKey(args.guildId, args.textChannelId, args.meetingMessageId),
+			});
+			invariant(transcript);
+
+			return new Meeting({
+				id: _meeting.id,
+				guildId: args.guildId,
+				voiceChannelId: args.voiceChannelId,
+				textChannelId: args.textChannelId,
+				meetingMessageId: args.meetingMessageId,
+				startTime: _meeting.createdAt.getTime(),
+				redisClient: args.redisClient,
+				prismaClient: args.prismaClient,
+				transcript,
+			});
+		} catch (e) {
+			console.error('Error loading/creating meeting: ', e);
+			return null;
+		}
+	}
+
+	static createMeetingName(voiceChannelId: string, date: number) {
+		return `${voiceChannelId}-${new Date(date).toISOString()}`;
 	}
 
 	static async sendMeetingMessage(interaction: CommandInteraction) {
@@ -64,7 +129,7 @@ export class Meeting {
 	public async getStartMessage(client: Client) {
 		const channel = await client.channels.fetch(this.textChannelId);
 		if (channel instanceof TextChannel) {
-			return channel.messages.fetch(this.id);
+			return channel.messages.fetch(this.meetingMessageId);
 		}
 		return;
 	}
@@ -119,7 +184,19 @@ export class Meeting {
 		this.speaking.delete(userId);
 	}
 
-	public addMember(userId: string): void {
+	public async addMember(userId: string) {
+		const user = await createOrGetUser(this.prismaClient, { discordId: userId });
+		invariant(user);
+		await this.prismaClient.meeting.update({
+			where: { id: this.id },
+			data: {
+				attendees: {
+					connect: {
+						id: user.id,
+					},
+				},
+			},
+		});
 		this.members.add(userId);
 	}
 

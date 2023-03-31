@@ -1,5 +1,6 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { Events } from 'discord.js';
+import type { PrismaClient } from '@prisma/client';
 
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
@@ -12,12 +13,24 @@ export class Teno {
 	meetings: Meeting[] = [];
 	guild: Guild;
 	redisClient: RedisClient;
+	prismaClient: PrismaClient;
 
-	constructor({ client, guild, redisClient }: { client: Client; guild: Guild; redisClient: RedisClient }) {
+	constructor({
+		client,
+		guild,
+		redisClient,
+		prismaClient,
+	}: {
+		client: Client;
+		guild: Guild;
+		redisClient: RedisClient;
+		prismaClient: PrismaClient;
+	}) {
 		this.client = client;
 		this.guild = guild;
 		this.id = guild.id;
 		this.redisClient = redisClient;
+		this.prismaClient = prismaClient;
 		this.setupClient();
 	}
 

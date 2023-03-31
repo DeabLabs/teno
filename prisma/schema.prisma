@@ -52,7 +52,7 @@ model Meeting {
   // The transcript that has been created for this meeting
   // If no one has spoken in the meeting, there will be no transcript
   transcript      Transcript?
-  transcriptId    Int
+  transcriptId    Int?
 
   @@index([transcriptId])
   @@index([authorId])
@@ -66,7 +66,7 @@ model Transcript {
   // The transcript is stored in Redis, and the key is stored here
   // The transcript must be fetched from Redis and then parsed into a string
   // in order to be viewed as text or query it
-  redisKey  String
+  redisKey  String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

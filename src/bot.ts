@@ -1,3 +1,4 @@
+import { PrismaClient } from '@prisma/client';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Client, Events } from 'discord.js';
 import { createClient } from 'redis';
@@ -22,6 +23,14 @@ redisClient.on('connect', () => {
 
 await redisClient.connect();
 
+// Initialize prisma client
+
+const prismaClient = new PrismaClient();
+
+await prismaClient.$connect();
+
+console.log('Prisma Client Connected');
+
 // Initialize Discord client
 const botToken = Config.TOKEN;
 const client = new Client({
@@ -45,13 +54,13 @@ client.on(Events.Error, console.warn);
 const tenoInstances = new Map<string, Teno>();
 client.on(Events.ClientReady, () => {
 	client.guilds.cache.forEach((guild) => {
-		const tenoInstance = new Teno({ client, guild, redisClient });
+		const tenoInstance = new Teno({ client, guild, redisClient, prismaClient });
 		tenoInstances.set(guild.id, tenoInstance);
 	});
 });
 
 client.on('guildCreate', (guild) => {
-	const tenoInstance = new Teno({ client, guild, redisClient });
+	const tenoInstance = new Teno({ client, guild, redisClient, prismaClient });
 	tenoInstances.set(guild.id, tenoInstance);
 });
 

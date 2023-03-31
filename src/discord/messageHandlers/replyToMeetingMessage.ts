@@ -7,7 +7,7 @@ import { createMessageHandler } from '@/discord/createMessageHandler.js';
 
 export const replyToMeetingMessageHandler = createMessageHandler(
 	(message, teno) => {
-		const isTargetMeeting = teno.meetings.find((meeting) => meeting.id === message.reference?.messageId);
+		const isTargetMeeting = teno.meetings.find((meeting) => meeting.meetingMessageId === message.reference?.messageId);
 		return Boolean(isTargetMeeting);
 	},
 	(message, teno) => {
@@ -16,7 +16,7 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 );
 
 async function replyToMeetingMessage(message: Message, teno: Teno) {
-	const targetMeeting = teno.meetings.find((meeting) => meeting.id === message.reference?.messageId);
+	const targetMeeting = teno.meetings.find((meeting) => meeting.meetingMessageId === message.reference?.messageId);
 
 	if (targetMeeting) {
 		const loadingMessage = await message.reply('One sec...');

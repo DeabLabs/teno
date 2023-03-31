@@ -1,19 +1,62 @@
+import type { PrismaClient } from '@prisma/client';
+
 import type { RedisClient } from '@/bot.js';
 
 import type { Utterance } from './utterance.js';
 
+type TranscriptArgs = {
+	id: number;
+	meetingId: number;
+	redisClient: RedisClient;
+	transcriptKey: string;
+	prismaClient: PrismaClient;
+};
+
+type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
+	id?: number;
+	meetingId?: number;
+};
+
 export class Transcript {
+	public id: number;
+	public meetingId: number;
+	private prismaClient: PrismaClient;
 	private redisClient: RedisClient;
 	public transcriptKey: string;
 
-	constructor(redisClient: RedisClient, transcriptKey: string) {
+	private constructor({ redisClient, transcriptKey, prismaClient, meetingId, id }: TranscriptArgs) {
 		this.redisClient = redisClient;
 		this.transcriptKey = transcriptKey;
+		this.prismaClient = prismaClient;
+		this.meetingId = meetingId;
+		this.id = id;
 
+		// Bind methods
 		this.appendTranscript = this.appendTranscript.bind(this);
 		this.addUtterance = this.addUtterance.bind(this);
 		this.getTranscript = this.getTranscript.bind(this);
 		this.setTranscript = this.setTranscript.bind(this);
+	}
+
+	static async load(args: TranscriptLoadArgs) {
+		try {
+			const _transcript = await args.prismaClient.transcript.upsert({
+				where: { redisKey: args.transcriptKey },
+				update: {},
+				create: { redisKey: args.transcriptKey, meetingId: args.meetingId },
+			});
+			const transcript = new Transcript({
+				meetingId: _transcript.meetingId,
+				prismaClient: args.prismaClient,
+				redisClient: args.redisClient,
+				transcriptKey: _transcript.redisKey,
+				id: _transcript.id,
+			});
+			return transcript;
+		} catch (e) {
+			console.error('Error loading/creating transcript: ', e);
+			return null;
+		}
 	}
 
 	public async getTranscript() {
