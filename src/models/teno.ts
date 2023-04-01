@@ -86,4 +86,11 @@ export class Teno {
 	getMeetings() {
 		return this.meetings;
 	}
+
+	async cleanup() {
+		// cleanup all meetings
+		await Promise.allSettled(this.meetings.map((meeting) => meeting.endMeeting()));
+
+		console.log(`Teno ${this.id} cleaned up`);
+	}
 }

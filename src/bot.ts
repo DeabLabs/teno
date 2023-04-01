@@ -68,10 +68,18 @@ client.on('guildDelete', (guild) => {
 	tenoInstances.delete(guild.id);
 });
 
-const cleanup = () => {
+const cleanup = async () => {
+	console.log('\nCleaning up...');
+	// end every meeting in every teno instance
+	await Promise.allSettled(Array.from(tenoInstances.values()).map((teno) => teno.cleanup()));
+
+	console.log('Disconnecting clients...');
 	redisClient.disconnect();
 	prismaClient.$disconnect();
 	client.destroy();
+
+	console.log('Exiting...');
+	process.exit(0);
 };
 
 process.on('SIGINT', cleanup);

@@ -333,6 +333,7 @@ export class Meeting {
 	 * Ends the meeting
 	 */
 	public async endMeeting(): Promise<void> {
+		console.log('Ending meeting', this.getId());
 		await this.prismaClient.meeting.update({
 			where: { id: this.id },
 			data: {
