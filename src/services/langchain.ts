@@ -5,9 +5,15 @@ import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompt
 // import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
 import { Config } from '@/config.js';
 
-const model = new ChatOpenAI({
+const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
+	openAIApiKey: Config.OPENAI_API_KEY,
+});
+
+const gptTurbo = new ChatOpenAI({
+	temperature: 0.0,
+	modelName: 'gpt-3.5-turbo',
 	openAIApiKey: Config.OPENAI_API_KEY,
 });
 
@@ -25,11 +31,40 @@ export async function answerQuestionOnTranscript(question: string, transcriptTex
 
 	console.log('Transcript text: ', transcriptText);
 
-	const answer = await model.generatePrompt([
+	const answer = await gptFour.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
 			transcript: transcriptText,
 		}),
 	]);
 	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';
+}
+
+// Add this function to your langchain.ts file
+
+export async function cleanDialogue(
+	lastCleanedLines: string[],
+	lastUncleanedLines: string[],
+	proprietaryTerms: string[] = [],
+) {
+	const cleaningPrompt = `You are a language model and your task is to clean the output of an automatic transcription system by fixing transcription errors where possible and concatenating lines of dialogue when it makes sense. Use context to infer when words were transcribed incorrectly, and replace with more likely words and phrases as needed. Ensure that the cleaned lines of dialogue include the speaker, timestamp, and the dialogue separated by a single newline. Keep in mind these terms that may not be in the transcription systems's training data, and thus may be transcribed as similar-sounding words or phrases: Teno (may be transcribed as tunnel, ten o, tanno), {proprietaryTerms}. For example, the cleaned output should be structured like this:\n\nspeaker1 (04:32): Line 1 of dialogue\nspeaker2 (04:35): Line 2 of dialogue\nspeaker1 (04:40): Line 3 of dialogue\n\nand so on.`;
+
+	const cleaningTemplate = ChatPromptTemplate.fromPromptMessages([
+		HumanMessagePromptTemplate.fromTemplate(
+			`${cleaningPrompt}\n\nCleaned lines:\n{cleanedLines}\n\nUncleaned lines:\n{uncleanedLines}`,
+		),
+	]);
+
+	const formattedPrompt = await cleaningTemplate.formatPromptValue({
+		proprietaryTerms: proprietaryTerms.join(', '),
+		cleanedLines: lastCleanedLines.map((line) => line.trim().replace(/\n/g, '')).join('\n'),
+		uncleanedLines: lastUncleanedLines.map((line) => line.trim().replace(/\n/g, '')).join('\n'),
+	});
+
+	const answer = await gptTurbo.generatePrompt([formattedPrompt]);
+
+	const cleanedText = answer.generations[0]?.[0]?.text.trim() ?? '';
+
+	// You can split the cleaned text into an array of strings based on your desired separator, e.g., newline character
+	return cleanedText.split('\n');
 }
