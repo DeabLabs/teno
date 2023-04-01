@@ -21,6 +21,7 @@ type MeetingArgs = {
 	prismaClient: PrismaClient;
 	startTime: number;
 	transcript: Transcript;
+	client: Client;
 };
 
 type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime'> & {
@@ -40,6 +41,7 @@ export class Meeting {
 	private id: number;
 	private transcript: Transcript;
 	private meetingMessageId: string;
+	private client: Client;
 
 	private constructor({
 		guildId,
@@ -49,6 +51,7 @@ export class Meeting {
 		id,
 		meetingMessageId,
 		voiceChannelId,
+		client,
 	}: MeetingArgs) {
 		this.id = id;
 		this.meetingMessageId = meetingMessageId;
@@ -56,10 +59,13 @@ export class Meeting {
 		this.voiceChannelId = voiceChannelId;
 		this.startTime = startTime;
 		this.prismaClient = prismaClient;
+		this.client = client;
 		this.speaking = new Set<string>();
 		this.attendees = new Set<string>();
 		this.ignore = new Set<string>();
 		this.transcript = transcript;
+
+		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 	}
 
 	static async load(args: MeetingLoadArgs) {
@@ -91,6 +97,7 @@ export class Meeting {
 				meetingMessageId: args.meetingMessageId,
 				startTime: _meeting.createdAt.getTime(),
 				prismaClient: args.prismaClient,
+				client: args.client,
 				transcript,
 			});
 		} catch (e) {
@@ -132,8 +139,8 @@ export class Meeting {
 	 * @param userId The user id
 	 * @param client The discord client
 	 */
-	public createUtterance(receiver: VoiceReceiver, userId: string, client: Client) {
-		const user = client.users.cache.get(userId);
+	public createUtterance(receiver: VoiceReceiver, userId: string) {
+		const user = this.client.users.cache.get(userId);
 		if (!user) {
 			console.error('User not found.');
 			return;
@@ -196,11 +203,11 @@ export class Meeting {
 	}
 
 	/**
-	 * Add a user to the speaking list, which includes all users currently speaking
-	 * @param userId The user to add
-	 *
-	public addSpeaking(userId: string): void {
-		this.speaking.add(userId);
+	 * Get the meeting id
+	 * @returns The meeting's id
+	 */
+	public getId() {
+		return this.id;
 	}
 
 	/**
@@ -265,6 +272,13 @@ export class Meeting {
 	}
 
 	/**
+	 * Clears the speaking list, which includes all users currently speaking
+	 */
+	public clearSpeaking() {
+		this.speaking.clear();
+	}
+
+	/**
 	 * Add a user to the attendees list, which includes all users who attended the meeting or were manually added using /add
 	 * @param userId The user to add to the attendees list
 	 */
@@ -313,5 +327,29 @@ export class Meeting {
 	 */
 	public getTranscript(): Transcript {
 		return this.transcript;
+	}
+
+	/**
+	 * Ends the meeting
+	 */
+	public async endMeeting(): Promise<void> {
+		await this.prismaClient.meeting.update({
+			where: { id: this.id },
+			data: {
+				active: false,
+			},
+		});
+		this.clearSpeaking();
+	}
+
+	private handleVoiceStateUpdate() {
+		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
+		const tenoUser = this.client?.user?.id;
+		const vc = this.client.channels.cache.get(this.voiceChannelId);
+		if (tenoUser && vc && vc.isVoiceBased() && vc.members.size === 1 && vc.members.has(tenoUser)) {
+			this.endMeeting();
+			this.getConnection()?.destroy();
+			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
+		}
 	}
 }

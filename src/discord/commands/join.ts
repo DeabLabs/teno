@@ -1,6 +1,6 @@
 import type { VoiceConnection } from '@discordjs/voice';
 import { VoiceConnectionStatus, entersState, getVoiceConnection, joinVoiceChannel } from '@discordjs/voice';
-import type { Client, CommandInteraction, Snowflake } from 'discord.js';
+import type { CommandInteraction, Snowflake } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 
@@ -45,12 +45,13 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 					redisClient: teno.getRedisClient(),
 					prismaClient: teno.getPrismaClient(),
 					userDiscordId: interaction.user.id,
+					client: teno.getClient(),
 				});
 				invariant(newMeeting);
 
-				channel.members.forEach((member) => {
-					newMeeting.addMember(member.id);
-				});
+				for (const [, member] of channel.members) {
+					await newMeeting.addMember(member.id);
+				}
 
 				// Add meeting to Teno
 				teno.addMeeting(newMeeting);
@@ -59,7 +60,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
 
 				// Start listening
-				startListening({ connection, meeting: newMeeting, interaction, client: teno.getClient() });
+				startListening({ connection, meeting: newMeeting, interaction });
 			} catch (e) {
 				console.error('Error while joining voice channel', e);
 				await interaction.followUp('Error while joining voice channel');
@@ -76,12 +77,10 @@ async function startListening({
 	connection,
 	meeting,
 	interaction,
-	client,
 }: {
 	connection: VoiceConnection;
 	meeting: Meeting;
 	interaction: CommandInteraction;
-	client: Client;
 }) {
 	try {
 		await entersState(connection, VoiceConnectionStatus.Ready, 20e3);
@@ -114,7 +113,7 @@ async function startListening({
 			if (!meeting.isSpeaking(userId)) {
 				meeting.addSpeaking(userId);
 				meeting.addMember(userId);
-				meeting.createUtterance(receiver, userId, client);
+				meeting.createUtterance(receiver, userId);
 			}
 		});
 	} catch (error) {

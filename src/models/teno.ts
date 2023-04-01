@@ -67,6 +67,10 @@ export class Teno {
 		this.meetings.push(meeting);
 	}
 
+	public getMeeting(id?: number | null) {
+		return this.meetings.find((meeting) => meeting.getId() === id);
+	}
+
 	getClient(): Client {
 		return this.client;
 	}
