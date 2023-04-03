@@ -4,6 +4,7 @@ import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompt
 
 // import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
 import { Config } from '@/config.js';
+import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
 const model = new ChatOpenAI({
 	temperature: 0.9,
@@ -17,18 +18,20 @@ const secretary = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
-export async function answerQuestionOnTranscript(question: string, transcriptText: string | null) {
+export async function answerQuestionOnTranscript(question: string, transcriptLines: string[]) {
 	// Return the contents of the file at the given filepath as a string
-	if (!transcriptText) {
+	if (!transcriptLines) {
 		return 'No transcript found';
 	}
 
-	console.log('Transcript text: ', transcriptText);
+	console.log('Transcript text: ', transcriptLines);
+
+	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
 	const answer = await model.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
-			transcript: transcriptText,
+			transcript: shortenedTranscript,
 		}),
 	]);
 	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';

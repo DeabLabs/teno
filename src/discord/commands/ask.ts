@@ -35,10 +35,10 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 			const question = interaction.options.get('question')?.value;
 			const transcript = meeting.getTranscript();
 			try {
-				const transcriptText = await transcript.getTranscript();
+				const transcriptLines = await transcript.getTranscriptRaw();
 				console.log('Question: ', question);
 				if (!question && typeof question !== 'string') throw new Error('Question is undefined');
-				const answer = await answerQuestionOnTranscript(String(question), transcriptText);
+				const answer = await answerQuestionOnTranscript(String(question), transcriptLines);
 				console.log('Answer: ', answer);
 				await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
 			} catch (error) {
