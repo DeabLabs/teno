@@ -2,7 +2,7 @@ import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
 
 import { createCommand } from '@/discord/createCommand.js';
-import { answerQuestionOnTranscript } from '@/services/langchain.js';
+import { answerQuestionOnTranscript, qaOnVectorstores } from '@/services/langchain.js';
 import type { Teno } from '@/models/teno.js';
 
 export const askCommand = createCommand(
@@ -36,11 +36,17 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 			const transcript = meeting.getTranscript();
 			try {
 				const transcriptText = await transcript.getTranscript();
-				console.log('Question: ', question);
 				if (!question && typeof question !== 'string') throw new Error('Question is undefined');
-				const answer = await answerQuestionOnTranscript(String(question), transcriptText);
-				console.log('Answer: ', answer);
-				await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
+				console.log('Meeting ID: ', meeting.getId());
+				// Question answering with vectorstores
+				const collection = transcript.getCollection();
+				if (collection) {
+					const answer = await qaOnVectorstores(collection, transcriptText);
+					await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
+				}
+
+				// const answer = await answerQuestionOnTranscript(String(question), transcriptText);
+				// await interaction.editReply(`Question: ${question}\nAnswer: ${answer}`);
 			} catch (error) {
 				console.error('Error answering question:', error);
 				await interaction.editReply('An error occurred while trying to answer your question. Please try again.');

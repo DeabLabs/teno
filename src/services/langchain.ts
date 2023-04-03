@@ -1,11 +1,20 @@
-// import { LLMChain } from 'langchain/chains';
-import { ChatOpenAI } from 'langchain/chat_models';
-import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
+import type { Encoding } from 'crypto';
 
-// import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
+import { ChatOpenAI } from 'langchain/chat_models';
+import { ChatVectorDBQAChain, ConversationalRetrievalQAChain } from 'langchain/chains';
+import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
+import { encoding_for_model } from '@dqbd/tiktoken';
+import type { Collection } from 'chromadb';
+import { Chroma } from 'langchain/vectorstores';
+import { OpenAIEmbeddings } from 'langchain/embeddings';
+import { OpenAI } from 'langchain/llms';
+import type { ChainValues } from 'langchain/schema';
+
 import { Config } from '@/config.js';
 
-const model = new ChatOpenAI({
+const gptFourEncoding = encoding_for_model('gpt-4');
+
+const model = new OpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
@@ -23,13 +32,71 @@ export async function answerQuestionOnTranscript(question: string, transcriptTex
 		return 'No transcript found';
 	}
 
-	console.log('Transcript text: ', transcriptText);
+	const shortenedTranscriptText = stripQueryForEightK(transcriptText, secretary, question);
 
 	const answer = await model.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
-			transcript: transcriptText,
+			transcript: shortenedTranscriptText,
 		}),
 	]);
 	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';
+}
+
+/**
+ * Given a message, return the number of tokens
+ *
+ * @param message - message
+ * @returns number of tokens
+ */
+export const countStringTokens = (string: string) => gptFourEncoding.encode(string).length;
+
+/**
+ * Given a list of messages, return the total number of tokens
+ *
+ * @param messages - list of messages
+ * @returns total number of tokens
+ */
+// export const countArrayTokens = (strings: string[], encoding:Tiktoken) =>
+// 	strings.reduce((acc, curr) => {
+// 		return acc + countStringTokens(curr);
+// 	}, 0);
+
+export function stripQueryForEightK(transcript: string, prompt: ChatPromptTemplate, question: string): string {
+	const tokenLimit = 7600;
+	// console.log('Transcript text:\n', transcript);
+
+	const transcriptArray = transcript.split('\n').reverse();
+
+	const promptString = secretary.promptMessages.toString();
+	const promptTokens = gptFourEncoding.encode(promptString);
+
+	const questionTokens = gptFourEncoding.encode(question);
+
+	const linesToSend: string[] = [];
+	let tokensSent = 0;
+
+	for (const line of transcriptArray) {
+		const lineTokens = gptFourEncoding.encode(line);
+		if (tokensSent + lineTokens.length + promptTokens.length + questionTokens.length > tokenLimit) {
+			break;
+		}
+		linesToSend.unshift(line);
+		tokensSent += lineTokens.length;
+	}
+
+	const stringLines = linesToSend.join('\n');
+	// console.log('Shortened transcript:\n', stringLines);
+	return stringLines;
+}
+
+export async function qaOnVectorstores(collection: Collection, question: string): Promise<ChainValues> {
+	const collectionName = collection.name;
+	const vectorStore = await Chroma.fromExistingCollection(new OpenAIEmbeddings(), {
+		collectionName: collectionName,
+	});
+
+	const chain = ConversationalRetrievalQAChain.fromLLM(model, vectorStore.asRetriever());
+	const answer = await chain.call({ question, chat_history: [] });
+	return answer.text;
 }

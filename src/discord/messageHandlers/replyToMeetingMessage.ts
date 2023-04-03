@@ -27,9 +27,7 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		const transcript = targetMeeting.getTranscript();
 		try {
 			const transcriptText = await transcript.getTranscript();
-			console.log('Question: ', question);
 			const answer = await answerQuestionOnTranscript(question, transcriptText);
-			console.log('Answer: ', answer);
 			await message.reply(answer);
 		} catch (error) {
 			console.error('Error answering question:', error);
