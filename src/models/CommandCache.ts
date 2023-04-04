@@ -50,6 +50,7 @@ export class CommandCache {
 	}
 
 	async setValue(value: string, customExpirationSeconds?: number) {
-		await this.redisClient.set(this.key, value, { EX: customExpirationSeconds ?? this.expiration });
+		const seconds = customExpirationSeconds ?? this.expiration;
+		await this.redisClient.setex(this.key, seconds, value);
 	}
 }

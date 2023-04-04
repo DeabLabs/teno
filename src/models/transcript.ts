@@ -62,7 +62,7 @@ export class Transcript {
 	}
 
 	public async getTranscriptRaw() {
-		const result = await this.redisClient.zRange(this.transcriptKey, 0, -1);
+		const result = await this.redisClient.zrange(this.transcriptKey, 0, -1);
 
 		if (!result.length) {
 			console.log('No transcript found at key: ', this.transcriptKey);
@@ -115,7 +115,7 @@ export class Transcript {
 		const tokens = countMessageTokens(Transcript.cleanTranscript([utterance])?.[0] ?? '');
 		this.tokens += tokens;
 		console.log(this.tokens);
-		this.redisClient.zAdd(this.transcriptKey, { score: timestamp, value: utterance });
+		this.redisClient.zadd(this.transcriptKey, timestamp, utterance);
 	}
 
 	public async addUtterance(utterance: Utterance) {
