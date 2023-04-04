@@ -37,6 +37,7 @@ model User {
 model Meeting {
   id              Int         @id @default(autoincrement())
   guildId         String
+  channelId       String
   // Teno will name the meeting after the voice channel name and the date
   // The author of the meeting can rename it afterwards, or, GPT can rename it during summarization
   name            String

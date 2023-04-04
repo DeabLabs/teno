@@ -37,18 +37,34 @@ export class Teno {
 	private setupClient() {
 		// Command listener
 		this.client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-			if (!interaction.isCommand() || !interaction.guildId || interaction.guildId != this.id) return;
+			if (!interaction.guildId || interaction.guildId != this.id) return;
 
-			const command = interactionCommandHandlers.get(interaction.commandName);
+			if (interaction.isCommand()) {
+				const command = interactionCommandHandlers.get(interaction.commandName);
 
-			try {
-				if (command) {
-					await command.handler(interaction, this);
-				} else {
-					await interaction.reply('Unknown command');
+				try {
+					if (command) {
+						await command.handler(interaction, this);
+					} else {
+						await interaction.reply('Unknown command');
+					}
+				} catch (error) {
+					console.warn(error);
 				}
-			} catch (error) {
-				console.warn(error);
+			} else if (interaction.isStringSelectMenu()) {
+				const command = Array.from(interactionCommandHandlers.values()).find(
+					(c) => c?.selectMenuHandler?.[0] === interaction.customId,
+				);
+
+				try {
+					if (command) {
+						await command?.selectMenuHandler?.[1]?.(interaction, this);
+					} else {
+						await interaction.reply('Unknown command');
+					}
+				} catch (error) {
+					console.warn(error);
+				}
 			}
 		});
 

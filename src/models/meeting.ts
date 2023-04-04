@@ -22,6 +22,7 @@ type MeetingArgs = {
 	startTime: number;
 	transcript: Transcript;
 	client: Client;
+	active: boolean;
 };
 
 type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime'> & {
@@ -42,6 +43,7 @@ export class Meeting {
 	private transcript: Transcript;
 	private meetingMessageId: string;
 	private client: Client;
+	private active = false;
 
 	private constructor({
 		guildId,
@@ -52,6 +54,7 @@ export class Meeting {
 		meetingMessageId,
 		voiceChannelId,
 		client,
+		active,
 	}: MeetingArgs) {
 		this.id = id;
 		this.meetingMessageId = meetingMessageId;
@@ -64,6 +67,7 @@ export class Meeting {
 		this.attendees = new Set<string>();
 		this.ignore = new Set<string>();
 		this.transcript = transcript;
+		this.active = active;
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 	}
@@ -78,6 +82,7 @@ export class Meeting {
 					guildId: args.guildId,
 					authorId: user.id,
 					active: true,
+					channelId: args.voiceChannelId,
 				},
 				update: {},
 			});
@@ -99,6 +104,7 @@ export class Meeting {
 				prismaClient: args.prismaClient,
 				client: args.client,
 				transcript,
+				active: _meeting.active,
 			});
 		} catch (e) {
 			console.error('Error loading/creating meeting: ', e);
@@ -327,6 +333,14 @@ export class Meeting {
 	 */
 	public getTranscript(): Transcript {
 		return this.transcript;
+	}
+
+	/**
+	 * Returns true if the meeting is active
+	 * @returns	True if the meeting is active
+	 */
+	public getActive() {
+		return this.active;
 	}
 
 	/**

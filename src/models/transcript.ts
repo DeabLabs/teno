@@ -73,6 +73,19 @@ export class Transcript {
 		return cleanedResult;
 	}
 
+	/**
+	 * Get the cleaned transcript as an array of strings
+	 *
+	 * @returns The cleaned transcript as an array of strings
+	 */
+	public async getCleanedTranscript() {
+		const result = await this.getTranscriptRaw();
+
+		const cleanedTranscript = Transcript.cleanTranscript(result);
+
+		return cleanedTranscript;
+	}
+
 	public async getTranscript() {
 		const result = await this.getTranscriptRaw();
 

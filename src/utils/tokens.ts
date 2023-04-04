@@ -50,7 +50,12 @@ export const constrainLinesToTokenLimit = (
 	let tokens = promptTokenLength + lineTokensLength;
 
 	// token length is fine, return everything
-	if (tokens <= max) return lines;
+	if (tokens <= max) {
+		console.log('Transcript fits');
+		console.log('Tokens used: ', tokens, '/ ', max);
+
+		return lines;
+	}
 
 	// shorten the timeline by removing the oldest messages until tokens is under the max
 	// we should not remove messages with a role of system, as they are important for the context
@@ -64,6 +69,9 @@ export const constrainLinesToTokenLimit = (
 	if (tokens > max) {
 		throw new Error('Could not shorten messages enough to fit within max tokens');
 	}
+
+	console.log('Transcript was shortened to fit');
+	console.log('Tokens used: ', tokens, '/ ', max);
 
 	return constrainedLines;
 };

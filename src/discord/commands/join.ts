@@ -46,6 +46,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 					prismaClient: teno.getPrismaClient(),
 					userDiscordId: interaction.user.id,
 					client: teno.getClient(),
+					active: true,
 				});
 				invariant(newMeeting);
 

@@ -20,7 +20,7 @@ const secretary = ChatPromptTemplate.fromPromptMessages([
 
 export async function answerQuestionOnTranscript(question: string, transcriptLines: string[]) {
 	// Return the contents of the file at the given filepath as a string
-	if (!transcriptLines) {
+	if (!transcriptLines || transcriptLines.length === 0) {
 		return 'No transcript found';
 	}
 
