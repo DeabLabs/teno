@@ -24,6 +24,7 @@ export async function answerQuestionOnTranscript(question: string, transcriptLin
 		return 'No transcript found';
 	}
 
+	console.log('Question: ', question);
 	console.log('Transcript text: ', transcriptLines);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');

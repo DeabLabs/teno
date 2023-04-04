@@ -47,21 +47,6 @@
 			"@/*": ["src/*"]
 		}
 	},
-	"include": [
-		"src/*.ts",
-		"src/tts.js",
-		"src/models/transcript.ts",
-		"src/models/meeting.ts",
-		"src/models/teno.ts",
-		"src/utils/transcriptUtils.ts",
-		"src/utils/transcriptionQueue.ts",
-		"src/models/utterance.ts",
-		"src/services/langchain.ts",
-		"src/services/textToSpeech.ts",
-		"src/services/transcriber.ts",
-		"src/discord/interactions.ts",
-		"src/discord/deploy.ts",
-		"src/discord/recorder.ts"
-	],
+	"include": ["src/"],
 	"exclude": []
 }

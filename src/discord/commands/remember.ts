@@ -8,6 +8,7 @@ import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
+import { CommandCache } from '@/models/CommandCache.js';
 
 export const rememberCommand = createCommand(
 	{
@@ -25,9 +26,6 @@ export const rememberCommand = createCommand(
 	['remember-meeting-select', handleRememberMeetingSelect],
 );
 
-const makeRememberKey = (interaction: CommandInteraction | StringSelectMenuInteraction) =>
-	`remember-${interaction.guildId}-${interaction.user.id}`;
-
 async function remember(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });
 	const question = interaction.options.get('question', true)?.value;
@@ -43,7 +41,7 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 	try {
 		const member = interaction.member;
 		const memberIsGuildMember = member instanceof GuildMember;
-		invariant(memberIsGuildMember);
+		invariant(memberIsGuildMember && interaction.guildId);
 		const memberDiscordId = member.id;
 		invariant(memberDiscordId);
 		const meetings = await teno.getPrismaClient().meeting.findMany({
@@ -53,6 +51,9 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 						discordId: memberDiscordId,
 					},
 				},
+			},
+			orderBy: {
+				createdAt: 'desc',
 			},
 			include: {
 				transcript: true,
@@ -67,10 +68,7 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 
 		const components = [
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new ButtonBuilder()
-					.setCustomId('remember-meeting-current')
-					.setLabel('Current Meeting')
-					.setStyle(ButtonStyle.Primary),
+				new ButtonBuilder().setCustomId('remember-meeting-last').setLabel('Last Meeting').setStyle(ButtonStyle.Primary),
 				new ButtonBuilder()
 					.setCustomId('remember-meeting-all')
 					.setLabel('All Meetings')
@@ -86,29 +84,35 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 
 		// cache the question in redis so that we can retrieve it later in the handleRememberMeetingSelect function
 		// we can key it by the discord user id, the guild id, and the command name
-		await teno.getRedisClient().set(
-			makeRememberKey(interaction),
-			JSON.stringify({
-				question,
-			}),
-		);
+		const cmdCache = new CommandCache({
+			redisClient: teno.getRedisClient(),
+			guildId: interaction.guildId,
+			userDiscordId: member.id,
+			commandName: rememberCommand.name,
+		});
+
+		await cmdCache.setValue(String(question));
 
 		await interaction.editReply({
-			content: 'Which meeting would you like to remember a question about?',
+			content: 'In which meeting would you like me to find the answer to your question?',
 			components,
 		});
 	} catch (e) {
 		console.error(e);
 
-		await interaction.editReply('I could not find any meetings you have attended.');
+		await interaction.editReply('I could not find any meetings that you have attended.');
 	}
 }
 
 async function handleRememberMeetingSelect(interaction: StringSelectMenuInteraction, teno: Teno) {
-	await interaction.deferReply({ ephemeral: true });
+	const message = await interaction.deferUpdate({});
+	await message.edit({ content: 'Searching...', components: [] });
+
+	const guildId = interaction.guildId;
 	const meetingId = interaction.values?.[0];
 	try {
 		invariant(meetingId);
+		invariant(guildId);
 	} catch (e) {
 		console.error('Malformed meetingId', e);
 		await interaction.editReply('Please select a meeting.');
@@ -132,6 +136,25 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 		return;
 	}
 
+	const cmdCache = new CommandCache({
+		redisClient: teno.getRedisClient(),
+		guildId: guildId,
+		userDiscordId: interaction.user.id,
+		commandName: rememberCommand.name,
+	});
+	const question = await cmdCache.getValue();
+
+	try {
+		invariant(question);
+	} catch (e) {
+		console.error('Could not find cache entry for command', e);
+		await interaction.editReply({
+			content: `Sorry, I can't remember your question. Can you ask me again?`,
+			components: [],
+		});
+		return;
+	}
+
 	try {
 		const transcriptKey = meeting.transcript.redisKey;
 		const transcript = await Transcript.load({
@@ -141,8 +164,6 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 			transcriptKey,
 		});
 		const transcriptLines = await transcript?.getCleanedTranscript();
-		const question = await teno.getRedisClient().get(makeRememberKey(interaction));
-		invariant(question);
 		invariant(transcriptLines);
 		const answer = await answerQuestionOnTranscript(question, transcriptLines);
 		await interaction.editReply({
@@ -158,6 +179,6 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 		});
 	} catch (e) {
 		console.error(e);
-		await interaction.editReply('I could not find an answer to your question.');
+		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
 	}
 }
