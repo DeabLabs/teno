@@ -1,4 +1,4 @@
-import type { CommandInteraction } from 'discord.js';
+import type { CommandInteraction, StringSelectMenuInteraction } from 'discord.js';
 
 import type { Teno } from '@/models/teno.js';
 
@@ -20,6 +20,7 @@ export type Command = {
 	description: string;
 	options: CommandOption[];
 	handler: (interaction: CommandInteraction, teno: Teno) => Promise<void>;
+	selectMenuHandler?: [string, (interaction: StringSelectMenuInteraction, teno: Teno) => Promise<void>];
 };
 
 type CreateCommandArgs = {
@@ -35,7 +36,11 @@ type CreateCommandArgs = {
  * @param description description displayed within discord for the command
  * @param handler function that is triggered when the command is called
  */
-export const createCommand = (commandArgs: CreateCommandArgs, handler: Command['handler']): Command => {
+export const createCommand = (
+	commandArgs: CreateCommandArgs,
+	handler: Command['handler'],
+	selectMenuHandler?: Command['selectMenuHandler'],
+): Command => {
 	const options = Array.isArray(commandArgs.options)
 		? commandArgs.options
 		: commandArgs.options
@@ -50,5 +55,6 @@ export const createCommand = (commandArgs: CreateCommandArgs, handler: Command['
 
 			return handler(interaction, teno);
 		},
+		...(selectMenuHandler ? { selectMenuHandler } : {}),
 	};
 };

@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// Users that have joined Teno into a meeting, or joined a meeting with Teno present
+model User {
+  id               Int       @id @default(autoincrement())
+  // The user's Discord ID, which is used to identify them
+  // Used primarily over the id field because Discord IDs can be retrieved more easily
+  discordId        String    @unique
+  // This will remain blank unless Teno is able to get the user's name from Discord
+  name             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  // The meetings that this user has attended, by being present in the meeting when Teno joined
+  // or by being added later on by the meeting author
+  // Being an attendee allows the user to view the meeting and its transcript but not edit them
+  attendedMeetings Meeting[]
+  // The meetings that this user has created, by joining a call and inviting Teno
+  // Being a meeting author has special privileges, such as being able to unlock the meeting
+  // and add attendees to the meeting
+  authoredMeetings Meeting[] @relation("author")
+
+  @@index([discordId])
+}
+
+// Meetings that have been created by joining Teno to a call
+model Meeting {
+  id              Int         @id @default(autoincrement())
+  guildId         String
+  channelId       String
+  // Teno will name the meeting after the voice channel name and the date
+  // The author of the meeting can rename it afterwards, or, GPT can rename it during summarization
+  name            String
+  // If the meeting has been renamed by the author, this will be true
+  // GPT cannot rename a meeting that has been renamed by the author
+  manuallyRenamed Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  // If the meeting has been unlocked, non-attendees can view the meeting and its transcript
+  locked          Boolean     @default(true)
+  active          Boolean     @default(false)
+  attendees       User[]
+  author          User        @relation("author", fields: [authorId], references: [id])
+  authorId        Int
+  // The transcript that has been created for this meeting
+  // If no one has spoken in the meeting, there will be no transcript
+  transcript      Transcript?
+  transcriptId    Int?
+
+  @@index([transcriptId])
+  @@index([authorId])
+}
+
+// Transcripts that have been created for a meeting by speaking in a meeting
+model Transcript {
+  id        Int      @id @default(autoincrement())
+  meetingId Int      @unique
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+  // The transcript is stored in Redis, and the key is stored here
+  // The transcript must be fetched from Redis and then parsed into a string
+  // in order to be viewed as text or query it
+  redisKey  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([meetingId])
+}

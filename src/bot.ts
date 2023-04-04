@@ -1,6 +1,7 @@
+import { PrismaClient } from '@prisma/client';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Client, Events } from 'discord.js';
-import { createClient } from 'redis';
+import { Redis } from 'ioredis';
 
 import { Config } from './config.js';
 import { deploy } from './discord/deploy.js';
@@ -9,7 +10,9 @@ import { Teno } from './models/teno.js';
 export type RedisClient = typeof redisClient;
 
 // Initialize Redis client
-const redisClient = createClient();
+const redisClient = new Redis(Config.REDIS_URL, {
+	lazyConnect: true,
+});
 
 redisClient.on('error', (err) => {
 	console.log('Redis Client Error', err);
@@ -21,6 +24,14 @@ redisClient.on('connect', () => {
 });
 
 await redisClient.connect();
+
+// Initialize prisma client
+
+const prismaClient = new PrismaClient();
+
+await prismaClient.$connect();
+
+console.log('Prisma Client Connected');
 
 // Initialize Discord client
 const botToken = Config.TOKEN;
@@ -45,18 +56,35 @@ client.on(Events.Error, console.warn);
 const tenoInstances = new Map<string, Teno>();
 client.on(Events.ClientReady, () => {
 	client.guilds.cache.forEach((guild) => {
-		const tenoInstance = new Teno({ client, guild, redisClient });
+		const tenoInstance = new Teno({ client, guild, redisClient, prismaClient });
 		tenoInstances.set(guild.id, tenoInstance);
 	});
 });
 
 client.on('guildCreate', (guild) => {
-	const tenoInstance = new Teno({ client, guild, redisClient });
+	const tenoInstance = new Teno({ client, guild, redisClient, prismaClient });
 	tenoInstances.set(guild.id, tenoInstance);
 });
 
 client.on('guildDelete', (guild) => {
 	tenoInstances.delete(guild.id);
 });
+
+const cleanup = async () => {
+	console.log('\nCleaning up...');
+	// end every meeting in every teno instance
+	await Promise.allSettled(Array.from(tenoInstances.values()).map((teno) => teno.cleanup()));
+
+	console.log('Disconnecting clients...');
+	redisClient.disconnect();
+	prismaClient.$disconnect();
+	client.destroy();
+
+	console.log('Exiting...');
+	process.exit(0);
+};
+
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
 
 void client.login(botToken);
