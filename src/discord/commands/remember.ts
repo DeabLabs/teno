@@ -52,6 +52,7 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 					},
 				},
 			},
+			take: 20,
 			orderBy: {
 				createdAt: 'desc',
 			},
@@ -94,7 +95,7 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 		await cmdCache.setValue(String(question));
 
 		await interaction.editReply({
-			content: 'In which meeting would you like me to find the answer to your question?',
+			content: `Question: "${question}"\n\nIn which meeting would you like me to find the answer to your question?`,
 			components,
 		});
 	} catch (e) {
