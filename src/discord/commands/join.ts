@@ -84,6 +84,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 		}
 	} catch {
 		console.log('Error joining voice channel');
+		await interaction.followUp({ content: 'Error joining voice channel' });
 	}
 }
 

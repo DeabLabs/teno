@@ -8,6 +8,7 @@ import invariant from 'tiny-invariant';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { createOrGetUser } from '@/queries/user.js';
+import { generateMeetingName } from '@/services/langchain.js';
 
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
@@ -355,6 +356,15 @@ export class Meeting {
 				active: false,
 			},
 		});
+		this.active = false;
+		// Rename the meeting based on the transcript
+		const newName = await this.autoName();
+		await this.prismaClient.meeting.update({
+			where: { id: this.id },
+			data: {
+				name: newName,
+			},
+		});
 		this.clearSpeaking();
 	}
 
@@ -367,5 +377,10 @@ export class Meeting {
 			this.getConnection()?.destroy();
 			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
 		}
+	}
+
+	private async autoName(): Promise<string> {
+		const transcript = await this.getTranscript().getCleanedTranscript();
+		return await generateMeetingName(transcript);
 	}
 }

@@ -168,7 +168,7 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 		invariant(transcriptLines);
 		const answer = await answerQuestionOnTranscript(question, transcriptLines);
 		await interaction.editReply({
-			content: answer,
+			content: `Meeting: ${meeting.name}\nQuestion: ${question}\nAnswer: ${answer}`,
 			components: [
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 					new ButtonBuilder()

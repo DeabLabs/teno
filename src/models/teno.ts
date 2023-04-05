@@ -65,6 +65,20 @@ export class Teno {
 				} catch (error) {
 					console.warn(error);
 				}
+			} else if (interaction.isModalSubmit()) {
+				const command = Array.from(interactionCommandHandlers.values()).find(
+					(c) => c?.modalMenuHandler?.[0] === interaction.customId,
+				);
+
+				try {
+					if (command) {
+						await command?.modalMenuHandler?.[1]?.(interaction, this);
+					} else {
+						await interaction.reply('Unknown modal submission');
+					}
+				} catch (error) {
+					console.warn(error);
+				}
 			}
 		});
 
@@ -106,8 +120,9 @@ export class Teno {
 	}
 
 	async cleanup() {
-		// cleanup all meetings
-		await Promise.allSettled(this.meetings.map((meeting) => meeting.endMeeting()));
+		await Promise.allSettled(
+			this.meetings.filter((meeting) => meeting.getActive()).map((meeting) => meeting.endMeeting()),
+		);
 
 		console.log(`Teno ${this.id} cleaned up`);
 	}

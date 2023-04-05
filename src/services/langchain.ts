@@ -18,6 +18,12 @@ const secretary = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
+const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
+	HumanMessagePromptTemplate.fromTemplate(
+		'Read transcript of a meeting below. Respond with only a descriptive name for the meeting that communicates the topics discussed. The name should NOT include the words "meeting", "call", "discussion" or anything like that, that context is implied.\n\n[Transcript start]\n{transcript}',
+	),
+]);
+
 export async function answerQuestionOnTranscript(question: string, transcriptLines: string[]) {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
@@ -36,4 +42,23 @@ export async function answerQuestionOnTranscript(question: string, transcriptLin
 		}),
 	]);
 	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';
+}
+
+export async function generateMeetingName(transcriptLines: string[]): Promise<string> {
+	if (!transcriptLines || transcriptLines.length === 0) {
+		return 'No transcript found';
+	}
+	const shortenedTranscript = constrainLinesToTokenLimit(
+		transcriptLines,
+		meetingNamePrompt.promptMessages.join(''),
+	).join('\n');
+
+	console.log('Transcript text: ', transcriptLines);
+
+	const response = await model.generatePrompt([
+		await meetingNamePrompt.formatPromptValue({
+			transcript: shortenedTranscript,
+		}),
+	]);
+	return response.generations[0]?.[0]?.text.trim() ?? 'No name found';
 }
