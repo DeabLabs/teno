@@ -15,65 +15,75 @@ export const joinCommand = createCommand(
 );
 
 async function join(interaction: CommandInteraction, teno: Teno) {
-	await interaction.deferReply();
-	let connection = getVoiceConnection(interaction.guildId as Snowflake);
-
-	if (!connection) {
-		if (interaction.member instanceof GuildMember && interaction.member.voice.channel) {
-			const channel = interaction.member.voice.channel;
-			connection = joinVoiceChannel({
-				channelId: channel.id,
-				guildId: channel.guild.id,
-				selfDeaf: false,
-				selfMute: false,
-				adapterCreator: channel.guild.voiceAdapterCreator,
-			});
-
-			const newMeetingMessage = await Meeting.sendMeetingMessage(interaction);
-			if (!newMeetingMessage) {
-				await interaction.followUp({
-					content: 'I am having trouble starting a meeting. Please try again in a little bit!',
+	try {
+		await interaction.deferReply();
+		// let connection = getVoiceConnection(interaction.guildId as Snowflake);
+		invariant(interaction.member instanceof GuildMember);
+		invariant(interaction.member.voice.channelId);
+		invariant(interaction.guildId);
+		let connection = getVoiceConnection(interaction.guildId);
+		if (!connection) {
+			if (interaction.member instanceof GuildMember && interaction.member.voice.channel) {
+				const channel = interaction.member.voice.channel;
+				connection = joinVoiceChannel({
+					channelId: channel.id,
+					guildId: channel.guild.id,
+					selfDeaf: false,
+					selfMute: false,
+					adapterCreator: channel.guild.voiceAdapterCreator,
 				});
-				return;
-			}
 
-			try {
-				const newMeeting = await Meeting.load({
-					meetingMessageId: newMeetingMessage.id,
-					textChannelId: interaction.channelId,
-					voiceChannelId: channel.id,
-					guildId: interaction.guildId as Snowflake,
-					redisClient: teno.getRedisClient(),
-					prismaClient: teno.getPrismaClient(),
-					userDiscordId: interaction.user.id,
-					client: teno.getClient(),
-					active: true,
-				});
-				invariant(newMeeting);
-
-				for (const [, member] of channel.members) {
-					await newMeeting.addMember(member.id);
+				const newMeetingMessage = await Meeting.sendMeetingMessage(interaction);
+				if (!newMeetingMessage) {
+					await interaction.followUp({
+						content: 'I am having trouble starting a meeting. Please try again in a little bit!',
+					});
+					return;
 				}
 
-				// Add meeting to Teno
-				teno.addMeeting(newMeeting);
+				try {
+					const newMeeting = await Meeting.load({
+						meetingMessageId: newMeetingMessage.id,
+						textChannelId: interaction.channelId,
+						voiceChannelId: channel.id,
+						guildId: interaction.guildId as Snowflake,
+						redisClient: teno.getRedisClient(),
+						prismaClient: teno.getPrismaClient(),
+						userDiscordId: interaction.user.id,
+						client: teno.getClient(),
+						active: true,
+					});
+					invariant(newMeeting);
 
-				// Play a sound to indicate that the bot has joined the channel
-				await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+					for (const [, member] of channel.members) {
+						await newMeeting.addMember(member.id);
+					}
 
-				// Start listening
-				startListening({ connection, meeting: newMeeting, interaction });
-			} catch (e) {
-				console.error('Error while joining voice channel', e);
-				await interaction.followUp({
-					content: 'I am having trouble starting a meeting. Please try again in a little bit!',
-				});
+					// Add meeting to Teno
+					teno.addMeeting(newMeeting);
+
+					// Play a sound to indicate that the bot has joined the channel
+					await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+
+					// Start listening
+					startListening({ connection, meeting: newMeeting, interaction });
+				} catch (e) {
+					console.error('Error while joining voice channel', e);
+					await interaction.followUp({
+						content: 'I am having trouble starting a meeting. Please try again in a little bit!',
+					});
+					return;
+				}
+			} else {
+				await interaction.followUp({ content: 'Join a voice channel and then try that again!' });
 				return;
 			}
 		} else {
-			await interaction.followUp({ content: 'Join a voice channel and then try that again!' });
+			await interaction.followUp({ content: 'I am already in a voice channel!' });
 			return;
 		}
+	} catch {
+		console.log('Error joining voice channel');
 	}
 }
 

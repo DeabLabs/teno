@@ -1,5 +1,4 @@
 import type { Message } from 'discord.js';
-import { MessageType } from 'discord.js';
 import invariant from 'tiny-invariant';
 
 import type { Teno } from '@/models/teno.js';
