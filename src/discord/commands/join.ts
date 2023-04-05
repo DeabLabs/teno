@@ -19,7 +19,6 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 		await interaction.deferReply();
 		// let connection = getVoiceConnection(interaction.guildId as Snowflake);
 		invariant(interaction.member instanceof GuildMember);
-		invariant(interaction.member.voice.channelId);
 		invariant(interaction.guildId);
 		let connection = getVoiceConnection(interaction.guildId);
 		if (!connection) {
@@ -82,8 +81,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 			await interaction.followUp({ content: 'I am already in a voice channel!' });
 			return;
 		}
-	} catch {
-		console.log('Error joining voice channel');
+	} catch (e) {
 		await interaction.followUp({ content: 'Error joining voice channel' });
 	}
 }

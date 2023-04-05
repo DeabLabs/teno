@@ -24,9 +24,10 @@ type MeetingArgs = {
 	transcript: Transcript;
 	client: Client;
 	active: boolean;
+	name: string;
 };
 
-type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime'> & {
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name'> & {
 	id?: number;
 	userDiscordId: string;
 	redisClient: RedisClient;
@@ -45,6 +46,7 @@ export class Meeting {
 	private meetingMessageId: string;
 	private client: Client;
 	private active = false;
+	private name: string;
 
 	private constructor({
 		guildId,
@@ -56,6 +58,7 @@ export class Meeting {
 		voiceChannelId,
 		client,
 		active,
+		name,
 	}: MeetingArgs) {
 		this.id = id;
 		this.meetingMessageId = meetingMessageId;
@@ -69,6 +72,7 @@ export class Meeting {
 		this.ignore = new Set<string>();
 		this.transcript = transcript;
 		this.active = active;
+		this.name = name;
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 	}
@@ -107,6 +111,7 @@ export class Meeting {
 				client: args.client,
 				transcript,
 				active: _meeting.active,
+				name: _meeting.name,
 			});
 		} catch (e) {
 			console.error('Error loading/creating meeting: ', e);
@@ -346,25 +351,57 @@ export class Meeting {
 	}
 
 	/**
+	 * Returns the name of the meeting
+	 *
+	 * @returns The name of the meeting
+	 */
+	public getName() {
+		return this.name;
+	}
+
+	/**
+	 * Set the name of the meeting in the db and class
+	 */
+	public setName(name: string) {
+		try {
+			this.prismaClient.meeting.update({
+				where: { id: this.id },
+				data: {
+					name,
+				},
+			});
+			this.name = name;
+		} catch (e) {
+			console.log(e);
+		}
+	}
+
+	/**
+	 * Set the active state of the meeting in the db and class
+	 */
+	public async setActive(active: boolean) {
+		try {
+			await this.prismaClient.meeting.update({
+				where: { id: this.id },
+				data: {
+					active,
+				},
+			});
+			this.active = active;
+		} catch (e) {
+			console.log(e);
+		}
+	}
+
+	/**
 	 * Ends the meeting
 	 */
 	public async endMeeting(): Promise<void> {
 		console.log('Ending meeting', this.getId());
-		await this.prismaClient.meeting.update({
-			where: { id: this.id },
-			data: {
-				active: false,
-			},
-		});
-		this.active = false;
+		await this.setActive(false);
 		// Rename the meeting based on the transcript
 		const newName = await this.autoName();
-		await this.prismaClient.meeting.update({
-			where: { id: this.id },
-			data: {
-				name: newName,
-			},
-		});
+		await this.setName(newName);
 		this.clearSpeaking();
 	}
 
@@ -372,7 +409,15 @@ export class Meeting {
 		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
 		const tenoUser = this.client?.user?.id;
 		const vc = this.client.channels.cache.get(this.voiceChannelId);
-		if (tenoUser && vc && vc.isVoiceBased() && vc.members.size === 1 && vc.members.has(tenoUser)) {
+		if (
+			tenoUser &&
+			vc &&
+			vc.isVoiceBased() &&
+			// only end the meeting if the vc being updated is the meeting vc
+			vc.id === this.getVoiceChannelId() &&
+			vc.members.size === 1 &&
+			vc.members.has(tenoUser)
+		) {
 			this.endMeeting();
 			this.getConnection()?.destroy();
 			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
