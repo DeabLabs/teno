@@ -2,7 +2,6 @@ import { Readable } from 'stream';
 
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
-import * as fetch from 'node-fetch';
 
 import { Config } from '@/config.js';
 
@@ -28,7 +27,7 @@ export async function textToSpeech(
 		},
 	});
 
-	const response = await fetch.default(url, {
+	const response = await fetch(url, {
 		method: 'POST',
 		headers: headers,
 		body: body,
