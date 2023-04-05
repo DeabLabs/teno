@@ -26,7 +26,6 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				guildId: channel.guild.id,
 				selfDeaf: false,
 				selfMute: false,
-				// @ts-expect-error Currently voice is built in mind with API v10 whereas discord.js v13 uses API v9.
 				adapterCreator: channel.guild.voiceAdapterCreator,
 			});
 
@@ -102,10 +101,6 @@ async function startListening({
 				// Seems to be a real disconnect which SHOULDN'T be recovered from
 				connection.destroy();
 			}
-		});
-
-		connection.on(VoiceConnectionStatus.Signalling, () => {
-			connection.configureNetworking();
 		});
 
 		const receiver = connection.receiver;
