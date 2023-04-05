@@ -83,6 +83,7 @@ export class Meeting {
 					authorId: user.id,
 					active: true,
 					channelId: args.voiceChannelId,
+					meetingMessageId: args.meetingMessageId,
 				},
 				update: {},
 			});
@@ -130,7 +131,7 @@ export class Meeting {
 		const member = interaction.member;
 		if (member instanceof GuildMember && member.voice.channel) {
 			const meetingMessage = (await interaction.followUp(
-				`Teno is listening to a meeting in ${member.voice.channel.name}. Reply to this message to ask Teno about it!`,
+				`Teno is listening to a meeting in ${member.voice.channel.name}. Reply to this message, or use /ask, to ask Teno about it!`,
 			)) as Message;
 			return meetingMessage;
 		} else {

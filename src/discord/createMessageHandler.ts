@@ -6,8 +6,8 @@ import type { Teno } from '@/models/teno.js';
  * The basic shape of a discord message parser
  */
 export type MessageHandler = {
-	filter: (m: Message, teno: Teno) => boolean;
-	handler: (m: Message, teno: Teno) => void;
+	filter: (m: Message, teno: Teno) => Promise<boolean>;
+	handler: (m: Message, teno: Teno) => Promise<void>;
 };
 
 /**

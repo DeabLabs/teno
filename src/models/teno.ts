@@ -70,7 +70,8 @@ export class Teno {
 
 		this.client.on(Events.MessageCreate, async (message: Message) => {
 			for (const messageHandler of interactionMessageHandlers) {
-				if (messageHandler.filter(message, this)) {
+				const passedFilter = await messageHandler.filter(message, this);
+				if (passedFilter) {
 					messageHandler.handler(message, this);
 				}
 			}

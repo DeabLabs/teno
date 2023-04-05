@@ -68,9 +68,7 @@ export class Transcript {
 			console.log('No transcript found at key: ', this.transcriptKey);
 		}
 
-		const cleanedResult = Transcript.cleanTranscript(result);
-
-		return cleanedResult;
+		return result;
 	}
 
 	/**

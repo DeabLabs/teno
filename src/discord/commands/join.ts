@@ -31,7 +31,9 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 
 			const newMeetingMessage = await Meeting.sendMeetingMessage(interaction);
 			if (!newMeetingMessage) {
-				await interaction.followUp('Could not send meeting message');
+				await interaction.followUp({
+					content: 'I am having trouble starting a meeting. Please try again in a little bit!',
+				});
 				return;
 			}
 
@@ -63,11 +65,13 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 				startListening({ connection, meeting: newMeeting, interaction });
 			} catch (e) {
 				console.error('Error while joining voice channel', e);
-				await interaction.followUp('Error while joining voice channel');
+				await interaction.followUp({
+					content: 'I am having trouble starting a meeting. Please try again in a little bit!',
+				});
 				return;
 			}
 		} else {
-			await interaction.followUp('Join a voice channel and then try that again!');
+			await interaction.followUp({ content: 'Join a voice channel and then try that again!' });
 			return;
 		}
 	}
