@@ -15,17 +15,29 @@ $ cp .env.example .env
 $ code .env
 
 # Start the bot!
-$ docker compose up -d
 $ yarn start
 ```
 
 ## Docker
 
-We use Docker Compose to run required services (Redis, Chroma, etc).
+We used to use Docker Compose to run required services (Redis, Database, etc).
+
+We now host our services on the cloud:
+
+- Redis with https://upstash.com
+- Database with https://planetscale.com
+
+We may still deploy Teno to a Docker container in the future, but the services will probably
+stay third party.
+
+## Upstash
+
+We use Upstash to store our Redis data.
+We simply connect to it with the `REDIS_URL` environment variable stuffed into ioredis.
 
 ## PlanetScale + Prisma
 
-We use PlanetScale to store our data. We have a main branch and development branch.
+We use PlanetScale to store our data and Prisma to manage it. We have a main branch and development branch.
 
 https://www.prisma.io/docs/guides/database/using-prisma-with-planetscale
 
