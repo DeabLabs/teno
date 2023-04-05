@@ -69,6 +69,7 @@ export class Teno {
 		});
 
 		this.client.on(Events.MessageCreate, async (message: Message) => {
+			if (!message.guildId || message.guildId != this.id) return;
 			for (const messageHandler of interactionMessageHandlers) {
 				const passedFilter = await messageHandler.filter(message, this);
 				if (passedFilter) {

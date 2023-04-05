@@ -1,4 +1,5 @@
 import type { Message } from 'discord.js';
+import { MessageType } from 'discord.js';
 import invariant from 'tiny-invariant';
 
 import type { Teno } from '@/models/teno.js';
@@ -28,8 +29,16 @@ const findMeetingByMeetingMessage = async (messageId: string | undefined | null,
 
 export const replyToMeetingMessageHandler = createMessageHandler(
 	async (message, teno) => {
-		const isTargetMeeting = await findMeetingByMeetingMessage(message.reference?.messageId, teno);
-		return Boolean(isTargetMeeting);
+		try {
+			invariant(message.reference?.messageId);
+			const repliedMessage = await message.channel.messages.fetch(message.reference?.messageId);
+			invariant(repliedMessage.author.id === teno.getClient().user?.id);
+			console.log('Checking in db if message is a reply to a meeting message...');
+			const isTargetMeeting = await findMeetingByMeetingMessage(message.reference?.messageId, teno);
+			return Boolean(isTargetMeeting);
+		} catch (e) {
+			return false;
+		}
 	},
 	(message, teno) => {
 		return replyToMeetingMessage(message, teno);
@@ -38,6 +47,7 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 
 async function replyToMeetingMessage(message: Message, teno: Teno) {
 	try {
+		console.log('Replying to meeting message...');
 		const loadingMessage = await message.reply('One sec...');
 
 		const targetMeetingMessageId = message.reference?.messageId;
@@ -59,9 +69,7 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		console.log('Question: ', question);
 		const answer = await answerQuestionOnTranscript(question, transcriptLines);
 		console.log('Answer: ', answer);
-		await message.reply(answer);
-
-		loadingMessage.delete();
+		await loadingMessage.edit(answer);
 	} catch (error) {
 		console.error('Error answering question:', error);
 		await message.reply('An error occurred while trying to answer your question. Please try again.');

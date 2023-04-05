@@ -82,7 +82,7 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 		});
 	} catch (e) {
 		await interaction.editReply(
-			"You are not in a meeting. Try /remember to ask Teno a question about a meeting you've previously been in.",
+			"You are not in a meeting with Teno. Try /remember to ask Teno a question about a meeting you've previously been in.",
 		);
 	}
 }
