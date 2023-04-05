@@ -1,6 +1,6 @@
 import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
-import type { Client, CommandInteraction, Message } from 'discord.js';
+import type { Client, CommandInteraction, Message, VoiceState } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import type { PrismaClient } from '@prisma/client';
 import invariant from 'tiny-invariant';
@@ -346,8 +346,13 @@ export class Meeting {
 	 * Returns true if the meeting is active
 	 * @returns	True if the meeting is active
 	 */
-	public getActive() {
-		return this.active;
+	public async getActive() {
+		return (
+			await this.prismaClient.meeting.findUnique({
+				where: { id: this.id },
+				select: { active: true },
+			})
+		)?.active;
 	}
 
 	/**
@@ -360,14 +365,26 @@ export class Meeting {
 	}
 
 	/**
+	 * Returns the manuallyRenamed property of the meeting from the db
+	 */
+	public async getManuallyRenamed() {
+		const meeting = await this.prismaClient.meeting.findUnique({
+			where: { id: this.id },
+		});
+
+		return meeting?.manuallyRenamed;
+	}
+
+	/**
 	 * Set the name of the meeting in the db and class
 	 */
-	public setName(name: string) {
+	public async setName(name: string) {
 		try {
-			this.prismaClient.meeting.update({
+			await this.prismaClient.meeting.update({
 				where: { id: this.id },
 				data: {
 					name,
+					manuallyRenamed: true,
 				},
 			});
 			this.name = name;
@@ -397,19 +414,28 @@ export class Meeting {
 	 * Ends the meeting
 	 */
 	public async endMeeting(): Promise<void> {
+		const active = await this.getActive();
+		if (!active) return;
+
 		console.log('Ending meeting', this.getId());
 		await this.setActive(false);
 		// Rename the meeting based on the transcript
-		const newName = await this.autoName();
-		await this.setName(newName);
+		const manuallyRenamed = await this.getManuallyRenamed();
+		if (!manuallyRenamed) {
+			const newName = await this.autoName();
+			await this.setName(newName);
+		}
 		this.clearSpeaking();
 	}
 
-	private handleVoiceStateUpdate() {
+	private async handleVoiceStateUpdate(prevState: VoiceState) {
 		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
 		const tenoUser = this.client?.user?.id;
 		const vc = this.client.channels.cache.get(this.voiceChannelId);
+		const active = await this.getActive();
 		if (
+			prevState?.channel?.id === this.voiceChannelId &&
+			active &&
 			tenoUser &&
 			vc &&
 			vc.isVoiceBased() &&
@@ -424,7 +450,8 @@ export class Meeting {
 		}
 	}
 
-	private async autoName(): Promise<string> {
+	private async autoName() {
+		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
 		return await generateMeetingName(transcript);
 	}
