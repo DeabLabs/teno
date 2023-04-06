@@ -5,13 +5,13 @@ import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { getActiveMeetingFromInteraction } from '@/queries/meeting.js';
 
-export const leaveCommand = createCommand(
-	{
+export const leaveCommand = createCommand({
+	commandArgs: {
 		name: 'leave',
 		description: 'Leave the voice channel',
 	},
-	leave,
-);
+	handler: leave,
+});
 
 async function leave(interaction: CommandInteraction, teno: Teno) {
 	const connection = getVoiceConnection(interaction.guildId as Snowflake);

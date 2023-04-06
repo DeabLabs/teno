@@ -9,10 +9,10 @@ import type { Teno } from '@/models/teno.js';
 import { playTextToSpeech } from '@/services/textToSpeech.js';
 import { createCommand } from '@/discord/createCommand.js';
 
-export const joinCommand = createCommand(
-	{ name: 'join', description: 'Join a voice channel and start a meeting' },
-	join,
-);
+export const joinCommand = createCommand({
+	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
+	handler: join,
+});
 
 async function join(interaction: CommandInteraction, teno: Teno) {
 	try {

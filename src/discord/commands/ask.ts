@@ -9,8 +9,8 @@ import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 
-export const askCommand = createCommand(
-	{
+export const askCommand = createCommand({
+	commandArgs: {
 		name: 'ask',
 		description: 'Ask Teno a question about the meeting you are in',
 		options: [
@@ -21,8 +21,8 @@ export const askCommand = createCommand(
 			},
 		],
 	},
-	ask,
-);
+	handler: ask,
+});
 
 async function ask(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });

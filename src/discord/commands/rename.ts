@@ -17,15 +17,15 @@ import { CommandCache } from '@/models/CommandCache.js';
 const selectMenuId = 'rename-meeting-select';
 const modalId = 'rename-meeting-modal';
 
-export const renameCommand = createCommand(
-	{
+export const renameCommand = createCommand({
+	commandArgs: {
 		name: 'rename',
 		description: 'Rename a meeting',
 	},
-	rename,
-	[selectMenuId, handleRenameMeetingSelect],
-	[modalId, handleRenameMeetingModal],
-);
+	handler: rename,
+	selectMenuHandlers: [{ customId: selectMenuId, handler: handleRenameMeetingSelect }],
+	modalMenuHandlers: [{ customId: modalId, handler: handleRenameMeetingModal }],
+});
 
 async function rename(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });

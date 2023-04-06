@@ -52,13 +52,17 @@ export class Teno {
 					console.warn(error);
 				}
 			} else if (interaction.isStringSelectMenu()) {
-				const command = Array.from(interactionCommandHandlers.values()).find(
-					(c) => c?.selectMenuHandler?.[0] === interaction.customId,
-				);
+				const commands = Array.from(interactionCommandHandlers.values()).flatMap((c) => {
+					if (c?.selectMenuHandlers) {
+						return c.selectMenuHandlers.filter((sm) => sm.customId === interaction.customId);
+					}
+					return [];
+				});
 
 				try {
-					if (command) {
-						await command?.selectMenuHandler?.[1]?.(interaction, this);
+					if (commands.length) {
+						const promises = commands.map((c) => c.handler(interaction, this));
+						await Promise.allSettled(promises);
 					} else {
 						await interaction.reply('Unknown command');
 					}
@@ -66,13 +70,17 @@ export class Teno {
 					console.warn(error);
 				}
 			} else if (interaction.isModalSubmit()) {
-				const command = Array.from(interactionCommandHandlers.values()).find(
-					(c) => c?.modalMenuHandler?.[0] === interaction.customId,
-				);
+				const commands = Array.from(interactionCommandHandlers.values()).flatMap((c) => {
+					if (c?.modalMenuHandlers) {
+						return c.modalMenuHandlers.filter((mm) => mm.customId === interaction.customId);
+					}
+					return [];
+				});
 
 				try {
-					if (command) {
-						await command?.modalMenuHandler?.[1]?.(interaction, this);
+					if (commands.length) {
+						const promises = commands.map((c) => c.handler(interaction, this));
+						await Promise.allSettled(promises);
 					} else {
 						await interaction.reply('Unknown modal submission');
 					}

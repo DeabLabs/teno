@@ -20,14 +20,27 @@ export type Command = {
 	description: string;
 	options: CommandOption[];
 	handler: (interaction: CommandInteraction, teno: Teno) => Promise<void>;
-	selectMenuHandler?: [string, (interaction: StringSelectMenuInteraction, teno: Teno) => Promise<void>];
-	modalMenuHandler?: [string, (interaction: ModalSubmitInteraction, teno: Teno) => Promise<void>];
+	selectMenuHandlers?: {
+		customId: string;
+		handler: (interaction: StringSelectMenuInteraction, teno: Teno) => Promise<void>;
+	}[];
+	modalMenuHandlers?: {
+		customId: string;
+		handler: (interaction: ModalSubmitInteraction, teno: Teno) => Promise<void>;
+	}[];
 };
 
-type CreateCommandArgs = {
+type CommandDescription = {
 	name: Command['name'];
 	description: Command['description'];
 	options?: CommandOption | CommandOption[];
+};
+
+type CreateCommandArgs = {
+	commandArgs: CommandDescription;
+	handler: Command['handler'];
+	selectMenuHandlers?: Command['selectMenuHandlers'];
+	modalMenuHandlers?: Command['modalMenuHandlers'];
 };
 
 /**
@@ -37,12 +50,12 @@ type CreateCommandArgs = {
  * @param description description displayed within discord for the command
  * @param handler function that is triggered when the command is called
  */
-export const createCommand = (
-	commandArgs: CreateCommandArgs,
-	handler: Command['handler'],
-	selectMenuHandler?: Command['selectMenuHandler'],
-	modalMenuHandler?: Command['modalMenuHandler'],
-): Command => {
+export const createCommand = ({
+	commandArgs,
+	handler,
+	selectMenuHandlers,
+	modalMenuHandlers,
+}: CreateCommandArgs): Command => {
 	const options = Array.isArray(commandArgs.options)
 		? commandArgs.options
 		: commandArgs.options
@@ -57,7 +70,7 @@ export const createCommand = (
 
 			return handler(interaction, teno);
 		},
-		...(selectMenuHandler ? { selectMenuHandler } : {}),
-		...(modalMenuHandler ? { modalMenuHandler } : {}),
+		...(selectMenuHandlers ? { selectMenuHandlers } : {}),
+		...(modalMenuHandlers ? { modalMenuHandlers } : {}),
 	};
 };

@@ -10,8 +10,8 @@ import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 import { CommandCache } from '@/models/CommandCache.js';
 
-export const rememberCommand = createCommand(
-	{
+export const rememberCommand = createCommand({
+	commandArgs: {
 		name: 'remember',
 		description: 'Ask Teno a question about a previous meeting you have attended',
 		options: [
@@ -22,9 +22,9 @@ export const rememberCommand = createCommand(
 			},
 		],
 	},
-	remember,
-	['remember-meeting-select', handleRememberMeetingSelect],
-);
+	handler: remember,
+	selectMenuHandlers: [{ customId: 'remember-meeting-select', handler: handleRememberMeetingSelect }],
+});
 
 async function remember(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });
