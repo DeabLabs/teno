@@ -31,7 +31,9 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 		try {
 			invariant(message.reference?.messageId);
 			const repliedMessage = await message.channel.messages.fetch(message.reference?.messageId);
-			invariant(repliedMessage.author.id === teno.getClient().user?.id);
+			invariant(
+				repliedMessage.author.id === teno.getClient().user?.id && message.author.id !== teno.getClient().user?.id,
+			);
 			console.log('Checking in db if message is a reply to a meeting message...');
 			const isTargetMeeting = await findMeetingByMeetingMessage(message.reference?.messageId, teno);
 			return Boolean(isTargetMeeting);
