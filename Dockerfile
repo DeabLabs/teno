@@ -16,6 +16,7 @@ ARG OPENAI_API_KEY
 ARG ELEVENLABS_API_KEY
 ARG DEEPGRAM
 ARG TOKEN
+EXPOSE 45000-60000
 
 WORKDIR /app
 COPY --from=installer /app/dist/* .
@@ -24,4 +25,4 @@ COPY --from=installer /app/node_modules/ /app/node_modules/
 COPY --from=installer /etc/ssl/certs /etc/ssl/certs
 # COPY --from=installer /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-CMD ["yarn", "start-prod"]
+CMD ["node", "bot.js"]
