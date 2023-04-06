@@ -1,4 +1,9 @@
-import type { CommandInteraction, ModalSubmitInteraction, StringSelectMenuInteraction } from 'discord.js';
+import type {
+	ButtonInteraction,
+	CommandInteraction,
+	ModalSubmitInteraction,
+	StringSelectMenuInteraction,
+} from 'discord.js';
 
 import type { Teno } from '@/models/teno.js';
 
@@ -28,6 +33,10 @@ export type Command = {
 		customId: string;
 		handler: (interaction: ModalSubmitInteraction, teno: Teno) => Promise<void>;
 	}[];
+	buttonHandlers?: {
+		customId: string;
+		handler: (interaction: ButtonInteraction, teno: Teno) => Promise<void>;
+	}[];
 };
 
 type CommandDescription = {
@@ -41,6 +50,7 @@ type CreateCommandArgs = {
 	handler: Command['handler'];
 	selectMenuHandlers?: Command['selectMenuHandlers'];
 	modalMenuHandlers?: Command['modalMenuHandlers'];
+	buttonHandlers?: Command['buttonHandlers'];
 };
 
 /**
@@ -55,6 +65,7 @@ export const createCommand = ({
 	handler,
 	selectMenuHandlers,
 	modalMenuHandlers,
+	buttonHandlers,
 }: CreateCommandArgs): Command => {
 	const options = Array.isArray(commandArgs.options)
 		? commandArgs.options
@@ -72,5 +83,6 @@ export const createCommand = ({
 		},
 		...(selectMenuHandlers ? { selectMenuHandlers } : {}),
 		...(modalMenuHandlers ? { modalMenuHandlers } : {}),
+		...(buttonHandlers ? { buttonHandlers } : {}),
 	};
 };

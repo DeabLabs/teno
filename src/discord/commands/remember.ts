@@ -69,13 +69,6 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 
 		const components = [
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new ButtonBuilder().setCustomId('remember-meeting-last').setLabel('Last Meeting').setStyle(ButtonStyle.Primary),
-				new ButtonBuilder()
-					.setCustomId('remember-meeting-all')
-					.setLabel('All Meetings')
-					.setStyle(ButtonStyle.Secondary),
-			),
-			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 				new StringSelectMenuBuilder()
 					.setCustomId('remember-meeting-select')
 					.setPlaceholder('Select a meeting')

@@ -87,6 +87,24 @@ export class Teno {
 				} catch (error) {
 					console.warn(error);
 				}
+			} else if (interaction.isButton()) {
+				const commands = Array.from(interactionCommandHandlers.values()).flatMap((c) => {
+					if (c?.buttonHandlers) {
+						return c.buttonHandlers.filter((mm) => mm.customId === interaction.customId);
+					}
+					return [];
+				});
+
+				try {
+					if (commands.length) {
+						const promises = commands.map((c) => c.handler(interaction, this));
+						await Promise.allSettled(promises);
+					} else {
+						await interaction.reply('Unknown button submission');
+					}
+				} catch (error) {
+					console.warn(error);
+				}
 			}
 		});
 

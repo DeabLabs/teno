@@ -1,4 +1,4 @@
-import type { CommandInteraction, MessageActionRowComponentBuilder } from 'discord.js';
+import type { ButtonInteraction, CommandInteraction, MessageActionRowComponentBuilder } from 'discord.js';
 import { ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ActionRowBuilder } from 'discord.js';
 import { GuildMember } from 'discord.js';
@@ -22,6 +22,7 @@ export const askCommand = createCommand({
 		],
 	},
 	handler: ask,
+	buttonHandlers: [{ customId: 'ask-share', handler: askShareHandler }],
 });
 
 async function ask(interaction: CommandInteraction, teno: Teno) {
@@ -84,5 +85,20 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 		await interaction.editReply(
 			"You are not in a meeting with Teno. Try /remember to ask Teno a question about a meeting you've previously been in.",
 		);
+	}
+}
+
+/**
+ * Handles the "Share Answer in Channel" button on the /ask command
+ *
+ * Read the question cached in cmdCache, send it into the channel as a new message
+ */
+async function askShareHandler(interaction: ButtonInteraction) {
+	try {
+		await interaction.deferReply({ ephemeral: false });
+		await interaction.editReply({ content: interaction.message.content });
+	} catch (e) {
+		console.error(e);
+		await interaction.reply({ content: 'Something went wrong', ephemeral: true });
 	}
 }
