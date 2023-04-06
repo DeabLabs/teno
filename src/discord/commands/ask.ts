@@ -71,7 +71,7 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 		const answer = await answerQuestionOnTranscript(String(question), transcriptLines);
 
 		await interaction.editReply({
-			content: `Question: ${question}\nAnswer: ${answer}`,
+			content: `[${question}]\n${answer}`,
 			components: [
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 					new ButtonBuilder()
@@ -90,8 +90,6 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 
 /**
  * Handles the "Share Answer in Channel" button on the /ask command
- *
- * Read the question cached in cmdCache, send it into the channel as a new message
  */
 async function askShareHandler(interaction: ButtonInteraction) {
 	try {

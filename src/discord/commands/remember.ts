@@ -88,7 +88,7 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 		await cmdCache.setValue(String(question));
 
 		await interaction.editReply({
-			content: `Question: "${question}"\n\nIn which meeting would you like me to find the answer to your question?`,
+			content: `[${question}]\n\nIn which meeting would you like me to find the answer to your question?`,
 			components,
 		});
 	} catch (e) {
@@ -161,7 +161,7 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 		invariant(transcriptLines);
 		const answer = await answerQuestionOnTranscript(question, transcriptLines);
 		await interaction.editReply({
-			content: `Meeting: ${meeting.name}\nQuestion: ${question}\nAnswer: ${answer}`,
+			content: `Meeting: ${meeting.name}\n[${question}]\n${answer}`,
 			components: [
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 					new ButtonBuilder()
