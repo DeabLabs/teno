@@ -17,7 +17,7 @@
 		"ci": "yarn build && yarn lint",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
-		"d-down": "docker-compose down",
+		"d-down": "docker-compose stop",
 		"#db commands#": "",
 		"db:push": "prisma db push",
 		"db:generate": "prisma generate",
