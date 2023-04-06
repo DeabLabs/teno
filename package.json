@@ -9,6 +9,7 @@
 	},
 	"scripts": {
 		"start": "yarn build && node dist/bot",
+		"start-prod": "node bot.js",
 		"dev": "tsup --watch --onSuccess \"node dist/bot.js\"",
 		"lint": "prettier --cache --check . && eslint src --ext mjs,js,ts --cache",
 		"format": "prettier --cache --write . && eslint src --ext mjs,js,ts --fix --cache",

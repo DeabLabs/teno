@@ -1,10 +1,17 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:latest
-    container_name: redis
-    ports:
-      - '6379:6379'
-    volumes:
-      - ./redis-data:/data
+  teno-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DEEPGRAM: ${DEEPGRAM}
+      TOKEN: ${TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: ${DATABASE_URL}
+    env_file:
+      - .env
