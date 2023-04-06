@@ -62,7 +62,7 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 					teno.addMeeting(newMeeting);
 
 					// Play a sound to indicate that the bot has joined the channel
-					await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+					// await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
 
 					// Start listening
 					startListening({ connection, meeting: newMeeting, interaction });
