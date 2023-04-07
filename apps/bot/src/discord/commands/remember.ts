@@ -16,6 +16,7 @@ import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 import { CommandCache } from '@/models/CommandCache.js';
+import { MAX_SELECT_MENU_OPTIONS } from '@/constants.js';
 
 const selectMenuId = 'remember-meeting-select';
 const modalId = 'remember-meeting-modal';
@@ -23,7 +24,14 @@ const modalId = 'remember-meeting-modal';
 export const rememberCommand = createCommand({
 	commandArgs: {
 		name: 'remember',
-		description: 'Ask Teno a question about a previous meeting you have attended',
+		description: 'Prompt Teno about a meeting you have attended.',
+		options: [
+			{
+				name: 'search',
+				description: 'Search for a meeting by name or topic',
+				required: false,
+			},
+		],
 	},
 	handler: remember,
 	selectMenuHandlers: [{ customId: selectMenuId, handler: handleRememberMeetingSelect }],
@@ -32,6 +40,8 @@ export const rememberCommand = createCommand({
 
 async function remember(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });
+
+	const search = String(interaction.options.get('search')?.value ?? '');
 
 	try {
 		const member = interaction.member;
@@ -46,8 +56,15 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 						discordId: memberDiscordId,
 					},
 				},
+				...(search
+					? {
+							name: {
+								contains: search,
+							},
+					  }
+					: {}),
 			},
-			take: 20,
+			take: MAX_SELECT_MENU_OPTIONS,
 			orderBy: {
 				createdAt: 'desc',
 			},
@@ -76,7 +93,12 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 			components,
 		});
 	} catch (e) {
-		console.error(e);
+		if (search) {
+			await interaction.editReply(
+				`I could not find any meetings that you have attended with the search term "${search}".`,
+			);
+			return;
+		}
 
 		await interaction.editReply('I could not find any meetings that you have attended.');
 	}
