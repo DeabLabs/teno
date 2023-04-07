@@ -9,7 +9,6 @@ import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { createOrGetUser } from '@/queries/user.js';
 import { generateMeetingName } from '@/services/langchain.js';
-
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
 
@@ -27,8 +26,9 @@ type MeetingArgs = {
 	name: string;
 };
 
-type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name'> & {
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active'> & {
 	id?: number;
+	active?: boolean;
 	userDiscordId: string;
 	redisClient: RedisClient;
 };

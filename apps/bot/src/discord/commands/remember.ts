@@ -1,4 +1,5 @@
 import type {
+	ButtonInteraction,
 	CommandInteraction,
 	MessageActionRowComponentBuilder,
 	ModalActionRowComponentBuilder,
@@ -18,6 +19,7 @@ import { Transcript } from '@/models/transcript.js';
 import { CommandCache } from '@/models/CommandCache.js';
 import { MAX_SELECT_MENU_OPTIONS } from '@/constants.js';
 
+const currentMeetingButton = 'remember-current-meeting';
 const selectMenuId = 'remember-meeting-select';
 const modalId = 'remember-meeting-modal';
 
@@ -36,6 +38,7 @@ export const rememberCommand = createCommand({
 	handler: remember,
 	selectMenuHandlers: [{ customId: selectMenuId, handler: handleRememberMeetingSelect }],
 	modalMenuHandlers: [{ customId: modalId, handler: handleRememberMeetingModal }],
+	buttonHandlers: [{ customId: currentMeetingButton, handler: handleRememberMeetingCurrentButton }],
 });
 
 async function remember(interaction: CommandInteraction, teno: Teno) {
@@ -72,20 +75,36 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 				transcript: true,
 			},
 		});
-		invariant(meetings.length);
 
 		const meetingOptions = meetings.map((meeting) => ({
 			label: meeting.name,
 			value: String(meeting.id),
 		}));
 
+		let placeholder = 'Select a meeting';
+		if (!meetings.length && search) {
+			placeholder = `No meetings found for your search term...`;
+		} else if (!meetings.length) {
+			placeholder = `No meetings found`;
+		}
+
+		const selectMenu = new StringSelectMenuBuilder().setCustomId(selectMenuId).setPlaceholder(placeholder);
+
+		if (meetingOptions.length) {
+			selectMenu.addOptions(meetingOptions);
+		} else {
+			selectMenu.addOptions({
+				label: 'No meetings found',
+				value: 'no-meetings',
+			});
+			selectMenu.setDisabled(true);
+		}
+
 		const components = [
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new StringSelectMenuBuilder()
-					.setCustomId('remember-meeting-select')
-					.setPlaceholder('Select a meeting')
-					.addOptions(...meetingOptions),
+				new ButtonBuilder().setLabel('Current Meeting').setStyle(ButtonStyle.Primary).setCustomId(currentMeetingButton),
 			),
+			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(selectMenu),
 		];
 
 		await interaction.editReply({
@@ -101,6 +120,61 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 		}
 
 		await interaction.editReply('I could not find any meetings that you have attended.');
+	}
+}
+
+async function handleRememberMeetingCurrentButton(interaction: ButtonInteraction, teno: Teno) {
+	// Try to lookup the member's current meeting based on their voice channel, if they have one
+	const guildId = interaction.guildId;
+	const member = interaction.member;
+	const memberInVoiceChannel = member instanceof GuildMember && member.voice.channel;
+	const voiceChannelId = memberInVoiceChannel && member.voice.channelId;
+
+	try {
+		invariant(member);
+		invariant(typeof guildId === 'string');
+		invariant(memberInVoiceChannel);
+		invariant(typeof voiceChannelId === 'string');
+	} catch (e) {
+		await interaction.update({
+			content:
+				'You are not in a meeting with Teno. Try joining a voice channel and then using /join start a meeting with Teno!',
+			components: [],
+		});
+		return;
+	}
+
+	try {
+		const activeMeeting = await teno.getPrismaClient().meeting.findFirst({
+			where: {
+				active: true,
+				channelId: voiceChannelId,
+				attendees: {
+					some: {
+						discordId: member.id,
+					},
+				},
+			},
+			include: {
+				transcript: true,
+			},
+		});
+		invariant(activeMeeting && activeMeeting.transcript);
+		const cmdCache = new CommandCache({
+			redisClient: teno.getRedisClient(),
+			guildId,
+			userDiscordId: interaction.user.id,
+			commandName: rememberCommand.name,
+		});
+
+		const meetingId = activeMeeting.id;
+		await cmdCache.setValue(String(meetingId));
+		await displayPromptModal(interaction);
+	} catch (e) {
+		await interaction.update({
+			content: 'You are not in a meeting with Teno. Try using /join start a meeting with Teno!',
+			components: [],
+		});
 	}
 }
 
@@ -143,31 +217,8 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 	await cmdCache.setValue(String(meetingId));
 
 	try {
-		// Create a modal to rename the meeting
-		const modal = new ModalBuilder().setCustomId(modalId).setTitle('Remember Meeting');
-
-		// Add components to modal
-
-		// Create the text input components
-		const meetingRenameInput = new TextInputBuilder()
-			.setCustomId('remember-meeting-text-input')
-			// The label is the prompt the user sees for this input
-			.setLabel('Enter your question')
-			// Short means only a single line of text
-			.setStyle(TextInputStyle.Short)
-			.setRequired(true)
-			.setPlaceholder('Can you summarize this meeting?');
-
-		// An action row only holds one text input,
-		// so you need one action row per text input.
-		const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(meetingRenameInput);
-
-		// Add inputs to the modal
-		modal.addComponents(firstActionRow);
-		await interaction.showModal(modal);
-		await interaction.deleteReply();
+		await displayPromptModal(interaction);
 	} catch (e) {
-		console.error(e);
 		await interaction.editReply({ content: 'I could not remember your meeting...', components: [] });
 	}
 }
@@ -227,7 +278,32 @@ async function handleRememberMeetingModal(interaction: ModalSubmitInteraction, t
 			],
 		});
 	} catch (e) {
-		console.error(e);
 		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
 	}
+}
+
+async function displayPromptModal(interaction: CommandInteraction | StringSelectMenuInteraction | ButtonInteraction) {
+	// Create a modal to rename the meeting
+	const modal = new ModalBuilder().setCustomId(modalId).setTitle('Remember Meeting');
+
+	// Add components to modal
+
+	// Create the text input components
+	const meetingRenameInput = new TextInputBuilder()
+		.setCustomId('remember-meeting-text-input')
+		// The label is the prompt the user sees for this input
+		.setLabel('Enter your question')
+		// Short means only a single line of text
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true)
+		.setPlaceholder('Can you summarize this meeting?');
+
+	// An action row only holds one text input,
+	// so you need one action row per text input.
+	const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(meetingRenameInput);
+
+	// Add inputs to the modal
+	modal.addComponents(firstActionRow);
+	await interaction.showModal(modal);
+	await interaction.deleteReply();
 }
