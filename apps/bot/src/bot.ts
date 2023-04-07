@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from 'database';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Client, Events } from 'discord.js';
 import { Redis } from 'ioredis';
@@ -27,7 +27,7 @@ await redisClient.connect();
 
 // Initialize prisma client
 
-const prismaClient = new PrismaClient();
+const prismaClient = prisma;
 
 await prismaClient.$connect();
 
