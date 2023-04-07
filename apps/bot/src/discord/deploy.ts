@@ -20,6 +20,9 @@ const buildCommandMapper = (c: Command) => {
 			if (o.description) {
 				opt.setDescription(o.description);
 			}
+			if (o.choices) {
+				opt.addChoices(...o.choices);
+			}
 
 			return opt;
 		});
