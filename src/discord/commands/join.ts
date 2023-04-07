@@ -6,7 +6,6 @@ import invariant from 'tiny-invariant';
 
 import { Meeting } from '@/models/meeting.js';
 import type { Teno } from '@/models/teno.js';
-import { playTextToSpeech } from '@/services/textToSpeech.js';
 import { createCommand } from '@/discord/createCommand.js';
 
 export const joinCommand = createCommand({

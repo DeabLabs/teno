@@ -14,7 +14,9 @@
 		"format": "prettier --cache --write . && eslint src --ext mjs,js,ts --fix --cache",
 		"build": "npm run db:generate && tsup",
 		"build:check": "tsc --noEmit --incremental false",
-		"ci": "yarn build && yarn lint",
+		"test": "vitest",
+		"test:ci": "vitest run",
+		"ci": "yarn test:ci && yarn build && yarn lint",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
 		"d-down": "docker-compose stop",
@@ -56,7 +58,8 @@
 		"prisma": "^4.12.0",
 		"rimraf": "^3.0.2",
 		"tsup": "^6.7.0",
-		"typescript": "^5.0.3"
+		"typescript": "^5.0.3",
+		"vitest": "^0.29.8"
 	},
 	"packageManager": "yarn@1.22.19"
 }
