@@ -20,6 +20,7 @@ import { CommandCache } from '@/models/CommandCache.js';
 import { MAX_SELECT_MENU_OPTIONS } from '@/constants.js';
 
 const currentMeetingButton = 'ask-current-meeting';
+const askShareButton = 'ask-share';
 const selectMenuId = 'ask-meeting-select';
 const modalId = 'ask-meeting-modal';
 
@@ -38,7 +39,10 @@ export const askCommand = createCommand({
 	handler: ask,
 	selectMenuHandlers: [{ customId: selectMenuId, handler: handleAskMeetingSelect }],
 	modalMenuHandlers: [{ customId: modalId, handler: handleAskMeetingModal }],
-	buttonHandlers: [{ customId: currentMeetingButton, handler: handleAskMeetingCurrentButton }],
+	buttonHandlers: [
+		{ customId: currentMeetingButton, handler: handleAskMeetingCurrentButton },
+		{ customId: askShareButton, handler: handleAskShareButton },
+	],
 });
 
 async function ask(interaction: CommandInteraction, teno: Teno) {
@@ -274,7 +278,7 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 			components: [
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 					new ButtonBuilder()
-						.setCustomId('ask-share')
+						.setCustomId(askShareButton)
 						.setStyle(ButtonStyle.Secondary)
 						.setLabel('Share Answer in Channel'),
 				),
@@ -282,6 +286,19 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 		});
 	} catch (e) {
 		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
+	}
+}
+
+/**
+ * Handles the "Share Answer in Channel" button on the /ask command
+ */
+async function handleAskShareButton(interaction: ButtonInteraction) {
+	try {
+		await interaction.deferReply({ ephemeral: false });
+		await interaction.editReply({ content: interaction.message.content });
+	} catch (e) {
+		console.error(e);
+		await interaction.reply({ content: 'Something went wrong', ephemeral: true });
 	}
 }
 
