@@ -27,11 +27,11 @@
 		},
 		"test": {
 			"cache": false,
+			"persistent": true,
 			"dependsOn": ["^build"]
 		},
-		"test:w": {
+		"test:ci": {
 			"cache": false,
-			"persistent": true,
 			"dependsOn": ["^build"]
 		},
 		"lint": {
