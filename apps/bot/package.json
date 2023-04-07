@@ -10,8 +10,8 @@
 	"scripts": {
 		"start": "node dist/bot",
 		"dev": "tsup --watch --onSuccess \"node dist/bot.js\"",
-		"lint": "eslint src --ext mjs,js,ts --cache",
-		"format": "eslint src --ext mjs,js,ts --fix --cache",
+		"lint": "eslint src --ext mjs,js,ts",
+		"format": "eslint src --ext mjs,js,ts --fix",
 		"build": "tsup",
 		"build:check": "tsc --noEmit --incremental false",
 		"test": "vitest",
@@ -28,6 +28,7 @@
 		"@dqbd/tiktoken": "^1.0.2",
 		"@google-cloud/text-to-speech": "^4.2.1",
 		"database": "*",
+		"date-fns": "^2.29.3",
 		"discord.js": "^14.8.0",
 		"dotenv": "^16.0.3",
 		"ioredis": "^5.3.1",

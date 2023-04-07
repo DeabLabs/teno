@@ -1,4 +1,5 @@
 import type {
+	APIApplicationCommandOptionChoice,
 	ButtonInteraction,
 	CommandInteraction,
 	ModalSubmitInteraction,
@@ -14,7 +15,7 @@ export type CommandOption = {
 	name: string;
 	description?: string;
 	required?: boolean;
-	choices?: () => [[string, string]];
+	choices?: APIApplicationCommandOptionChoice<string>[];
 };
 
 /**

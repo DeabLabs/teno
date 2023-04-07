@@ -27,8 +27,9 @@ type MeetingArgs = {
 	name: string;
 };
 
-type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name'> & {
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active'> & {
 	id?: number;
+	active?: boolean;
 	userDiscordId: string;
 	redisClient: RedisClient;
 };
