@@ -4,7 +4,7 @@ services:
   teno-bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./apps/bot/Dockerfile
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
