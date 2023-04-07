@@ -1,4 +1,11 @@
-import type { CommandInteraction, MessageActionRowComponentBuilder, StringSelectMenuInteraction } from 'discord.js';
+import type {
+	CommandInteraction,
+	MessageActionRowComponentBuilder,
+	ModalActionRowComponentBuilder,
+	ModalSubmitInteraction,
+	StringSelectMenuInteraction,
+} from 'discord.js';
+import { ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { GuildMember } from 'discord.js';
@@ -10,33 +17,21 @@ import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 import { CommandCache } from '@/models/CommandCache.js';
 
+const selectMenuId = 'remember-meeting-select';
+const modalId = 'remember-meeting-modal';
+
 export const rememberCommand = createCommand({
 	commandArgs: {
 		name: 'remember',
 		description: 'Ask Teno a question about a previous meeting you have attended',
-		options: [
-			{
-				name: 'question',
-				description: 'The question you want to ask',
-				required: true,
-			},
-		],
 	},
 	handler: remember,
-	selectMenuHandlers: [{ customId: 'remember-meeting-select', handler: handleRememberMeetingSelect }],
+	selectMenuHandlers: [{ customId: selectMenuId, handler: handleRememberMeetingSelect }],
+	modalMenuHandlers: [{ customId: modalId, handler: handleRememberMeetingModal }],
 });
 
 async function remember(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });
-	const question = interaction.options.get('question', true)?.value;
-
-	try {
-		invariant(question);
-	} catch (e) {
-		console.error('Malformed question', e);
-		await interaction.editReply('Please enter a question.');
-		return;
-	}
 
 	try {
 		const member = interaction.member;
@@ -76,19 +71,8 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 			),
 		];
 
-		// cache the question in redis so that we can retrieve it later in the handleRememberMeetingSelect function
-		// we can key it by the discord user id, the guild id, and the command name
-		const cmdCache = new CommandCache({
-			redisClient: teno.getRedisClient(),
-			guildId: interaction.guildId,
-			userDiscordId: member.id,
-			commandName: rememberCommand.name,
-		});
-
-		await cmdCache.setValue(String(question));
-
 		await interaction.editReply({
-			content: `[${question}]\n\nIn which meeting would you like me to find the answer to your question?`,
+			content: `In which meeting would you like me to find the answer to your question?`,
 			components,
 		});
 	} catch (e) {
@@ -99,9 +83,6 @@ async function remember(interaction: CommandInteraction, teno: Teno) {
 }
 
 async function handleRememberMeetingSelect(interaction: StringSelectMenuInteraction, teno: Teno) {
-	const message = await interaction.deferUpdate({});
-	await message.edit({ content: 'Searching...', components: [] });
-
 	const guildId = interaction.guildId;
 	const meetingId = interaction.values?.[0];
 	try {
@@ -132,24 +113,76 @@ async function handleRememberMeetingSelect(interaction: StringSelectMenuInteract
 
 	const cmdCache = new CommandCache({
 		redisClient: teno.getRedisClient(),
-		guildId: guildId,
+		guildId,
 		userDiscordId: interaction.user.id,
 		commandName: rememberCommand.name,
 	});
-	const question = await cmdCache.getValue();
+
+	await cmdCache.setValue(String(meetingId));
+
+	try {
+		// Create a modal to rename the meeting
+		const modal = new ModalBuilder().setCustomId(modalId).setTitle('Remember Meeting');
+
+		// Add components to modal
+
+		// Create the text input components
+		const meetingRenameInput = new TextInputBuilder()
+			.setCustomId('remember-meeting-text-input')
+			// The label is the prompt the user sees for this input
+			.setLabel('Enter your question')
+			// Short means only a single line of text
+			.setStyle(TextInputStyle.Short)
+			.setRequired(true)
+			.setPlaceholder('Can you summarize this meeting?');
+
+		// An action row only holds one text input,
+		// so you need one action row per text input.
+		const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(meetingRenameInput);
+
+		// Add inputs to the modal
+		modal.addComponents(firstActionRow);
+		await interaction.showModal(modal);
+		await interaction.deleteReply();
+	} catch (e) {
+		console.error(e);
+		await interaction.editReply({ content: 'I could not remember your meeting...', components: [] });
+	}
+}
+
+async function handleRememberMeetingModal(interaction: ModalSubmitInteraction, teno: Teno) {
+	await interaction.deferReply({ ephemeral: true });
+
+	const guildId = interaction.guildId;
+	const question = interaction.fields.getTextInputValue('remember-meeting-text-input');
 
 	try {
 		invariant(question);
+		invariant(guildId);
 	} catch (e) {
-		console.error('Could not find cache entry for command', e);
-		await interaction.editReply({
-			content: `Sorry, I can't remember your question. Can you ask me again?`,
-			components: [],
-		});
+		await interaction.editReply('Please enter a question');
 		return;
 	}
 
+	const cmdCache = new CommandCache({
+		commandName: rememberCommand.name,
+		redisClient: teno.getRedisClient(),
+		guildId: guildId,
+		userDiscordId: interaction.user.id,
+	});
+
+	const meetingId = await cmdCache.getValue();
+	const meeting = await teno.getPrismaClient().meeting.findUnique({
+		where: {
+			id: Number(meetingId),
+		},
+		include: {
+			transcript: true,
+		},
+	});
+
 	try {
+		invariant(meeting && meeting.transcript);
 		const transcriptKey = meeting.transcript.redisKey;
 		const transcript = await Transcript.load({
 			meetingId: meeting.id,
