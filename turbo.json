@@ -35,8 +35,10 @@
 			"dependsOn": ["^build"]
 		},
 		"lint": {
-			"cache": false,
-			"dependsOn": ["^build"]
+			"cache": false
+		},
+		"format": {
+			"cache": false
 		},
 		"clean": {
 			"cache": false

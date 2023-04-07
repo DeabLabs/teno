@@ -9,6 +9,7 @@ import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { createOrGetUser } from '@/queries/user.js';
 import { generateMeetingName } from '@/services/langchain.js';
+
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
 
