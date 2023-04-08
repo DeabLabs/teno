@@ -1,9 +1,14 @@
 import type { LinksFunction } from '@remix-run/node';
+import type { V2_MetaFunction } from '@remix-run/react';
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 
 import styles from './tailwind.css';
 
 export const links: LinksFunction = () => [{ rel: 'stylesheet', href: styles }];
+
+export const meta: V2_MetaFunction = () => {
+	return [{ title: 'Teno Dashboard' }];
+};
 
 export default function App() {
 	return (

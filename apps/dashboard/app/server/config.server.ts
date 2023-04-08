@@ -4,7 +4,17 @@ dotenv.config();
 
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
-const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'REDIS_URL', 'DATABASE_URL'] as const;
+const envKeys = [
+	'TOKEN',
+	'DATABASE_URL',
+	'DASHBOARD_URL',
+	'DASHBOARD_PORT',
+	'DASHBOARD_PROTOCOL',
+	'DASHBOARD_HOST',
+	'DASHBOARD_SECRET',
+	'DISCORD_CLIENT_ID',
+	'DISCORD_CLIENT_SECRET',
+] as const;
 
 // Create a zod schema from the envKeys array
 // Every key is required
@@ -18,6 +28,5 @@ const envKeyObject = envKeys.reduce((acc, curr) => {
  *
  * @example
  * Config.TOKEN; // => 'discordtoken1234567890'
- * Config.DEEPGRAM; // => 'deepgramtoken1234567890'
  */
 export const Config = parseEnv(process.env, envKeyObject);
