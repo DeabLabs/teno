@@ -2,12 +2,12 @@ import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, CommandInteraction, Message, VoiceState } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import type { PrismaClient } from '@prisma/client';
 import invariant from 'tiny-invariant';
+import type { PrismaClientType } from 'database';
+import { createOrGetUser } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { createOrGetUser } from '@/queries/user.js';
 import { generateMeetingName } from '@/services/langchain.js';
 
 import { Transcript } from './transcript.js';
@@ -19,7 +19,7 @@ type MeetingArgs = {
 	textChannelId: string;
 	voiceChannelId: string;
 	guildId: string;
-	prismaClient: PrismaClient;
+	prismaClient: PrismaClientType;
 	startTime: number;
 	transcript: Transcript;
 	client: Client;
@@ -35,7 +35,7 @@ type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'na
 };
 
 export class Meeting {
-	private prismaClient: PrismaClient;
+	private prismaClient: PrismaClientType;
 	private guildId: string;
 	private voiceChannelId: string;
 	private speaking: Set<string>;

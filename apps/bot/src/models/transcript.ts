@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClientType } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { countMessageTokens } from '@/utils/tokens.js';
@@ -10,7 +10,7 @@ type TranscriptArgs = {
 	meetingId: number;
 	redisClient: RedisClient;
 	transcriptKey: string;
-	prismaClient: PrismaClient;
+	prismaClient: PrismaClientType;
 };
 
 type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
@@ -21,7 +21,7 @@ type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
 export class Transcript {
 	private id: number;
 	private meetingId: number;
-	private prismaClient: PrismaClient;
+	private prismaClient: PrismaClientType;
 	private redisClient: RedisClient;
 	private transcriptKey: string;
 	private tokens = 0;
