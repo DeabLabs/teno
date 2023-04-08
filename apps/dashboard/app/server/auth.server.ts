@@ -2,8 +2,8 @@
 import { Authenticator } from 'remix-auth';
 import type { DiscordProfile } from 'remix-auth-discord';
 import { DiscordStrategy } from 'remix-auth-discord';
-import { createOrGetUser, prisma } from 'database';
 
+import { prisma, userQueries } from './database.server';
 import { sessionStorage } from './session.server';
 import { Config } from './config.server';
 
@@ -33,7 +33,7 @@ const discordStrategy = new DiscordStrategy(
 		 * Construct the user profile to your liking by adding data you fetched etc.
 		 * and only returning the data that you actually need for your application.
 		 */
-		const user = await createOrGetUser(prisma, { discordId: profile.id });
+		const user = await userQueries.createOrGetUser(prisma, { discordId: profile.id });
 		return {
 			id: user.id,
 			discordId: profile.id,

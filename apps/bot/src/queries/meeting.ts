@@ -2,8 +2,7 @@ import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
-import { createOrGetUser } from 'database';
-import { findActiveMeeting } from 'database';
+import { userQueries, meetingQueries } from 'database';
 
 /**
  * Given an interaction, find the most recent meeting that the user is attending and is marked active
@@ -28,12 +27,15 @@ export const getActiveMeetingFromInteraction = async (
 		invariant(member instanceof GuildMember, 'Member is not a GuildMember');
 
 		// Get the user from the database
-		const user = await createOrGetUser(prismaClient, { discordId: member.id });
+		const user = await userQueries.createOrGetUser(prismaClient, { discordId: member.id });
 		invariant(user, 'User could not be created');
 
 		// Find the most recent meeting that the user is attending and is marked active
 		// Since a user can only be in one meeting at a time, this will return the most recent active meeting
-		const meeting = await findActiveMeeting(prismaClient, { userId: user.id, guildId: interaction.guildId });
+		const meeting = await meetingQueries.findActiveMeeting(prismaClient, {
+			userId: user.id,
+			guildId: interaction.guildId,
+		});
 
 		return meeting;
 	} catch (error) {

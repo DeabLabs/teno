@@ -4,7 +4,7 @@ import type { Client, CommandInteraction, Message, VoiceState } from 'discord.js
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
-import { createOrGetUser } from 'database';
+import { userQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -80,7 +80,7 @@ export class Meeting {
 
 	static async load(args: MeetingLoadArgs) {
 		try {
-			const user = await createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
+			const user = await userQueries.createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
 			const _meeting = await args.prismaClient.meeting.upsert({
 				where: { id: args?.id ?? -1 },
 				create: {
@@ -237,7 +237,7 @@ export class Meeting {
 	 * @param userId The user to add
 	 */
 	public async addMember(userId: string) {
-		const user = await createOrGetUser(this.prismaClient, { discordId: userId });
+		const user = await userQueries.createOrGetUser(this.prismaClient, { discordId: userId });
 		invariant(user);
 		await this.prismaClient.meeting.update({
 			where: { id: this.id },

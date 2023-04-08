@@ -1,7 +1,6 @@
 import type { LinksFunction } from '@remix-run/node';
 import type { V2_MetaFunction } from '@remix-run/react';
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import styles from './tailwind.css';
 
@@ -14,8 +13,6 @@ export const meta: V2_MetaFunction = () => {
 	return [{ title: 'Teno Dashboard' }];
 };
 
-const queryClient = new QueryClient({});
-
 export default function App() {
 	return (
 		<html lang="en">
@@ -26,9 +23,7 @@ export default function App() {
 				<Links />
 			</head>
 			<body>
-				<QueryClientProvider client={queryClient}>
-					<Outlet />
-				</QueryClientProvider>
+				<Outlet />
 				<ScrollRestoration />
 				<Scripts />
 				<LiveReload />
