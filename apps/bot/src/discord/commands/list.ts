@@ -16,9 +16,9 @@ export const listCommand = createCommand({
 				description: 'Limit the number of meetings to list.',
 				required: false,
 				choices: [
-					{ name: '20', value: '20' },
+					{ name: '10', value: '10' },
+					{ name: '25', value: '25' },
 					{ name: '50', value: '50' },
-					{ name: '100', value: '100' },
 				],
 			},
 		],
@@ -35,9 +35,9 @@ async function list(interaction: CommandInteraction, teno: Teno) {
 		const guildId = interaction.guildId;
 		invariant(memberIsGuildMember && guildId);
 
-		let limit = Number(interaction.options.get('limit')?.value ?? 20);
-		if (isNaN(limit) || !limit || limit > 100) {
-			limit = 20;
+		let limit = Number(interaction.options.get('limit')?.value ?? 10);
+		if (isNaN(limit) || !limit || limit > 50) {
+			limit = 10;
 		}
 
 		const meetings = await teno.getPrismaClient().meeting.findMany({
