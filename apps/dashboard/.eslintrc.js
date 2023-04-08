@@ -17,7 +17,7 @@ module.exports = {
 			'error',
 			{
 				alias: {
-					'~': './src',
+					'@': './app',
 				},
 			},
 		],

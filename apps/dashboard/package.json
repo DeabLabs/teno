@@ -15,10 +15,18 @@
 		"@remix-run/node": "^1.15.0",
 		"@remix-run/react": "^1.15.0",
 		"@remix-run/serve": "^1.15.0",
+		"@tanstack/react-query": "^4.28.0",
+		"@tanstack/react-table": "^8.8.5",
+		"class-variance-authority": "^0.5.1",
 		"clsx": "^1.2.1",
 		"isbot": "^3.6.5",
+		"lucide-react": "^0.132.0",
 		"react": "^18.2.0",
-		"react-dom": "^18.2.0"
+		"react-dom": "^18.2.0",
+		"remix-auth": "^3.4.0",
+		"remix-auth-discord": "^1.2.1",
+		"tailwind-merge": "^1.12.0",
+		"tailwindcss-animate": "^1.0.5"
 	},
 	"devDependencies": {
 		"@dword-design/eslint-plugin-import-alias": "^3.0.6",

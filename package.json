@@ -9,7 +9,7 @@
 	],
 	"scripts": {
 		"start": "turbo run start --no-daemon",
-		"dev": "turbo run dev --no-daemon",
+		"dev": "dotenv -- turbo run dev --no-daemon",
 		"build": "turbo run build --no-daemon",
 		"lint": "yarn lint:prettier && turbo run lint --no-daemon",
 		"test": "turbo run test --no-daemon",
@@ -36,6 +36,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"@manypkg/cli": "0.20.0",
+		"dotenv-cli": "^7.2.1",
 		"prettier": "2.8.4",
 		"turbo": "1.7.4",
 		"typescript": "^5.0.3"
