@@ -1107,15 +1107,6 @@
     fast-json-parse "^1.0.3"
     objectorarray "^1.0.3"
 
-"@dword-design/eslint-plugin-import-alias@^3.0.4":
-  version "3.0.5"
-  resolved "https://registry.yarnpkg.com/@dword-design/eslint-plugin-import-alias/-/eslint-plugin-import-alias-3.0.5.tgz#f024660af759a4915ea6a121b92b31f8006a30de"
-  integrity sha512-B5LIpI0LRUdvGtg1aM9HDt8/JOEQUkfQsNM35CDz7x/FUGphW44ZguHSDaof8YeVSoCrXHW1f6a0r0v3+2fcdA==
-  dependencies:
-    "@babel/core" "^7.10.2"
-    "@dword-design/functions" "^4.0.0"
-    babel-plugin-module-resolver "^4.0.0"
-
 "@dword-design/eslint-plugin-import-alias@^3.0.6":
   version "3.0.6"
   resolved "https://registry.yarnpkg.com/@dword-design/eslint-plugin-import-alias/-/eslint-plugin-import-alias-3.0.6.tgz#1a894969d01dae5c98fff634b9be3c2de5c78983"
