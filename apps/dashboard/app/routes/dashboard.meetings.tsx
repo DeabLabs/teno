@@ -1,11 +1,12 @@
 import type { LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useEffect, useRef, useState } from 'react';
-import { useActionData, useLoaderData, useSubmit } from '@remix-run/react';
+import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import clsx from 'clsx';
 
 import { meetingQueries, prisma } from '@/server/database.server';
 import { checkAuth } from '@/server/auth.utils.server';
+import { Button } from '@/components/ui/Button';
 
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
@@ -16,21 +17,21 @@ export const loader = async ({ request }: LoaderArgs) => {
 };
 
 export const action = async ({ request }: LoaderArgs) => {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const user = await checkAuth(request);
-	// log out form data from the request
+	await checkAuth(request);
+
+	const formData = await request.formData();
+	const intent = formData.get('_action')?.toString();
+
 	try {
-		if (request.method === 'DELETE') {
-			const formData = await request.formData();
+		if (intent === 'delete') {
 			const IDsToDelete = formData
-				.get('selectedMeeting')
-				?.toString()
-				?.split('|')
+				.getAll('selectedMeeting')
 				.map((id) => Number(id))
 				.filter((id) => !isNaN(id));
 
 			if (IDsToDelete) {
 				// TODO call deleteAuthoredMeetingsById with a redisClient deletion function
+				console.log(IDsToDelete);
 			}
 		}
 	} catch (e) {
@@ -41,7 +42,6 @@ export const action = async ({ request }: LoaderArgs) => {
 };
 
 const DashboardMeetings = () => {
-	const submit = useSubmit();
 	const { authoredMeetings } = useLoaderData<typeof loader>();
 	const data = useActionData();
 
@@ -51,12 +51,6 @@ const DashboardMeetings = () => {
 	const [checked, setChecked] = useState(false);
 	const [indeterminate, setIndeterminate] = useState(false);
 	const [selectedMeeting, setSelectedMeeting] = useState<Meeting[]>([]);
-
-	const handleSubmit = () => {
-		const form = new FormData();
-		form.append('selectedMeeting', selectedMeeting.map((meeting) => meeting.id).join('|'));
-		return submit(form, { method: 'DELETE' });
-	};
 
 	useEffect(() => {
 		const isIndeterminate = selectedMeeting.length > 0 && selectedMeeting.length < authoredMeetings.length;
@@ -79,28 +73,26 @@ const DashboardMeetings = () => {
 		setIndeterminate(false);
 	}
 
+	const mainBg = 'bg-gray-900';
+	const mainText = 'text-gray-100';
+	const secondaryText = 'text-white';
+
 	return (
-		<div className="w-full mb-4 rounded">
-			<div className="mt-6 flow-root">
+		<Form className="w-full mb-4 rounded" method="post" replace>
+			<div className="flow-root mt-6">
 				<div className="overflow-x-auto">
-					<div className="inline-block min-w-full align-middle bg-white rounded">
+					<div className={clsx('inline-block min-w-full align-middle rounded', mainBg)}>
 						<div className="relative">
 							{selectedMeeting.length > 0 && (
-								<div className="absolute left-14 top-0 flex h-12 items-center space-x-3 bg-white sm:left-12">
-									<button
-										name="_action"
-										value="delete"
-										type="button"
-										className="inline-flex items-center rounded bg-white px-2 py-1 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
-										onClick={handleSubmit}
-									>
+								<div className={clsx('absolute left-14 top-0 flex h-12 items-center space-x-3 sm:left-12', mainBg)}>
+									<Button name="_action" value="delete" type="submit" variant={'destructive'} size={'sm'}>
 										Delete Selected
-									</button>
+									</Button>
 								</div>
 							)}
-							<table className="min-w-full table-fixed divide-y divide-gray-300">
+							<table className="min-w-full table-fixed divide-y divide-gray-800">
 								<thead>
-									<tr>
+									<tr className={clsx(mainText)}>
 										<th scope="col" className="relative px-7 sm:w-12 sm:px-6">
 											<input
 												type="checkbox"
@@ -110,23 +102,26 @@ const DashboardMeetings = () => {
 												onChange={toggleAll}
 											/>
 										</th>
-										<th scope="col" className="min-w-[12rem] py-3.5 pr-3 text-left text-sm font-semibold text-gray-900">
+										<th scope="col" className={'min-w-[12rem] py-3.5 pr-3 text-left text-sm font-semibold'}>
 											Name
 										</th>
-										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold">
 											Created At
 										</th>
-										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold">
 											Locked
 										</th>
-										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+										<th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold">
 											Active
 										</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-gray-200 bg-white">
+								<tbody className={clsx('divide-y divide-gray-800', mainBg)}>
 									{authoredMeetings.map((meeting) => (
-										<tr key={meeting.id} className={selectedMeeting.includes(meeting) ? 'bg-gray-50' : undefined}>
+										<tr
+											key={meeting.id}
+											className={clsx(selectedMeeting.includes(meeting) && 'bg-gray-800', secondaryText)}
+										>
 											<td className="relative px-7 sm:w-12 sm:px-6">
 												{selectedMeeting.includes(meeting) && (
 													<div className="absolute inset-y-0 left-0 w-1 bg-gray-600" />
@@ -134,6 +129,7 @@ const DashboardMeetings = () => {
 												<input
 													type="checkbox"
 													className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+													name="selectedMeeting"
 													value={meeting.id}
 													checked={selectedMeeting.includes(meeting)}
 													onChange={(e) =>
@@ -148,14 +144,14 @@ const DashboardMeetings = () => {
 											<td
 												className={clsx(
 													'whitespace-nowrap py-4 pr-3 text-sm font-medium',
-													selectedMeeting.includes(meeting) ? 'text-indigo-600' : 'text-gray-900',
+													selectedMeeting.includes(meeting) ? 'text-indigo-200' : secondaryText,
 												)}
 											>
 												{meeting.name}
 											</td>
-											<td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{meeting.createdAt}</td>
-											<td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{String(meeting.locked)}</td>
-											<td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{String(meeting.active)}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm">{meeting.createdAt}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm">{String(meeting.locked)}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm">{String(meeting.active)}</td>
 										</tr>
 									))}
 								</tbody>
@@ -164,7 +160,7 @@ const DashboardMeetings = () => {
 					</div>
 				</div>
 			</div>
-		</div>
+		</Form>
 	);
 };
 

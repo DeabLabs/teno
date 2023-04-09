@@ -26,7 +26,7 @@ const Navbar = ({ links }: NavbarProps) => {
 				'flex h-16 border-b border-b-gray-200 dark:border-b-gray-700 justify-center',
 			)}
 		>
-			<div className="flex container w-full h-full">
+			<div className="flex container w-full h-full justify-between">
 				<NavigationMenu>
 					<NavigationMenuList>
 						{links.map((link) => (
@@ -35,6 +35,11 @@ const Navbar = ({ links }: NavbarProps) => {
 							</NavigationMenuItem>
 						))}
 					</NavigationMenuList>
+				</NavigationMenu>
+				<NavigationMenu aria-label="Authentication" className="justify-end">
+					<NavigationMenuItem className={navigationMenuTriggerStyle()}>
+						<Link to="/logout">Logout</Link>
+					</NavigationMenuItem>
 				</NavigationMenu>
 			</div>
 		</div>

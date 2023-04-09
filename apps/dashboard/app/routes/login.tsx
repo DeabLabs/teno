@@ -1,18 +1,19 @@
-import type { LoaderFunction } from '@remix-run/node';
 import { Form } from '@remix-run/react';
 
-import { checkAuth } from '@/server/auth.utils.server';
 import { Button } from '@/components/ui/Button';
-
-export const loader: LoaderFunction = ({ request }) => {
-	return checkAuth(request, { successRedirect: '/dashboard', failureRedirect: '' });
-};
+import { Icons } from '@/components/Icons';
 
 const Login = () => {
 	return (
-		<Form action="/auth/discord" method="post">
-			<Button type="submit">Login with Discord</Button>
-		</Form>
+		<div className="flex flex-col min-w-screen min-h-screen justify-center items-center">
+			<h1 className="flex p-4 gap-2 mb-8">
+				<Icons.logo />
+				Teno Dashboard
+			</h1>
+			<Form action="/auth/discord" method="post">
+				<Button type="submit">Login with Discord</Button>
+			</Form>
+		</div>
 	);
 };
 
