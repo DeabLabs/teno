@@ -12,6 +12,7 @@ export const loader = async ({ request }: LoaderArgs) => {
 const links: LinkItem[] = [
 	{ to: '/dashboard', label: 'Dashboard' },
 	{ to: '/dashboard/meetings', label: 'Meetings' },
+	{ to: '/dashboard/admin', label: 'Admin' },
 ];
 
 const Dashboard = () => {
