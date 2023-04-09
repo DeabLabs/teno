@@ -116,12 +116,6 @@ export const deleteAuthoredMeetingsById = async (
 		'Redis keys and transcript ids do not match length',
 	);
 
-	console.log({
-		authoredMeetingIds,
-		authoredTranscriptIds,
-		transcriptRedisKeys,
-	});
-
 	try {
 		if (transcriptRedisKeys.length > 0) {
 			const success = await deleteTranscriptRedisKeys(transcriptRedisKeys);

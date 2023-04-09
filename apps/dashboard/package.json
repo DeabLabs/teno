@@ -13,6 +13,7 @@
 		"format": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
 	},
 	"dependencies": {
+		"@radix-ui/react-dialog": "^1.0.3",
 		"@radix-ui/react-navigation-menu": "^1.1.2",
 		"@remix-run/node": "^1.15.0",
 		"@remix-run/react": "^1.15.0",

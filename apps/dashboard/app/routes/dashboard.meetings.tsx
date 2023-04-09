@@ -1,7 +1,9 @@
 import type { LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
+import type { FormEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
+import type { FormMethod } from '@remix-run/react';
+import { Form, useActionData, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
@@ -9,6 +11,7 @@ import { meetingQueries, prisma } from '@/server/database.server';
 import { redis, transcriptQueries } from '@/server/kv.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import { Button } from '@/components/ui/Button';
+import WarningDialog from '@/components/WarningDialog';
 
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
@@ -47,7 +50,9 @@ export const action = async ({ request }: LoaderArgs) => {
 };
 
 const DashboardMeetings = () => {
+	const formRef = useRef<HTMLFormElement>(null);
 	const { authoredMeetings } = useLoaderData<typeof loader>();
+	const submit = useSubmit();
 	const data = useActionData();
 	const { state } = useNavigation();
 	const loading = state === 'submitting';
@@ -80,10 +85,27 @@ const DashboardMeetings = () => {
 		setIndeterminate(false);
 	}
 
+	/**
+	 * Handle submit events from button elements of type submit
+	 *
+	 * Merge the incoming button event name and value with the form data
+	 */
+	function handleSubmit(e: FormEvent<HTMLButtonElement>) {
+		e.preventDefault();
+		if (formRef.current) {
+			const fd = new FormData(formRef.current);
+			fd.append(e.currentTarget.name, e.currentTarget.value);
+			submit(fd, {
+				method: formRef.current.method as FormMethod,
+				replace: true,
+			});
+		}
+	}
+
 	const mainBg = 'bg-gray-900';
 	const mainText = 'text-gray-100';
 	const secondaryText = 'text-white';
-	const stickyHeader = 'sticky top-16 z-10 bg-gray-900';
+	const stickyHeader = 'sticky top-16 z-10 bg-gray-900 backdrop-blur backdrop-filter bg-opacity-75';
 
 	return (
 		<div className="flex flex-col w-full gap-8">
@@ -100,7 +122,7 @@ const DashboardMeetings = () => {
 					</div>
 				</div>
 			</div>
-			<Form className="w-full mb-4 rounded" method="post" replace>
+			<Form className="w-full mb-4 rounded" method="post" replace ref={formRef}>
 				<fieldset className={clsx('flow-root')} disabled={loading}>
 					<div className="">
 						<div className={clsx('inline-block min-w-full align-middle rounded', mainBg)}>
@@ -125,16 +147,20 @@ const DashboardMeetings = () => {
 													Name
 													{(selectedMeeting.length > 0 || loading) && (
 														<div className={clsx('flex h-full items-center', mainBg)}>
-															<Button
-																name="_action"
-																value="delete"
-																type="submit"
-																variant={'destructive'}
-																size={'sm'}
-																className="h-8"
+															<WarningDialog
+																content={`This action cannot be undone. This will permanently delete ${
+																	selectedMeeting.length
+																} meeting${selectedMeeting.length > 1 ? 's' : ''}.`}
+																buttonProps={{
+																	name: '_action',
+																	value: 'delete',
+																}}
+																onConfirm={handleSubmit}
 															>
-																Delete {selectedMeeting.length} Meeting{selectedMeeting.length > 1 ? 's' : ''}
-															</Button>
+																<Button type="button" variant={'destructive'} size={'sm'} className="h-8">
+																	Delete {selectedMeeting.length} Meeting{selectedMeeting.length > 1 ? 's' : ''}
+																</Button>
+															</WarningDialog>
 															{loading && <Loader2 className="animate-spin" />}
 														</div>
 													)}
