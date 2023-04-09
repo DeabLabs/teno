@@ -141,3 +141,5 @@ node_modules
 .DS_Store
 transcripts
 redis-data
+.turbo
+build

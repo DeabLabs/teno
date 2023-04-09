@@ -1,3 +1,5 @@
+import { commandQueries } from 'kv';
+
 import type { RedisClient } from '@/bot.js';
 
 type CommandCacheOptions = {
@@ -44,13 +46,13 @@ export class CommandCache {
 	}
 
 	async getValue() {
-		const value = await this.redisClient.get(this.key);
+		const value = await commandQueries.getCommandValue(this.redisClient, { commandKey: this.key });
 		if (!value) return null;
 		return String(value);
 	}
 
 	async setValue(value: string, customExpirationSeconds?: number) {
 		const seconds = customExpirationSeconds ?? this.expiration;
-		await this.redisClient.setex(this.key, seconds, value);
+		await commandQueries.setCommandValue(this.redisClient, { commandKey: this.key, seconds, value });
 	}
 }

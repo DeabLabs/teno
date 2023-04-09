@@ -2,12 +2,12 @@ import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, CommandInteraction, Message, VoiceState } from 'discord.js';
 import { GuildMember } from 'discord.js';
-import type { PrismaClient } from '@prisma/client';
 import invariant from 'tiny-invariant';
+import type { PrismaClientType } from 'database';
+import { userQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { createOrGetUser } from '@/queries/user.js';
 import { generateMeetingName } from '@/services/langchain.js';
 
 import { Transcript } from './transcript.js';
@@ -19,7 +19,7 @@ type MeetingArgs = {
 	textChannelId: string;
 	voiceChannelId: string;
 	guildId: string;
-	prismaClient: PrismaClient;
+	prismaClient: PrismaClientType;
 	startTime: number;
 	transcript: Transcript;
 	client: Client;
@@ -35,7 +35,7 @@ type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'na
 };
 
 export class Meeting {
-	private prismaClient: PrismaClient;
+	private prismaClient: PrismaClientType;
 	private guildId: string;
 	private voiceChannelId: string;
 	private speaking: Set<string>;
@@ -80,7 +80,7 @@ export class Meeting {
 
 	static async load(args: MeetingLoadArgs) {
 		try {
-			const user = await createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
+			const user = await userQueries.createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
 			const _meeting = await args.prismaClient.meeting.upsert({
 				where: { id: args?.id ?? -1 },
 				create: {
@@ -237,7 +237,7 @@ export class Meeting {
 	 * @param userId The user to add
 	 */
 	public async addMember(userId: string) {
-		const user = await createOrGetUser(this.prismaClient, { discordId: userId });
+		const user = await userQueries.createOrGetUser(this.prismaClient, { discordId: userId });
 		invariant(user);
 		await this.prismaClient.meeting.update({
 			where: { id: this.id },

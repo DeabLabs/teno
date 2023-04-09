@@ -9,19 +9,20 @@
 	],
 	"scripts": {
 		"start": "turbo run start --no-daemon",
-		"dev": "turbo run dev --no-daemon",
+		"dev": "dotenv -- turbo run dev --no-daemon",
 		"build": "turbo run build --no-daemon",
 		"lint": "yarn lint:prettier && turbo run lint --no-daemon",
 		"test": "turbo run test --no-daemon",
 		"test:ci": "turbo run test:ci --no-daemon",
 		"clean": "turbo run clean --no-daemon",
-		"format": "prettier --write \"**/*.{ts,tsx,md}\" && turbo run format --no-daemon",
+		"format": "prettier --write \"**/*.{ts,tsx,md,css,json}\" && turbo run format --no-daemon",
 		"lint:prettier": "prettier --check .",
 		"ci": "yarn lint test:ci build",
 		"fix-deps": "manypkg fix",
 		"postinstall": "manypkg check",
-		"db:push": "turbo run db:push --no-daemon",
-		"db:seed": "turbo run db:seed --no-daemon",
+		"db:push": "dotenv -- turbo run db:push --no-daemon",
+		"db:seed": "dotenv -- turbo run db:seed --no-daemon",
+		"db:studio": "dotenv -- turbo run db:studio --no-daemon",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
 		"d-down": "docker-compose stop"
@@ -36,6 +37,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"@manypkg/cli": "0.20.0",
+		"dotenv-cli": "^7.2.1",
 		"prettier": "2.8.4",
 		"turbo": "1.7.4",
 		"typescript": "^5.0.3"

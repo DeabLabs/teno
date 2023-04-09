@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClientType } from 'database';
+import { transcriptQueries } from 'kv';
 
 import type { RedisClient } from '@/bot.js';
 import { countMessageTokens } from '@/utils/tokens.js';
@@ -10,7 +11,7 @@ type TranscriptArgs = {
 	meetingId: number;
 	redisClient: RedisClient;
 	transcriptKey: string;
-	prismaClient: PrismaClient;
+	prismaClient: PrismaClientType;
 };
 
 type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
@@ -21,7 +22,7 @@ type TranscriptLoadArgs = Omit<TranscriptArgs, 'id'> & {
 export class Transcript {
 	private id: number;
 	private meetingId: number;
-	private prismaClient: PrismaClient;
+	private prismaClient: PrismaClientType;
 	private redisClient: RedisClient;
 	private transcriptKey: string;
 	private tokens = 0;
@@ -62,7 +63,7 @@ export class Transcript {
 	}
 
 	public async getTranscriptRaw() {
-		const result = await this.redisClient.zrange(this.transcriptKey, 0, -1);
+		const result = await transcriptQueries.getTranscriptArray(this.redisClient, { transcriptKey: this.transcriptKey });
 
 		if (!result.length) {
 			console.log('No transcript found at key: ', this.transcriptKey);
@@ -103,17 +104,18 @@ export class Transcript {
 	}
 
 	public async setTranscript(transcript: string) {
-		const result = await this.redisClient.set(this.transcriptKey, transcript);
-		if (result === null) {
-			console.log('Could not set transcript at key: ', this.transcriptKey);
-		}
+		return transcriptQueries.setTranscript(this.redisClient, { transcriptKey: this.transcriptKey, transcript });
 	}
 
 	public async appendTranscript(utterance: string, timestamp: number) {
+		await transcriptQueries.appendTranscript(this.redisClient, {
+			transcriptKey: this.transcriptKey,
+			timestamp,
+			utterance,
+		});
 		const tokens = countMessageTokens(Transcript.cleanTranscript([utterance])?.[0] ?? '');
 		this.tokens += tokens;
 		console.log(this.tokens);
-		this.redisClient.zadd(this.transcriptKey, timestamp, utterance);
 	}
 
 	public async addUtterance(utterance: Utterance) {

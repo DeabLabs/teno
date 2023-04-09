@@ -4,7 +4,7 @@ dotenv.config();
 
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
-const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'REDIS_URL'] as const;
+const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'REDIS_URL', 'DATABASE_URL'] as const;
 
 // Create a zod schema from the envKeys array
 // Every key is required

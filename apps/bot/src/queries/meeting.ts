@@ -1,9 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
 import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
-
-import { createOrGetUser } from './user.js';
+import type { PrismaClientType } from 'database';
+import { userQueries, meetingQueries } from 'database';
 
 /**
  * Given an interaction, find the most recent meeting that the user is attending and is marked active
@@ -14,7 +13,10 @@ import { createOrGetUser } from './user.js';
  * @param prismaClient
  * @returns The meeting if found, null otherwise
  */
-export const getActiveMeetingFromInteraction = async (interaction: CommandInteraction, prismaClient: PrismaClient) => {
+export const getActiveMeetingFromInteraction = async (
+	interaction: CommandInteraction,
+	prismaClient: PrismaClientType,
+) => {
 	try {
 		// Bail out if we don't have the required data
 		invariant(interaction.guildId, 'No guildId found on interaction');
@@ -25,24 +27,14 @@ export const getActiveMeetingFromInteraction = async (interaction: CommandIntera
 		invariant(member instanceof GuildMember, 'Member is not a GuildMember');
 
 		// Get the user from the database
-		const user = await createOrGetUser(prismaClient, { discordId: member.id });
+		const user = await userQueries.createOrGetUser(prismaClient, { discordId: member.id });
 		invariant(user, 'User could not be created');
 
 		// Find the most recent meeting that the user is attending and is marked active
 		// Since a user can only be in one meeting at a time, this will return the most recent active meeting
-		const meeting = await prismaClient.meeting.findFirst({
-			where: {
-				guildId: interaction.guildId,
-				attendees: {
-					some: {
-						id: user.id,
-					},
-				},
-				active: true,
-			},
-			orderBy: {
-				createdAt: 'desc',
-			},
+		const meeting = await meetingQueries.findActiveMeeting(prismaClient, {
+			userId: user.id,
+			guildId: interaction.guildId,
 		});
 
 		return meeting;
