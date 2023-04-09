@@ -14,6 +14,7 @@ const envKeys = [
 	'DASHBOARD_SECRET',
 	'DISCORD_CLIENT_ID',
 	'DISCORD_CLIENT_SECRET',
+	'REDIS_URL',
 ] as const;
 
 // Create a zod schema from the envKeys array

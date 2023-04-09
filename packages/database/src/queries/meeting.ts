@@ -88,9 +88,9 @@ export const deleteAuthoredMeetingsById = async (
 			},
 			select: {
 				id: true,
-				transcriptId: true,
 				transcript: {
 					select: {
+						id: true,
 						redisKey: true,
 					},
 				},
@@ -98,8 +98,8 @@ export const deleteAuthoredMeetingsById = async (
 		})
 	).reduce(
 		(acc, curr) => {
-			if (curr.transcriptId) {
-				acc[1].push(curr.transcriptId);
+			if (curr.transcript) {
+				acc[1].push(curr.transcript.id);
 				if (curr.transcript?.redisKey) {
 					acc[2].push(curr.transcript.redisKey);
 				}
@@ -116,11 +116,19 @@ export const deleteAuthoredMeetingsById = async (
 		'Redis keys and transcript ids do not match length',
 	);
 
-	try {
-		const success = await deleteTranscriptRedisKeys(transcriptRedisKeys);
+	console.log({
+		authoredMeetingIds,
+		authoredTranscriptIds,
+		transcriptRedisKeys,
+	});
 
-		if (!success) {
-			throw new Error('Failed to delete transcript redis keys');
+	try {
+		if (transcriptRedisKeys.length > 0) {
+			const success = await deleteTranscriptRedisKeys(transcriptRedisKeys);
+
+			if (!success) {
+				throw new Error('Failed to delete transcript redis keys');
+			}
 		}
 	} catch (e) {
 		console.error(e);

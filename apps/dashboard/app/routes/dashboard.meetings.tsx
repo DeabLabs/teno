@@ -1,10 +1,12 @@
 import type { LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useEffect, useRef, useState } from 'react';
-import { Form, useActionData, useLoaderData } from '@remix-run/react';
+import { Form, useActionData, useLoaderData, useNavigation } from '@remix-run/react';
 import clsx from 'clsx';
+import { Loader2 } from 'lucide-react';
 
 import { meetingQueries, prisma } from '@/server/database.server';
+import { redis, transcriptQueries } from '@/server/kv.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import { Button } from '@/components/ui/Button';
 
@@ -17,7 +19,7 @@ export const loader = async ({ request }: LoaderArgs) => {
 };
 
 export const action = async ({ request }: LoaderArgs) => {
-	await checkAuth(request);
+	const user = await checkAuth(request);
 
 	const formData = await request.formData();
 	const intent = formData.get('_action')?.toString();
@@ -29,9 +31,13 @@ export const action = async ({ request }: LoaderArgs) => {
 				.map((id) => Number(id))
 				.filter((id) => !isNaN(id));
 
-			if (IDsToDelete) {
+			if (IDsToDelete && IDsToDelete.length > 0) {
 				// TODO call deleteAuthoredMeetingsById with a redisClient deletion function
-				console.log(IDsToDelete);
+				await meetingQueries.deleteAuthoredMeetingsById(
+					prisma,
+					(transcriptKeys) => transcriptQueries.batchDeleteTranscripts(redis, { transcriptKeys }),
+					{ userId: user.id, meetingIds: IDsToDelete },
+				);
 			}
 		}
 	} catch (e) {
@@ -44,6 +50,8 @@ export const action = async ({ request }: LoaderArgs) => {
 const DashboardMeetings = () => {
 	const { authoredMeetings } = useLoaderData<typeof loader>();
 	const data = useActionData();
+	const { state } = useNavigation();
+	const loading = state === 'submitting';
 
 	type Meeting = (typeof authoredMeetings)[number];
 
@@ -79,15 +87,16 @@ const DashboardMeetings = () => {
 
 	return (
 		<Form className="w-full mb-4 rounded" method="post" replace>
-			<div className="flow-root mt-6">
+			<fieldset className={clsx('flow-root mt-6')} disabled={loading}>
 				<div className="overflow-x-auto">
 					<div className={clsx('inline-block min-w-full align-middle rounded', mainBg)}>
 						<div className="relative">
-							{selectedMeeting.length > 0 && (
+							{(selectedMeeting.length > 0 || loading) && (
 								<div className={clsx('absolute left-14 top-0 flex h-12 items-center space-x-3 sm:left-12', mainBg)}>
 									<Button name="_action" value="delete" type="submit" variant={'destructive'} size={'sm'}>
 										Delete Selected
 									</Button>
+									{loading && <Loader2 className="animate-spin" />}
 								</div>
 							)}
 							<table className="min-w-full table-fixed divide-y divide-gray-800">
@@ -159,7 +168,7 @@ const DashboardMeetings = () => {
 						</div>
 					</div>
 				</div>
-			</div>
+			</fieldset>
 		</Form>
 	);
 };

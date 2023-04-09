@@ -56,9 +56,7 @@ model Meeting {
   // The transcript that has been created for this meeting
   // If no one has spoken in the meeting, there will be no transcript
   transcript       Transcript?
-  transcriptId     Int?
 
-  @@index([transcriptId])
   @@index([authorId])
 }
 

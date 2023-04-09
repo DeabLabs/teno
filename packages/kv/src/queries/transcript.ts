@@ -31,5 +31,13 @@ export const getTranscriptArray = async (client: RedisClientType, args: { transc
  * @param args - The arguments to the query
  */
 export const deleteTranscript = async (client: RedisClientType, args: { transcriptKey: string }) => {
-	throw new Error('Not implemented');
+	const result = await client.del(args.transcriptKey);
+
+	if (!result) throw new Error('Could not delete transcript');
+};
+
+export const batchDeleteTranscripts = async (client: RedisClientType, args: { transcriptKeys: string[] }) => {
+	await client.del(args.transcriptKeys);
+
+	return true;
 };
