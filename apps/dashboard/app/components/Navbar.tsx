@@ -20,16 +20,23 @@ type NavbarProps = {
 
 const Navbar = ({ links }: NavbarProps) => {
 	return (
-		<div className="flex h-16 border-b border-b-gray-200 dark:border-b-gray-700 justify-center">
-			<NavigationMenu className={clsx('sticky container top-0 z-40')}>
-				<NavigationMenuList>
-					{links.map((link) => (
-						<NavigationMenuItem key={link.to} className={navigationMenuTriggerStyle()}>
-							<Link to={link.to}>{link.label}</Link>
-						</NavigationMenuItem>
-					))}
-				</NavigationMenuList>
-			</NavigationMenu>
+		<div
+			className={clsx(
+				'sticky top-0 z-50 bg-gray-900',
+				'flex h-16 border-b border-b-gray-200 dark:border-b-gray-700 justify-center',
+			)}
+		>
+			<div className="flex container w-full h-full">
+				<NavigationMenu>
+					<NavigationMenuList>
+						{links.map((link) => (
+							<NavigationMenuItem key={link.to} className={navigationMenuTriggerStyle()}>
+								<Link to={link.to}>{link.label}</Link>
+							</NavigationMenuItem>
+						))}
+					</NavigationMenuList>
+				</NavigationMenu>
+			</div>
 		</div>
 	);
 };

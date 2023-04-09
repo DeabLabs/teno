@@ -1,3 +1,4 @@
+import invariant from 'tiny-invariant';
 import { PrismaClientType } from '../client.js';
 
 /**
@@ -70,4 +71,86 @@ export const findAllAuthoredMeetings = async (client: PrismaClientType, args: { 
 			createdAt: 'desc',
 		},
 	});
+};
+
+export const deleteAuthoredMeetingsById = async (
+	client: PrismaClientType,
+	deleteTranscriptRedisKeys: (redisKeys: string[]) => Promise<boolean>,
+	args: { userId: number; meetingIds: number[] },
+) => {
+	const [authoredMeetingIds, authoredTranscriptIds, transcriptRedisKeys] = (
+		await client.meeting.findMany({
+			where: {
+				authorId: args.userId,
+				id: {
+					in: args.meetingIds,
+				},
+			},
+			select: {
+				id: true,
+				transcriptId: true,
+				transcript: {
+					select: {
+						redisKey: true,
+					},
+				},
+			},
+		})
+	).reduce(
+		(acc, curr) => {
+			if (curr.transcriptId) {
+				acc[1].push(curr.transcriptId);
+				if (curr.transcript?.redisKey) {
+					acc[2].push(curr.transcript.redisKey);
+				}
+			}
+			acc[0].push(curr.id);
+			return acc;
+		},
+		[[], [], []] as Readonly<[number[], number[], string[]]>,
+	);
+
+	invariant(authoredMeetingIds.length > 0, 'Length of authored meeting ids is 0');
+	invariant(
+		transcriptRedisKeys.length === authoredTranscriptIds.length,
+		'Redis keys and transcript ids do not match length',
+	);
+
+	try {
+		const success = await deleteTranscriptRedisKeys(transcriptRedisKeys);
+
+		if (!success) {
+			throw new Error('Failed to delete transcript redis keys');
+		}
+	} catch (e) {
+		console.error(e);
+		throw e;
+	}
+
+	const deleteTranscripts = () =>
+		client.transcript.deleteMany({
+			where: {
+				id: {
+					in: authoredTranscriptIds,
+				},
+			},
+		});
+
+	const deleteMeetings = () =>
+		client.user.update({
+			where: {
+				id: args.userId,
+			},
+			data: {
+				authoredMeetings: {
+					deleteMany: {
+						id: {
+							in: authoredMeetingIds,
+						},
+					},
+				},
+			},
+		});
+
+	return client.$transaction([deleteTranscripts(), deleteMeetings()]);
 };
