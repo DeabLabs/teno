@@ -1,5 +1,5 @@
 // import React from 'react';
-import { Link } from '@remix-run/react';
+import { Link, NavLink } from '@remix-run/react';
 import clsx from 'clsx';
 
 import {
@@ -31,14 +31,21 @@ const Navbar = ({ links }: NavbarProps) => {
 					<NavigationMenuList>
 						{links.map((link) => (
 							<NavigationMenuItem key={link.to} className={navigationMenuTriggerStyle()}>
-								<Link to={link.to}>{link.label}</Link>
+								<NavLink
+									to={link.to}
+									className={({ isActive }) =>
+										clsx(isActive && link.to !== '/dashboard' && 'underline underline-offset-2')
+									}
+								>
+									{link.label}
+								</NavLink>
 							</NavigationMenuItem>
 						))}
 					</NavigationMenuList>
 				</NavigationMenu>
 				<NavigationMenu aria-label="Authentication" className="justify-end">
 					<NavigationMenuItem className={navigationMenuTriggerStyle()}>
-						<Link to="/logout">Logout</Link>
+						<NavLink to="/logout">Logout</NavLink>
 					</NavigationMenuItem>
 				</NavigationMenu>
 			</div>
