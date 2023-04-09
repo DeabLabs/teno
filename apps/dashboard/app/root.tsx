@@ -15,14 +15,14 @@ export const meta: V2_MetaFunction = () => {
 
 export default function App() {
 	return (
-		<html lang="en">
+		<html lang="en" className="dark" style={{ colorScheme: 'dark' }}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
 				<Meta />
 				<Links />
 			</head>
-			<body>
+			<body className="dark:bg-gray-900 antialiased dark:text-gray-50 font-sans min-h-screen bg-white text-gray-900">
 				<Outlet />
 				<ScrollRestoration />
 				<Scripts />

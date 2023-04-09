@@ -34,6 +34,33 @@ export const countAllAuthoredMeetings = async (client: PrismaClientType, args: {
 	});
 };
 
+export const countAllAttendedMeetings = async (client: PrismaClientType, args: { userId: number }) => {
+	return client.meeting.count({
+		where: {
+			attendees: {
+				some: {
+					id: args.userId,
+				},
+			},
+		},
+	});
+};
+
+export const countAllServersWithMeetings = async (client: PrismaClientType, args: { userId: number }) => {
+	return client.meeting
+		.groupBy({
+			where: {
+				attendees: {
+					some: {
+						id: args.userId,
+					},
+				},
+			},
+			by: ['guildId'],
+		})
+		.then((r) => r.length);
+};
+
 export const findAllAuthoredMeetings = async (client: PrismaClientType, args: { userId: number }) => {
 	return client.meeting.findMany({
 		where: {

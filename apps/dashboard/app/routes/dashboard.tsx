@@ -1,33 +1,26 @@
 import type { LoaderArgs } from '@remix-run/node';
-import { json } from '@remix-run/node';
-import { Form, useLoaderData } from '@remix-run/react';
+import { Outlet } from '@remix-run/react';
 
 import { checkAuth } from '@/server/auth.utils.server';
-import { Button } from '@/components/ui/Button';
-import { prisma, meetingQueries } from '@/server/database.server';
+import type { LinkItem } from '@/components/Navbar';
+import Navbar from '@/components/Navbar';
 
 export const loader = async ({ request }: LoaderArgs) => {
-	const user = await checkAuth(request);
-	const authoredMeetingCount = await meetingQueries.countAllAuthoredMeetings(prisma, { userId: user.id });
-
-	return json({
-		user,
-		authoredMeetingCount,
-	});
+	return checkAuth(request);
 };
 
-const Dashboard = () => {
-	const { user, authoredMeetingCount } = useLoaderData<typeof loader>();
+const links: LinkItem[] = [
+	{ to: '/dashboard', label: 'Dashboard' },
+	{ to: '/dashboard/meetings', label: 'Meetings' },
+];
 
+const Dashboard = () => {
 	return (
-		<div className="p-4 flex flex-col gap-4">
-			<pre>User: {JSON.stringify(user, null, 2)}</pre>
-			<pre>Meetings Authored: {JSON.stringify(authoredMeetingCount, null, 2)}</pre>
-			<Form action="/logout" method="POST">
-				<Button variant="subtle" className="my-2" type="submit">
-					Logout
-				</Button>
-			</Form>
+		<div className="flex flex-col min-h-screen">
+			<Navbar links={links} />
+			<div className="flex flex-1 self-center w-full container px-4 sm:px-0">
+				<Outlet />
+			</div>
 		</div>
 	);
 };
