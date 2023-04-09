@@ -1,7 +1,7 @@
 import { prisma } from 'database';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Client, Events } from 'discord.js';
-import { Redis } from 'ioredis';
+import { createRedisClient } from 'kv';
 
 import { Config } from './config.js';
 import { deploy } from './discord/deploy.js';
@@ -10,7 +10,7 @@ import { Teno } from './models/teno.js';
 export type RedisClient = typeof redisClient;
 
 // Initialize Redis client
-const redisClient = new Redis(Config.REDIS_URL, {
+const redisClient = createRedisClient(Config.REDIS_URL, {
 	lazyConnect: true,
 });
 
