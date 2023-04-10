@@ -1,14 +1,24 @@
 import type { ActionArgs, LoaderArgs } from '@remix-run/node';
+import { redirect } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import clsx from 'clsx';
 import { Form, useNavigation } from '@remix-run/react';
 import { Loader2 } from 'lucide-react';
 
 import { checkAuth } from '@/server/auth.utils.server';
+import { prisma } from '@/server/database.server';
+import { redis } from '@/server/kv.server';
 import { Button } from '@/components/ui/Button';
+import { addDefaultMeetingDuration } from '@/server/admin.server';
 
 export const loader = async ({ request }: LoaderArgs) => {
-	return checkAuth(request);
+	const user = await checkAuth(request);
+
+	if (!user.admin) {
+		return redirect('/dashboard');
+	}
+
+	return null;
 };
 
 const actions = ['fill-meeting-duration'] as const;
@@ -20,6 +30,9 @@ export const action = async ({ request }: ActionArgs) => {
 	const intent = formData.get('intent') as ActionType;
 
 	switch (intent) {
+		case 'fill-meeting-duration':
+			await addDefaultMeetingDuration(user.id, prisma, redis);
+			return json({}, { status: 200 });
 		default:
 			console.log(intent);
 			return json({}, { status: 200 });

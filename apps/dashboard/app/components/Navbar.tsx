@@ -1,5 +1,4 @@
-// import React from 'react';
-import { Link, NavLink } from '@remix-run/react';
+import { NavLink } from '@remix-run/react';
 import clsx from 'clsx';
 
 import {

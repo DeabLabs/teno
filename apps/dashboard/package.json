@@ -22,6 +22,7 @@
 		"class-variance-authority": "^0.5.1",
 		"clsx": "^1.2.1",
 		"database": "*",
+		"date-fns": "^2.29.3",
 		"dotenv": "^16.0.3",
 		"isbot": "^3.6.5",
 		"kv": "*",

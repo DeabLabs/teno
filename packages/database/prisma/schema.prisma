@@ -14,6 +14,7 @@ datasource db {
 // Users that have joined Teno into a meeting, or joined a meeting with Teno present
 model User {
   id               Int       @id @default(autoincrement())
+  admin            Boolean   @default(false)
   // The user's Discord ID, which is used to identify them
   // Used primarily over the id field because Discord IDs can be retrieved more easily
   discordId        String    @unique
@@ -56,6 +57,7 @@ model Meeting {
   // The transcript that has been created for this meeting
   // If no one has spoken in the meeting, there will be no transcript
   transcript       Transcript?
+  duration         Int         @default(0)
 
   @@index([authorId])
 }
