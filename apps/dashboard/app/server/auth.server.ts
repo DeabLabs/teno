@@ -9,6 +9,7 @@ import { Config } from './config.server';
 
 export interface DiscordUser {
 	id: number;
+	admin: boolean;
 	discordId: DiscordProfile['id'];
 	displayName: DiscordProfile['displayName'];
 	avatar: DiscordProfile['__json']['avatar'];
@@ -36,6 +37,7 @@ const discordStrategy = new DiscordStrategy(
 		const user = await userQueries.createOrGetUser(prisma, { discordId: profile.id });
 		return {
 			id: user.id,
+			admin: user.admin,
 			discordId: profile.id,
 			displayName: profile.__json.username,
 			avatar: profile.__json.avatar,

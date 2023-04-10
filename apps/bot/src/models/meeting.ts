@@ -412,6 +412,23 @@ export class Meeting {
 	}
 
 	/**
+	 * Set the meeting duration based on the meeting's start time and the current time
+	 */
+	public async updateDuration() {
+		const duration = Date.now() - this.startTime;
+		try {
+			await this.prismaClient.meeting.update({
+				where: { id: this.id },
+				data: {
+					duration,
+				},
+			});
+		} catch (e) {
+			console.log(e);
+		}
+	}
+
+	/**
 	 * Ends the meeting
 	 */
 	public async endMeeting(): Promise<void> {
@@ -420,6 +437,7 @@ export class Meeting {
 
 		console.log('Ending meeting', this.getId());
 		await this.setActive(false);
+		await this.updateDuration();
 		// Rename the meeting based on the transcript
 		const manuallyRenamed = await this.getManuallyRenamed();
 		if (!manuallyRenamed) {

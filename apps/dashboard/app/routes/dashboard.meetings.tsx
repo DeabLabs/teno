@@ -6,6 +6,7 @@ import type { FormMethod } from '@remix-run/react';
 import { Form, useActionData, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
+import { formatDuration, intervalToDuration } from 'date-fns';
 
 import { meetingQueries, prisma } from '@/server/database.server';
 import { redis, transcriptQueries } from '@/server/kv.server';
@@ -47,6 +48,21 @@ export const action = async ({ request }: LoaderArgs) => {
 	}
 
 	return json({ message: 'success' }, { status: 200 });
+};
+
+const formatMeetingDuration = (ms: number) => {
+	const duration = intervalToDuration({ start: 0, end: ms });
+
+	const zeroPad = (num: number) => String(num).padStart(2, '0');
+
+	return formatDuration(duration, {
+		format: ['hours', 'minutes', 'seconds'],
+		zero: true,
+		delimiter: ':',
+		locale: {
+			formatDistance: (_token, count) => zeroPad(count),
+		},
+	});
 };
 
 const DashboardMeetings = () => {
@@ -167,6 +183,9 @@ const DashboardMeetings = () => {
 												</div>
 											</th>
 											<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-left text-sm font-semibold')}>
+												Duration
+											</th>
+											<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-left text-sm font-semibold')}>
 												Created At
 											</th>
 											<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-left text-sm font-semibold')}>
@@ -209,6 +228,10 @@ const DashboardMeetings = () => {
 													)}
 												>
 													{meeting.name}
+												</td>
+												{/* display the duration of the meeting, converted from milliseconds to hours:minutes:seconds using date-fns */}
+												<td className="whitespace-nowrap px-3 py-4 text-sm">
+													{formatMeetingDuration(meeting.duration)}
 												</td>
 												<td className="whitespace-nowrap px-3 py-4 text-sm">{meeting.createdAt}</td>
 												<td className="whitespace-nowrap px-3 py-4 text-sm">{String(meeting.locked)}</td>
