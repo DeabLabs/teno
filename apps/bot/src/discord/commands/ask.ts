@@ -58,10 +58,14 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 		invariant(memberDiscordId);
 		const meetings = await teno.getPrismaClient().meeting.findMany({
 			where: {
-				attendees: {
-					some: {
-						discordId: memberDiscordId,
+				guildId: interaction.guildId,
+				OR: {
+					attendees: {
+						some: {
+							discordId: memberDiscordId,
+						},
 					},
+					locked: false,
 				},
 				...(search
 					? {

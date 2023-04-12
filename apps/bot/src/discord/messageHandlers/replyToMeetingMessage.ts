@@ -6,7 +6,7 @@ import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import { createMessageHandler } from '@/discord/createMessageHandler.js';
 import { Transcript } from '@/models/transcript.js';
 
-const findMeetingByMeetingMessage = async (messageId: string | undefined | null, teno: Teno) => {
+const findMeetingByMeetingMessage = async (discordUserId: string, messageId: string | undefined | null, teno: Teno) => {
 	try {
 		const targetMeetingMessageId = messageId;
 		invariant(targetMeetingMessageId);
@@ -14,6 +14,14 @@ const findMeetingByMeetingMessage = async (messageId: string | undefined | null,
 		const targetMeeting = await teno.getPrismaClient().meeting.findFirst({
 			where: {
 				meetingMessageId: targetMeetingMessageId,
+				OR: {
+					attendees: {
+						some: {
+							discordId: discordUserId,
+						},
+					},
+					locked: false,
+				},
 			},
 			include: {
 				transcript: true,
@@ -35,7 +43,7 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 				repliedMessage.author.id === teno.getClient().user?.id && message.author.id !== teno.getClient().user?.id,
 			);
 			console.log('Checking in db if message is a reply to a meeting message...');
-			const isTargetMeeting = await findMeetingByMeetingMessage(message.reference?.messageId, teno);
+			const isTargetMeeting = await findMeetingByMeetingMessage(message.author.id, message.reference?.messageId, teno);
 			return Boolean(isTargetMeeting);
 		} catch (e) {
 			return false;
@@ -52,7 +60,7 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		const loadingMessage = await message.reply('One sec...');
 
 		const targetMeetingMessageId = message.reference?.messageId;
-		const targetMeeting = await findMeetingByMeetingMessage(targetMeetingMessageId, teno);
+		const targetMeeting = await findMeetingByMeetingMessage(message.author.id, targetMeetingMessageId, teno);
 
 		invariant(targetMeeting);
 		invariant(targetMeeting.transcript);

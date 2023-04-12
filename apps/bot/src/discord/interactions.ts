@@ -5,9 +5,19 @@ import { askCommand } from './commands/ask.js';
 import { replyToMeetingMessageHandler } from './messageHandlers/replyToMeetingMessage.js';
 import type { Command } from './createCommand.js';
 import { renameCommand } from './commands/rename.js';
+import { lockCommand } from './commands/lock.js';
+import { unlockCommand } from './commands/unlock.js';
 
 // Add new commands here
-const commandInteractions = [joinCommand, leaveCommand, askCommand, renameCommand, listCommand] as const;
+const commandInteractions = [
+	joinCommand,
+	leaveCommand,
+	askCommand,
+	renameCommand,
+	listCommand,
+	lockCommand,
+	unlockCommand,
+] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();
 
