@@ -1,4 +1,5 @@
 import type { Guild } from 'discord.js';
+import { ApplicationCommandOptionType } from 'discord.js';
 import { SlashCommandBuilder } from '@discordjs/builders';
 
 import type { Command } from './createCommand.js';
@@ -14,18 +15,32 @@ const buildCommandMapper = (c: Command) => {
 	const command = new SlashCommandBuilder().setName(c.name).setDescription(c.description);
 
 	c.options.forEach((o) => {
-		command.addStringOption((opt) => {
-			opt.setName(o.name);
-			opt.setRequired(!!o.required);
-			if (o.description) {
-				opt.setDescription(o.description);
-			}
-			if (o.choices) {
-				opt.addChoices(...o.choices);
-			}
+		switch (o.type) {
+			case ApplicationCommandOptionType.Channel:
+				command.addChannelOption((opt) => {
+					opt.setName(o.name);
+					opt.setRequired(!!o.required);
+					if (o.description) {
+						opt.setDescription(o.description);
+					}
+					opt.addChannelTypes(...(o?.channelTypes ?? []));
+					return opt;
+				});
+				break;
+			default:
+				command.addStringOption((opt) => {
+					opt.setName(o.name);
+					opt.setRequired(!!o.required);
+					if (o.description) {
+						opt.setDescription(o.description);
+					}
+					if (o.choices) {
+						opt.addChoices(...o.choices);
+					}
 
-			return opt;
-		});
+					return opt;
+				});
+		}
 	});
 
 	return command;

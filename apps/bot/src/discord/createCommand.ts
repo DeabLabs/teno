@@ -1,5 +1,7 @@
 import type {
 	APIApplicationCommandOptionChoice,
+	ApplicationCommandOptionAllowedChannelTypes,
+	ApplicationCommandOptionType,
 	ButtonInteraction,
 	CommandInteraction,
 	ModalSubmitInteraction,
@@ -16,6 +18,8 @@ export type CommandOption = {
 	description?: string;
 	required?: boolean;
 	choices?: APIApplicationCommandOptionChoice<string>[];
+	type?: ApplicationCommandOptionType;
+	channelTypes?: ApplicationCommandOptionAllowedChannelTypes[];
 };
 
 /**

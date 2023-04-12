@@ -7,6 +7,7 @@ import type { Command } from './createCommand.js';
 import { renameCommand } from './commands/rename.js';
 import { lockCommand } from './commands/lock.js';
 import { unlockCommand } from './commands/unlock.js';
+import { autojoinOnCommand } from './commands/autojoinOn.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -17,6 +18,7 @@ const commandInteractions = [
 	listCommand,
 	lockCommand,
 	unlockCommand,
+	autojoinOnCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();
