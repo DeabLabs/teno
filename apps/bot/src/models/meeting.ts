@@ -211,7 +211,9 @@ export class Meeting {
 	 * @param utterance The utterance that has been transcribed
 	 */
 	private onTranscriptionComplete(utterance: Utterance): void {
-		this.writeToTranscript(utterance);
+		if (!this.isIgnored(utterance.userId)) {
+			this.writeToTranscript(utterance);
+		}
 	}
 
 	/**

@@ -104,6 +104,8 @@ export class Utterance {
 	}
 
 	public formatForTranscript(): string {
-		return `${this.username} (${formatTime(this.secondsSinceStart)}): ${this.textContent}<${this.timestamp}>\n`;
+		return `<${this.userId}>${this.username} (${formatTime(this.secondsSinceStart)}): ${this.textContent}<${
+			this.timestamp
+		}>\n`;
 	}
 }

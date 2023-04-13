@@ -100,7 +100,7 @@ async function startListening({
 		const receiver = connection.receiver;
 
 		receiver.speaking.on('start', async (userId) => {
-			if (!meeting.isSpeaking(userId)) {
+			if (!meeting.isSpeaking(userId) && !meeting.isIgnored(userId)) {
 				meeting.addSpeaking(userId);
 				meeting.addMember(userId);
 				meeting.createUtterance(receiver, userId);
