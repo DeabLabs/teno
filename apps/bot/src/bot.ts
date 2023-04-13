@@ -29,7 +29,12 @@ await redisClient.connect();
 
 const prismaClient = prisma;
 
-await prismaClient.$connect();
+try {
+	await prismaClient.$connect();
+} catch (e) {
+	console.error(e);
+	process.exit(1);
+}
 
 console.log('Prisma Client Connected');
 
