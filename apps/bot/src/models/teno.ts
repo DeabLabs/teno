@@ -31,6 +31,19 @@ export class Teno {
 		this.id = guild.id;
 		this.redisClient = redisClient;
 		this.prismaClient = prismaClient;
+		this.initialize();
+	}
+
+	private async initialize() {
+		await this.getPrismaClient().guild.upsert({
+			where: {
+				guildId: this.id,
+			},
+			update: {},
+			create: {
+				guildId: this.id,
+			},
+		});
 		this.setupClient();
 	}
 

@@ -6,42 +6,52 @@ generator client {
 }
 
 datasource db {
-  provider     = "mysql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Guild {
-  id               Int      @id @default(autoincrement())
-  guildId          String   @unique
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  // We need to switch to postgres for this
-  autoJoinChannels Int[]
+  id           Int      @id @default(autoincrement())
+  guildId      String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  adminEnabled Boolean  @default(false)
+  admins       User[]
+}
+
+model AutoJoin {
+  id        Int      @id @default(autoincrement())
+  guildId   String
+  channelId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, channelId, userId])
 }
 
 // Users that have joined Teno into a meeting, or joined a meeting with Teno present
 model User {
-  id               Int       @id @default(autoincrement())
-  admin            Boolean   @default(false)
+  id                 Int        @id @default(autoincrement())
+  admin              Boolean    @default(false)
   // The user's Discord ID, which is used to identify them
   // Used primarily over the id field because Discord IDs can be retrieved more easily
-  discordId        String    @unique
+  discordId          String     @unique
   // This will remain blank unless Teno is able to get the user's name from Discord
-  name             String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  name               String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
   // The meetings that this user has attended, by being present in the meeting when Teno joined
   // or by being added later on by the meeting author
   // Being an attendee allows the user to view the meeting and its transcript but not edit them
-  attendedMeetings Meeting[]
+  attendedMeetings   Meeting[]
   // The meetings that this user has created, by joining a call and inviting Teno
   // Being a meeting author has special privileges, such as being able to unlock the meeting
   // and add attendees to the meeting
-  authoredMeetings Meeting[] @relation("author")
-
-  @@index([discordId])
+  authoredMeetings   Meeting[]  @relation("author")
+  adminOfGuilds      Guild[]
+  autoJoinedChannels AutoJoin[]
 }
 
 // Meetings that have been created by joining Teno to a call
@@ -68,8 +78,6 @@ model Meeting {
   // If no one has spoken in the meeting, there will be no transcript
   transcript       Transcript?
   duration         Int         @default(0)
-
-  @@index([authorId])
 }
 
 // Transcripts that have been created for a meeting by speaking in a meeting
@@ -83,6 +91,4 @@ model Transcript {
   redisKey  String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([meetingId])
 }

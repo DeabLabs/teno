@@ -1,3 +1,4 @@
+import { autojoinOffCommand } from './commands/autojoinOff.js';
 import { listCommand } from './commands/list.js';
 import { joinCommand } from './commands/join.js';
 import { leaveCommand } from './commands/leave.js';
@@ -19,6 +20,7 @@ const commandInteractions = [
 	lockCommand,
 	unlockCommand,
 	autojoinOnCommand,
+	autojoinOffCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();
