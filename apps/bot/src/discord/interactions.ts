@@ -9,6 +9,7 @@ import { renameCommand } from './commands/rename.js';
 import { lockCommand } from './commands/lock.js';
 import { unlockCommand } from './commands/unlock.js';
 import { autojoinOnCommand } from './commands/autojoinOn.js';
+import { removeMeCommand } from './commands/removeMe.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -21,6 +22,7 @@ const commandInteractions = [
 	unlockCommand,
 	autojoinOnCommand,
 	autojoinOffCommand,
+	removeMeCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();

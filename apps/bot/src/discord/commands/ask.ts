@@ -165,6 +165,9 @@ async function handleAskMeetingCurrentButton(interaction: ButtonInteraction, ten
 					},
 				},
 			},
+			orderBy: {
+				createdAt: 'desc',
+			},
 			include: {
 				transcript: true,
 			},
@@ -291,6 +294,7 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 			],
 		});
 	} catch (e) {
+		console.error(e);
 		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
 	}
 }

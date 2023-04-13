@@ -38,7 +38,6 @@ export class Transcript {
 		this.appendTranscript = this.appendTranscript.bind(this);
 		this.addUtterance = this.addUtterance.bind(this);
 		this.getTranscript = this.getTranscript.bind(this);
-		this.setTranscript = this.setTranscript.bind(this);
 	}
 
 	static async load(args: TranscriptLoadArgs) {
@@ -96,15 +95,15 @@ export class Transcript {
 	}
 
 	static cleanTranscript(transcriptLines: string[]) {
-		// loop through the results, turning them into a single string while removing the <timestamp> part
-		const timestampRegex = /<\d+>/g;
-		const cleanedArray = transcriptLines.map((str) => str.replaceAll(timestampRegex, '').replaceAll('\n', ''));
+		// loop through the results, turning them into a single string while removing the user ID and the <timestamp> part
+		const regex = /<\d+>/g;
+		const cleanedArray = transcriptLines.map((str) => {
+			return str
+				.replaceAll(regex, '') // Remove the timestamp at the end
+				.replaceAll('\n', ''); // Remove newlines
+		});
 
 		return cleanedArray;
-	}
-
-	public async setTranscript(transcript: string) {
-		return transcriptQueries.setTranscript(this.redisClient, { transcriptKey: this.transcriptKey, transcript });
 	}
 
 	public async appendTranscript(utterance: string, timestamp: number) {
@@ -120,5 +119,16 @@ export class Transcript {
 
 	public async addUtterance(utterance: Utterance) {
 		await this.appendTranscript(utterance.formatForTranscript(), utterance.timestamp);
+	}
+
+	public async removeUser(userId: string) {
+		const rawTranscript = await this.getTranscriptRaw();
+
+		const linesToRemove = rawTranscript.filter((line) => {
+			const userIdRegex = new RegExp(`^<${userId}>`);
+			return userIdRegex.test(line);
+		});
+
+		return await this.redisClient.zrem(this.transcriptKey, ...linesToRemove);
 	}
 }
