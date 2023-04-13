@@ -2,6 +2,7 @@ import type { CommandInteraction } from 'discord.js';
 import { ChannelType } from 'discord.js';
 import { ApplicationCommandOptionType } from 'discord.js';
 import invariant from 'tiny-invariant';
+import { userQueries } from 'database';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
@@ -49,11 +50,7 @@ async function autojoinOff(interaction: CommandInteraction, teno: Teno) {
 
 		invariant(guild);
 
-		const user = await teno.getPrismaClient().user.findUnique({
-			where: {
-				discordId: userId,
-			},
-		});
+		const user = await userQueries.createOrGetUser(teno.getPrismaClient(), { discordId: userId });
 		invariant(user);
 		try {
 			await teno.getPrismaClient().user.update({

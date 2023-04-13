@@ -1,9 +1,14 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
+import { TextChannel } from 'discord.js';
+import { VoiceChannel } from 'discord.js';
 import { Events } from 'discord.js';
 import type { PrismaClientType } from 'database';
+import { getVoiceConnection } from '@discordjs/voice';
+import invariant from 'tiny-invariant';
 
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
+import { createMeeting } from '@/utils/createMeeting.js';
 
 import type { Meeting } from './meeting.js';
 
@@ -128,6 +133,50 @@ export class Teno {
 				if (passedFilter) {
 					messageHandler.handler(message, this);
 				}
+			}
+		});
+
+		this.client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+			if (!newState.guild.id || newState.guild.id != this.id || !(newState.channel instanceof VoiceChannel)) return;
+
+			const channelId = newState.channelId;
+			// if a user joins a voice channel, and the user has autojoin enabled for that channel, and teno is not already in another channel, join the channel
+			try {
+				invariant(!getVoiceConnection(this.id));
+				invariant(channelId);
+
+				const user = await this.getPrismaClient().user.findFirst({
+					where: {
+						discordId: newState.id,
+					},
+				});
+
+				invariant(user);
+
+				const autoJoin = await this.getPrismaClient().autoJoin.findFirst({
+					where: {
+						guildId: this.id,
+						userId: user?.id,
+						channelId,
+					},
+				});
+
+				invariant(autoJoin);
+
+				const voiceChannel = this.client.channels.cache.get(channelId);
+				const textChannel = this.client.channels.cache.get(autoJoin.textChannelId);
+				invariant(voiceChannel instanceof VoiceChannel);
+				invariant(textChannel instanceof TextChannel);
+
+				await createMeeting({
+					teno: this,
+					guildId: this.id,
+					userDiscordId: user.discordId,
+					voiceChannel,
+					textChannel,
+				});
+			} catch {
+				// ignore
 			}
 		});
 

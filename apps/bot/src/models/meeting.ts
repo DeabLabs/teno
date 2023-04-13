@@ -1,7 +1,6 @@
 import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
-import type { Client, CommandInteraction, Message, VoiceState } from 'discord.js';
-import { GuildMember } from 'discord.js';
+import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries } from 'database';
@@ -16,7 +15,6 @@ import { Utterance } from './utterance.js';
 type MeetingArgs = {
 	id: number;
 	meetingMessageId: string;
-	textChannelId: string;
 	voiceChannelId: string;
 	guildId: string;
 	prismaClient: PrismaClientType;
@@ -97,7 +95,11 @@ export class Meeting {
 				redisClient: args.redisClient,
 				meetingId: _meeting.id,
 				prismaClient: args.prismaClient,
-				transcriptKey: makeTranscriptKey(args.guildId, args.textChannelId, args.meetingMessageId),
+				transcriptKey: makeTranscriptKey({
+					guildId: args.guildId,
+					meetingMessageId: args.meetingMessageId,
+					timestamp: _meeting.createdAt.toISOString(),
+				}),
 			});
 			invariant(transcript);
 
@@ -105,7 +107,6 @@ export class Meeting {
 				id: _meeting.id,
 				guildId: args.guildId,
 				voiceChannelId: args.voiceChannelId,
-				textChannelId: args.textChannelId,
 				meetingMessageId: args.meetingMessageId,
 				startTime: _meeting.createdAt.getTime(),
 				prismaClient: args.prismaClient,
@@ -134,17 +135,22 @@ export class Meeting {
 	 * Sends the meetingMessage in response to a user inviting Teno to a voice channel
 	 * @param interaction The interaction that invoked the command
 	 */
-	static async sendMeetingMessage(interaction: CommandInteraction) {
-		const member = interaction.member;
-		if (member instanceof GuildMember && member.voice.channel) {
-			const meetingMessage = (await interaction.followUp(
-				`Teno is listening to a meeting in ${member.voice.channel.name}. Reply to this message, or use /ask, to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
-			)) as Message;
+	static async sendMeetingMessage({
+		voiceChannel,
+		textChannel,
+	}: {
+		voiceChannel: VoiceBasedChannel;
+		textChannel: TextChannel;
+	}) {
+		try {
+			const meetingMessage = await textChannel.send(
+				`Teno is listening to a meeting in ${voiceChannel.name}. Reply to this message, or use /ask, to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
+			);
+
 			return meetingMessage;
-		} else {
-			console.error('Could not get member from interaction');
+		} catch {
+			return null;
 		}
-		return;
 	}
 
 	/**

@@ -4,7 +4,7 @@ import { makeTranscriptKey, formatTime } from './transcriptUtils.js';
 
 describe('makeTranscriptKey', () => {
 	it('should return a key with the correct format', () => {
-		const key = makeTranscriptKey('123', '456', '789');
+		const key = makeTranscriptKey({ guildId: '456', meetingMessageId: '789', timestamp: '123' });
 
 		expect(key).toBe('123-456-789');
 	});

@@ -20,13 +20,14 @@ model Guild {
 }
 
 model AutoJoin {
-  id        Int      @id @default(autoincrement())
-  guildId   String
-  channelId String
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  guildId       String
+  channelId     String
+  textChannelId String
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([guildId, channelId, userId])
 }

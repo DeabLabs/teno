@@ -1,12 +1,19 @@
 /**
  * Creates a transcript key for a given message, guild, and text channel.
  * @param guildId - The discord guild id of the voice channel to be recorded.
- * @param textChannelId - The discord text channel id of the channel to send the transcript to.
+ * @param timestamp - The timestamp of the meeting start.
  * @param meetingMessageId - The discord message id of the message that started the meeting.
  * @returns The filename of the transcript file.
  */
-export const makeTranscriptKey = (guildId: string, textChannelId: string, meetingMessageId: string) =>
-	`${guildId}-${textChannelId}-${meetingMessageId}`;
+export const makeTranscriptKey = ({
+	guildId,
+	meetingMessageId,
+	timestamp,
+}: {
+	guildId: string;
+	timestamp: string;
+	meetingMessageId: string;
+}) => `${timestamp}-${guildId}-${meetingMessageId}`;
 
 /**
  * From seconds, return '00:00:00' or '00:00' depending on the size
