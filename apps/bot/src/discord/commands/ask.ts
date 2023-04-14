@@ -281,7 +281,7 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 		});
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
-		const answer = await answerQuestionOnTranscript(question, transcriptLines);
+		const answer = await answerQuestionOnTranscript(question, interaction.user.username, transcriptLines);
 		await interaction.editReply({
 			content: `Meeting: ${meeting.name}\n[${question}]\n${answer}`,
 			components: [

@@ -76,7 +76,7 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 
 		const transcriptLines = await transcript.getCleanedTranscript();
 		console.log('Question: ', question);
-		const answer = await answerQuestionOnTranscript(question, transcriptLines);
+		const answer = await answerQuestionOnTranscript(question, message.author.username, transcriptLines);
 		console.log('Answer: ', answer);
 		await loadingMessage.edit(answer);
 	} catch (error) {
