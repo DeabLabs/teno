@@ -14,14 +14,16 @@ const findMeetingByMeetingMessage = async (discordUserId: string, messageId: str
 		const targetMeeting = await teno.getPrismaClient().meeting.findFirst({
 			where: {
 				meetingMessageId: targetMeetingMessageId,
-				OR: {
-					attendees: {
-						some: {
-							discordId: discordUserId,
+				OR: [
+					{
+						attendees: {
+							some: {
+								discordId: discordUserId,
+							},
 						},
 					},
-					locked: false,
-				},
+					{ locked: false },
+				],
 			},
 			include: {
 				transcript: true,
