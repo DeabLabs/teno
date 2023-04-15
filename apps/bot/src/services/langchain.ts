@@ -2,7 +2,9 @@ import { ChatOpenAI } from 'langchain/chat_models';
 import { ChatPromptTemplate, HumanMessagePromptTemplate, PromptTemplate } from 'langchain/prompts';
 import { OpenAI, OpenAIChat } from 'langchain/llms';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { loadSummarizationChain } from 'langchain/chains';
+import { loadQAMapReduceChain, loadQAStuffChain, loadSummarizationChain } from 'langchain/chains';
+import { Document } from 'langchain/document';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 import { Config } from '@/config.js';
@@ -68,7 +70,30 @@ export async function answerQuestionOnTranscript(
 	// console.log(`${username}:`, question);
 	// console.log('Transcript text: ', transcriptLines);
 
-	const answer = await summarizer(transcriptLines.join('\n'), { question });
+	// initialize chain with the model
+	const qaChain = loadQAMapReduceChain(
+		new OpenAIChat({
+			temperature: 0.9,
+			modelName: 'gpt-3.5-turbo',
+			openAIApiKey: Config.OPENAI_API_KEY,
+		}),
+	);
+	// turn the transcript into a list of documents
+	const rawDocuments = transcriptLines.map((line) => new Document({ pageContent: line }));
+	// split the documents into chunks of 7000 characters, with no overlap
+	const splitter = new RecursiveCharacterTextSplitter({
+		chunkSize: 7000,
+		chunkOverlap: 0,
+	});
+	// split the documents into chunks
+	const documents = await splitter.splitDocuments(rawDocuments);
+	// call the chain with the documents and the question
+	const response = await qaChain.call({
+		input_documents: documents,
+		question,
+	});
+	const answer = response.text;
+
 	if (!answer) {
 		return 'No answer found';
 	}

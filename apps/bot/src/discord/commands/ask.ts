@@ -312,7 +312,7 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 			throw new Error('Answer is not a string or array of strings');
 		}
 	} catch (e) {
-		console.error(e);
+		console.error(e.message);
 		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
 	}
 }
