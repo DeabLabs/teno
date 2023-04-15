@@ -282,17 +282,35 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
 		const answer = await answerQuestionOnTranscript(question, interaction.user.username, transcriptLines);
-		await interaction.editReply({
-			content: `Meeting: ${meeting.name}\n[${question}]\n${answer}`,
-			components: [
-				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(askShareButton)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel('Share Answer in Channel'),
-				),
-			],
-		});
+		if (typeof answer === 'string') {
+			await interaction.editReply({
+				content: `Meeting: ${meeting.name}\n[${question}]\n${answer}`,
+				components: [
+					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+						new ButtonBuilder()
+							.setCustomId(askShareButton)
+							.setStyle(ButtonStyle.Secondary)
+							.setLabel('Share Answer in Channel'),
+					),
+				],
+			});
+		} else if (Array.isArray(answer)) {
+			const firstAnswer = answer[0];
+			await interaction.editReply({
+				content: `Meeting: ${meeting.name}\n[${question}]\n${firstAnswer}`,
+				components: [],
+			});
+
+			const [_, ...restofanswers] = answer;
+			for (const answer of restofanswers) {
+				await interaction.followUp({
+					content: answer,
+					ephemeral: true,
+				});
+			}
+		} else {
+			throw new Error('Answer is not a string or array of strings');
+		}
 	} catch (e) {
 		console.error(e);
 		await interaction.editReply({ content: 'I could not find an answer to your question.', components: [] });
