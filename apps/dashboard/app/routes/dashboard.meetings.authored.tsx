@@ -14,6 +14,8 @@ import { Loader } from '@/components/Loader';
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
 
+	// on second thought, defer is probably not necessary here
+	// instead I can probably use "useNavigation" to detect long page loads and throw a spinner
 	return defer({
 		user,
 		authoredMeetings: meetingQueries
@@ -76,7 +78,7 @@ const DashboardMeetingsAuthored = () => {
 			<Suspense fallback={<Loader />}>
 				<Await
 					resolve={authoredMeetings}
-					errorElement={<Placeholder children={<>'Could not load authored meetings...'</>} />}
+					errorElement={<Placeholder children={<>Could not load authored meetings...</>} />}
 				>
 					{(authoredMeetings) => (
 						<MeetingTable meetings={authoredMeetings} loading={loading} onSubmit={submit} userId={user.id} />

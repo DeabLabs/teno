@@ -73,7 +73,7 @@ const DashboardMeetingsAuthored = () => {
 			<Suspense fallback={<Loader />}>
 				<Await
 					resolve={attendedMeetings}
-					errorElement={<Placeholder children={<>'Could not load attended meetings...'</>} />}
+					errorElement={<Placeholder children={<>Could not load attended meetings...</>} />}
 				>
 					{(attendedMeetings) => <MeetingTable meetings={attendedMeetings} loading={loading} onSubmit={submit} />}
 				</Await>
