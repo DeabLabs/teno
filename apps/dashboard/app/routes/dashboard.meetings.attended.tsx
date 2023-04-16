@@ -1,17 +1,26 @@
 import type { LoaderArgs } from '@remix-run/node';
+import { defer } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import { useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
+import { Await, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
+import { Suspense } from 'react';
 
 import { meetingQueries, prisma } from '@/server/database.server';
 import { redis, transcriptQueries } from '@/server/kv.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import MeetingTable from '@/components/MeetingTable';
+import { Loader } from '@/components/Loader';
+import { Placeholder } from '@/components/Placeholder';
 
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
 
-	return json({
-		attendedMeetings: await meetingQueries.findAllAttendedMeetings(prisma, { userId: user.id }),
+	return defer({
+		user,
+		attendedMeetings: meetingQueries
+			.findAllAttendedMeetings(prisma, { userId: user.id })
+			// TODO: this is a hack to get around the fact that prisma doesn't support ISO strings by default
+			// and remix is having trouble serializing these the same on the client and server
+			.then((m) => m.map((mm) => ({ ...mm, createdAt: mm.createdAt.toISOString() }))),
 	});
 };
 
@@ -56,16 +65,19 @@ const DashboardMeetingsAuthored = () => {
 					<div className="sm:flex-auto">
 						<h1 className="text-base font-semibold leading-6 text-white">Attended Meetings</h1>
 						<p className="mt-2 text-sm text-gray-300">
-							A list of all the meetings that you have attended, across all of your guilds.
-						</p>
-						<p className="text-sm text-red-300">
-							You can only delete meetings that you have authored. Deleting a meeting here will delete it for all
-							attendees. <b>You cannot undo this action.</b>
+							A list of all the meetings that you have attended, but not authored, across all of your guilds.
 						</p>
 					</div>
 				</div>
 			</div>
-			<MeetingTable meetings={attendedMeetings} loading={loading} onSubmit={submit} />
+			<Suspense fallback={<Loader />}>
+				<Await
+					resolve={attendedMeetings}
+					errorElement={<Placeholder children={<>'Could not load attended meetings...'</>} />}
+				>
+					{(attendedMeetings) => <MeetingTable meetings={attendedMeetings} loading={loading} onSubmit={submit} />}
+				</Await>
+			</Suspense>
 		</div>
 	);
 };

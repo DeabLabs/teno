@@ -1,18 +1,26 @@
 import type { LoaderArgs } from '@remix-run/node';
+import { defer } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import { useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
+import { Await, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
+import { Suspense } from 'react';
 
 import { meetingQueries, prisma } from '@/server/database.server';
 import { redis, transcriptQueries } from '@/server/kv.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import MeetingTable from '@/components/MeetingTable';
+import { Placeholder } from '@/components/Placeholder';
+import { Loader } from '@/components/Loader';
 
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
 
-	return json({
+	return defer({
 		user,
-		authoredMeetings: await meetingQueries.findAllAuthoredMeetings(prisma, { userId: user.id }),
+		authoredMeetings: meetingQueries
+			.findAllAuthoredMeetings(prisma, { userId: user.id })
+			// TODO: this is a hack to get around the fact that prisma doesn't support ISO strings by default
+			// and remix is having trouble serializing these the same on the client and server
+			.then((m) => m.map((mm) => ({ ...mm, createdAt: mm.createdAt.toISOString() }))),
 	});
 };
 
@@ -65,7 +73,16 @@ const DashboardMeetingsAuthored = () => {
 					</div>
 				</div>
 			</div>
-			<MeetingTable meetings={authoredMeetings} loading={loading} onSubmit={submit} userId={user.id} />
+			<Suspense fallback={<Loader />}>
+				<Await
+					resolve={authoredMeetings}
+					errorElement={<Placeholder children={<>'Could not load authored meetings...'</>} />}
+				>
+					{(authoredMeetings) => (
+						<MeetingTable meetings={authoredMeetings} loading={loading} onSubmit={submit} userId={user.id} />
+					)}
+				</Await>
+			</Suspense>
 		</div>
 	);
 };
