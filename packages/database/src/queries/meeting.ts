@@ -73,6 +73,29 @@ export const findAllAuthoredMeetings = async (client: PrismaClientType, args: { 
 	});
 };
 
+export const findAllAttendedMeetings = async (
+	client: PrismaClientType,
+	args: { userId: number; includeAuthored?: boolean },
+) => {
+	return client.meeting.findMany({
+		where: {
+			AND: [
+				{
+					attendees: {
+						some: {
+							id: args.userId,
+						},
+					},
+					...(args.includeAuthored ? {} : { authorId: { not: args.userId } }),
+				},
+			],
+		},
+		orderBy: {
+			createdAt: 'desc',
+		},
+	});
+};
+
 export const deleteAuthoredMeetingsById = async (
 	client: PrismaClientType,
 	deleteTranscriptRedisKeys: (redisKeys: string[]) => Promise<boolean>,
