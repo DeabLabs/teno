@@ -28,16 +28,17 @@ model UsageEvent {
   id                       Int      @id @default(autoincrement())
   guildId                  Int
   guild                    Guild    @relation(fields: [guildId], references: [id])
-  userId                   Int
-  user                     User     @relation(fields: [userId], references: [id])
+  userId                   Int?
+  user                     User?    @relation(fields: [userId], references: [id])
   meeting                  Meeting  @relation(fields: [meetingId], references: [id])
   meetingId                Int
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   // these fields may or may not be filled out depending on the event we send
-  gpt3TokensUsed           Int      @default(0)
-  gpt4TokensUsed           Int      @default(0)
-  utteranceDurationSeconds Int      @default(0)
+  languageModel            String?
+  promptTokensUsed         Int      @default(0)
+  completionTokensUsed     Int      @default(0)
+  utteranceDurationSeconds Float    @default(0)
 }
 
 model AutoJoin {

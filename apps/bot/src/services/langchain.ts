@@ -6,7 +6,7 @@ import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompt
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
-const model = new ChatOpenAI({
+const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
@@ -34,29 +34,54 @@ const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
-export async function answerQuestionOnTranscript(question: string, username: string, transcriptLines: string[]) {
+type AnswerOutput =
+	| {
+			status: 'error';
+			error: string;
+	  }
+	| {
+			status: 'success';
+			answer: string;
+			promptTokens: number;
+			completionTokens: number;
+			languageModel: string;
+	  };
+
+export async function answerQuestionOnTranscript(
+	question: string,
+	username: string,
+	transcriptLines: string[],
+): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
-		return 'No transcript found';
+		return { status: 'error', error: 'No transcript found' };
 	}
 
 	console.log(`${username}:`, question);
-	console.log('Transcript text: ', transcriptLines);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
-	const answer = await model.generatePrompt([
+	console.log('Transcript text: ', shortenedTranscript);
+
+	const answer = await gptFour.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
 			transcript: shortenedTranscript,
 		}),
 	]);
-	return answer.generations[0]?.[0]?.text.trim() ?? 'No answer found';
+
+	return {
+		status: 'success',
+		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
+		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
+		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
+		languageModel: gptFour.modelName,
+	};
 }
 
-export async function generateMeetingName(transcriptLines: string[]): Promise<string> {
+export async function generateMeetingName(transcriptLines: string[]): Promise<AnswerOutput> {
 	if (!transcriptLines || transcriptLines.length === 0) {
-		return 'No transcript found';
+		return { status: 'error', error: 'No transcript found' };
 	}
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
@@ -65,10 +90,17 @@ export async function generateMeetingName(transcriptLines: string[]): Promise<st
 
 	console.log('Transcript text: ', transcriptLines);
 
-	const response = await model.generatePrompt([
+	const response = await gptFour.generatePrompt([
 		await meetingNamePrompt.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
 	]);
-	return response.generations[0]?.[0]?.text.trim() ?? 'No name found';
+
+	return {
+		status: 'success',
+		answer: response.generations[0]?.[0]?.text.trim() ?? 'No answer found',
+		promptTokens: response.llmOutput?.tokenUsage.promptTokens,
+		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
+		languageModel: gptFour.modelName,
+	};
 }

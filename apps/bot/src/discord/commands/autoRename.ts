@@ -2,6 +2,7 @@ import type { CommandInteraction, MessageActionRowComponentBuilder, StringSelect
 import { ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
+import { usageQueries } from 'database';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
@@ -105,7 +106,20 @@ async function handleRenameMeetingSelect(interaction: StringSelectMenuInteractio
 		invariant(transcript);
 
 		const transcriptText = await transcript.getCleanedTranscript();
-		const newName = await generateMeetingName(transcriptText);
+		const resolved = await generateMeetingName(transcriptText);
+		if (resolved.status === 'error') {
+			throw new Error(resolved.error);
+		}
+
+		const newName = resolved.answer;
+
+		usageQueries.createUsageEvent(teno.getPrismaClient(), {
+			discordGuildId: guildId,
+			meetingId: meeting.id,
+			languageModel: resolved.languageModel,
+			promptTokens: resolved.promptTokens,
+			completionTokens: resolved.completionTokens,
+		});
 
 		await teno.getPrismaClient().meeting.update({
 			where: {
