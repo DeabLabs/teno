@@ -1,5 +1,6 @@
 import type { Message } from 'discord.js';
 import invariant from 'tiny-invariant';
+import { usageQueries } from 'database';
 
 import type { Teno } from '@/models/teno.js';
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
@@ -78,9 +79,23 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 
 		const transcriptLines = await transcript.getCleanedTranscript();
 		console.log('Question: ', question);
-		const answer = await answerQuestionOnTranscript(question, message.author.username, transcriptLines);
-		console.log('Answer: ', answer);
-		await loadingMessage.edit(answer);
+		const answerOutput = await answerQuestionOnTranscript(question, message.author.username, transcriptLines);
+
+		if (answerOutput.status === 'error') {
+			throw new Error(answerOutput.error);
+		}
+
+		console.log('Answer: ', answerOutput.answer);
+		await loadingMessage.edit(answerOutput.answer);
+
+		usageQueries.createUsageEvent(teno.getPrismaClient(), {
+			discordUserId: message.author.id,
+			discordGuildId: message.guild?.id || '',
+			meetingId: targetMeeting.id,
+			languageModel: answerOutput.languageModel,
+			promptTokens: answerOutput.promptTokens,
+			completionTokens: answerOutput.completionTokens,
+		});
 	} catch (error) {
 		console.error('Error answering question:', error);
 		await message.reply('An error occurred while trying to answer your question. Please try again.');

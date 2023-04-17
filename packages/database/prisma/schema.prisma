@@ -11,12 +11,34 @@ datasource db {
 }
 
 model Guild {
-  id           Int      @id @default(autoincrement())
-  guildId      String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  adminEnabled Boolean  @default(false)
+  id           Int          @id @default(autoincrement())
+  guildId      String       @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  adminEnabled Boolean      @default(false)
   admins       User[]
+  usageEvents  UsageEvent[]
+}
+
+// using guildId: we can track how many tokens are used per guild across all users
+// using userId: we can track how many tokens are used per user across all guilds
+// using createdAt: we can track how many tokens are used per day across all guilds and users
+// using gpt3TokensUsed: we can track how many tokens are used per day per guild per user
+model UsageEvent {
+  id                       Int      @id @default(autoincrement())
+  guildId                  Int
+  guild                    Guild    @relation(fields: [guildId], references: [id])
+  userId                   Int?
+  user                     User?    @relation(fields: [userId], references: [id])
+  meeting                  Meeting  @relation(fields: [meetingId], references: [id])
+  meetingId                Int
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  // these fields may or may not be filled out depending on the event we send
+  languageModel            String?
+  promptTokensUsed         Int      @default(0)
+  completionTokensUsed     Int      @default(0)
+  utteranceDurationSeconds Float    @default(0)
 }
 
 model AutoJoin {
@@ -34,15 +56,15 @@ model AutoJoin {
 
 // Users that have joined Teno into a meeting, or joined a meeting with Teno present
 model User {
-  id                 Int        @id @default(autoincrement())
-  admin              Boolean    @default(false)
+  id                 Int          @id @default(autoincrement())
+  admin              Boolean      @default(false)
   // The user's Discord ID, which is used to identify them
   // Used primarily over the id field because Discord IDs can be retrieved more easily
-  discordId          String     @unique
+  discordId          String       @unique
   // This will remain blank unless Teno is able to get the user's name from Discord
   name               String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
   // The meetings that this user has attended, by being present in the meeting when Teno joined
   // or by being added later on by the meeting author
   // Being an attendee allows the user to view the meeting and its transcript but not edit them
@@ -50,14 +72,15 @@ model User {
   // The meetings that this user has created, by joining a call and inviting Teno
   // Being a meeting author has special privileges, such as being able to unlock the meeting
   // and add attendees to the meeting
-  authoredMeetings   Meeting[]  @relation("author")
+  authoredMeetings   Meeting[]    @relation("author")
   adminOfGuilds      Guild[]
   autoJoinedChannels AutoJoin[]
+  usageEvents        UsageEvent[]
 }
 
 // Meetings that have been created by joining Teno to a call
 model Meeting {
-  id               Int         @id @default(autoincrement())
+  id               Int          @id @default(autoincrement())
   guildId          String
   channelId        String
   meetingMessageId String?
@@ -66,19 +89,20 @@ model Meeting {
   name             String
   // If the meeting has been renamed by the author, this will be true
   // GPT cannot rename a meeting that has been renamed by the author
-  manuallyRenamed  Boolean     @default(false)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  manuallyRenamed  Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   // If the meeting has been unlocked, non-attendees can view the meeting and its transcript
-  locked           Boolean     @default(true)
-  active           Boolean     @default(false)
+  locked           Boolean      @default(true)
+  active           Boolean      @default(false)
   attendees        User[]
-  author           User        @relation("author", fields: [authorId], references: [id])
+  author           User         @relation("author", fields: [authorId], references: [id])
   authorId         Int
   // The transcript that has been created for this meeting
   // If no one has spoken in the meeting, there will be no transcript
   transcript       Transcript?
-  duration         Int         @default(0)
+  duration         Int          @default(0)
+  usageEvents      UsageEvent[]
 }
 
 // Transcripts that have been created for a meeting by speaking in a meeting

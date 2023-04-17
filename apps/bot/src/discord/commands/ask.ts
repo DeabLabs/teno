@@ -11,6 +11,7 @@ import { ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
+import { usageQueries } from 'database';
 
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
@@ -281,7 +282,23 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 		});
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
-		const answer = await answerQuestionOnTranscript(question, interaction.user.username, transcriptLines);
+		const answerOutput = await answerQuestionOnTranscript(question, interaction.user.username, transcriptLines);
+
+		if (answerOutput.status === 'error') {
+			throw new Error(answerOutput.error);
+		}
+
+		usageQueries.createUsageEvent(teno.getPrismaClient(), {
+			discordGuildId: guildId,
+			discordUserId: interaction.user.id,
+			meetingId: meeting.id,
+			languageModel: answerOutput.languageModel,
+			promptTokens: answerOutput.promptTokens,
+			completionTokens: answerOutput.completionTokens,
+		});
+
+		const answer = answerOutput.answer;
+
 		await interaction.editReply({
 			content: `Meeting: ${meeting.name}\n[${question}]\n${answer}`,
 			components: [

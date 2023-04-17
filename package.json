@@ -23,6 +23,7 @@
 		"db:push": "dotenv -- turbo run db:push --no-daemon",
 		"db:seed": "dotenv -- turbo run db:seed --no-daemon",
 		"db:studio": "dotenv -- turbo run db:studio --no-daemon",
+		"db:generate": "dotenv -- turbo run db:generate --no-daemon",
 		"#docker commands#": "",
 		"d-up": "docker-compose up -d",
 		"d-down": "docker-compose stop"

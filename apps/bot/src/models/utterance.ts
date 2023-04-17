@@ -20,6 +20,7 @@ export class Utterance {
 	public textContent: string | undefined;
 	public secondsSinceStart: number;
 	public timestamp: number;
+	public duration: number | undefined;
 
 	constructor(
 		receiver: VoiceReceiver,
@@ -93,7 +94,9 @@ export class Utterance {
 
 	async startTranscribing() {
 		if (this.audioContent) {
-			this.textContent = await deepgramPrerecordedTranscribe(this.audioContent);
+			const result = await deepgramPrerecordedTranscribe(this.audioContent);
+			this.textContent = result?.text;
+			this.duration = result?.durationS;
 			this.onTranscriptionComplete(this);
 			this.isTranscribed = true;
 			return true;

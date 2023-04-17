@@ -11,7 +11,13 @@ const mimetype = 'audio/ogg';
 const deepgramToken = Config.DEEPGRAM;
 const deepgram = new Deepgram(deepgramToken);
 
-export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promise<string | undefined> {
+export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promise<
+	| {
+			text: string;
+			durationS: number;
+	  }
+	| undefined
+> {
 	if (!audioBuffer.length) {
 		console.log('No audio buffer to transcribe, skipping');
 		return undefined;
@@ -22,9 +28,9 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 			{ punctuate: true, model: 'general', language: 'en-US', tier: 'nova' },
 		);
 		// Return transcription as continuous string
-		const result = response.results?.channels[0]?.alternatives[0]?.transcript;
-		if (result) {
-			return result;
+		const resultText = response.results?.channels[0]?.alternatives[0]?.transcript;
+		if (resultText) {
+			return { text: resultText, durationS: response.metadata?.duration || 0 };
 		} else {
 			return undefined;
 		}

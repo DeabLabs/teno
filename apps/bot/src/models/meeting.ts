@@ -3,7 +3,7 @@ import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
-import { userQueries } from 'database';
+import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -213,6 +213,14 @@ export class Meeting {
 	private onTranscriptionComplete(utterance: Utterance): void {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
+			if (utterance.duration) {
+				usageQueries.createUsageEvent(this.prismaClient, {
+					discordGuildId: this.guildId,
+					discordUserId: utterance.userId,
+					meetingId: this.id,
+					utteranceDurationSeconds: utterance.duration,
+				});
+			}
 		}
 	}
 
@@ -449,8 +457,10 @@ export class Meeting {
 		// Rename the meeting based on the transcript
 		const manuallyRenamed = await this.getManuallyRenamed();
 		if (!manuallyRenamed) {
-			const newName = await this.autoName();
-			await this.setName(newName);
+			const resolved = await this.autoName();
+			if (resolved.status === 'success') {
+				await this.setName(resolved.answer);
+			}
 		}
 		this.clearSpeaking();
 	}
@@ -480,6 +490,18 @@ export class Meeting {
 	private async autoName() {
 		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
-		return await generateMeetingName(transcript);
+
+		const resolved = await generateMeetingName(transcript);
+
+		if (resolved.status === 'success') {
+			usageQueries.createUsageEvent(this.prismaClient, {
+				discordGuildId: this.guildId,
+				meetingId: this.id,
+				languageModel: resolved.languageModel,
+				promptTokens: resolved.promptTokens,
+				completionTokens: resolved.completionTokens,
+			});
+		}
+		return resolved;
 	}
 }
