@@ -144,7 +144,7 @@ export class Meeting {
 	}) {
 		try {
 			const meetingMessage = await textChannel.send(
-				`Teno is listening to a meeting in ${voiceChannel.name}. Reply to this message, or use /ask, to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
+				`Teno is listening to a meeting in ${voiceChannel.name}. Reply to this message, or use /ask to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
 			);
 
 			return meetingMessage;

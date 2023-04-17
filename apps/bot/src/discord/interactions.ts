@@ -13,6 +13,7 @@ import { autojoinOnCommand } from './commands/autojoinOn.js';
 import { removeMeCommand } from './commands/removeMe.js';
 import { muteMeCommand } from './commands/muteMe.js';
 import { unmuteMeCommand } from './commands/unmuteMe.js';
+import { askPastCommand } from './commands/askPast.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -29,6 +30,7 @@ const commandInteractions = [
 	removeMeCommand,
 	muteMeCommand,
 	unmuteMeCommand,
+	askPastCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();
