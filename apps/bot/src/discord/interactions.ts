@@ -14,6 +14,7 @@ import { removeMeCommand } from './commands/removeMe.js';
 import { muteMeCommand } from './commands/muteMe.js';
 import { unmuteMeCommand } from './commands/unmuteMe.js';
 import { askPastCommand } from './commands/askPast.js';
+import { chimeInCommand } from './commands/chimeIn.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -31,6 +32,7 @@ const commandInteractions = [
 	muteMeCommand,
 	unmuteMeCommand,
 	askPastCommand,
+	chimeInCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();

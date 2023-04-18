@@ -27,7 +27,7 @@ const modalId = 'ask-meeting-modal';
 export const askPastCommand = createCommand({
 	commandArgs: {
 		name: 'ask-past',
-		description: 'Ask Teno about a past meeting, or for help with a meeting.',
+		description: 'Ask Teno about a past meeting.',
 		options: [
 			{
 				name: 'search',

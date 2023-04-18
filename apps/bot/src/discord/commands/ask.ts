@@ -15,7 +15,7 @@ import { askShareButton } from './askPast.js';
 export const askCommand = createCommand({
 	commandArgs: {
 		name: 'ask',
-		description: 'Ask Teno about a meeting, or for help with a meeting.',
+		description: 'Ask Teno about your current or most recent meeting.',
 		options: [
 			{
 				name: 'prompt',

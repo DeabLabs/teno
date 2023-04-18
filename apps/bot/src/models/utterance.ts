@@ -106,9 +106,27 @@ export class Utterance {
 		}
 	}
 
-	public formatForTranscript(): string {
-		return `<${this.userId}>${this.username} (${formatTime(this.secondsSinceStart)}): ${this.textContent}<${
-			this.timestamp
-		}>\n`;
+	static createTranscriptLine(
+		username: string,
+		userId: string,
+		content: string,
+		secondsSinceStart: number,
+		timestamp: number,
+	): string {
+		return `<${userId}>${username} (${formatTime(secondsSinceStart)}): ${content}<${timestamp}>\n`;
+	}
+
+	public formatForTranscript() {
+		if (!this.textContent) {
+			return;
+		}
+
+		return Utterance.createTranscriptLine(
+			this.username,
+			this.userId,
+			this.textContent,
+			this.secondsSinceStart,
+			this.timestamp,
+		);
 	}
 }
