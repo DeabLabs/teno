@@ -118,7 +118,10 @@ export class Transcript {
 	}
 
 	public async addUtterance(utterance: Utterance) {
-		await this.appendTranscript(utterance.formatForTranscript(), utterance.timestamp);
+		const utteranceText = utterance.formatForTranscript();
+		if (utteranceText) {
+			await this.appendTranscript(utteranceText, utterance.timestamp);
+		}
 	}
 
 	public async removeUser(userId: string) {

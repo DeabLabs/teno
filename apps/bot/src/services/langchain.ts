@@ -28,6 +28,20 @@ Here is the user's username and request, surrounded by \`\`\`:
 	),
 ]);
 
+const chimeInTemplate = ChatPromptTemplate.fromPromptMessages([
+	HumanMessagePromptTemplate.fromTemplate(
+		`You are a helpful bot named Teno (might be transcribed ten o, tanno, tunnel, ect.), and you will be given a rough transcript of a voice call.
+The transcript contains one or many users, with each user's speaking turns separated by a newline.
+Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
+The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
+You will read the transcript, then chime in on the conversation based on the most recent portion of the transcript. If there is an open
+question being discussed, or a question directed specifically at you, you will answer the question. If there is no open question, you will chime in on the most recent topic of discussion.
+In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context. Do not include the username or timestamp in your response, that will be added automatically.
+Here is the transcript, surrounded by \`\`\`:
+\`\`\`{transcript}\`\`\``,
+	),
+]);
+
 const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
 		'Read transcript of a meeting below. Respond with only a descriptive name for the meeting that communicates the topics discussed. The name should NOT include the words "meeting", "call", "discussion" or anything like that, that context is implied.\n\n[Transcript start]\n{transcript}',
@@ -66,6 +80,31 @@ export async function answerQuestionOnTranscript(
 	const answer = await gptFour.generatePrompt([
 		await secretary.formatPromptValue({
 			question: question,
+			transcript: shortenedTranscript,
+		}),
+	]);
+
+	return {
+		status: 'success',
+		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
+		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
+		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
+		languageModel: gptFour.modelName,
+	};
+}
+
+export async function chimeInOnTranscript(transcriptLines: string[]): Promise<AnswerOutput> {
+	// Return the contents of the file at the given filepath as a string
+	if (!transcriptLines || transcriptLines.length === 0) {
+		return { status: 'error', error: 'No transcript found' };
+	}
+
+	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
+
+	console.log('Transcript text: ', shortenedTranscript);
+
+	const answer = await gptFour.generatePrompt([
+		await chimeInTemplate.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
 	]);
