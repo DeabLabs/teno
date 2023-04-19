@@ -1,8 +1,7 @@
-// import { LLMChain } from 'langchain/chains';
 import { ChatOpenAI } from 'langchain/chat_models';
 import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
+import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
 
-// import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
@@ -23,8 +22,7 @@ In your responses, DO NOT include phrases like "based on the transcript" or "acc
 Limit all unnecessary prose.
 Here is the transcript, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
-Here is the user's username and request, surrounded by \`\`\`:
-\`\`\`{question}\`\`\``,
+Below is your conversation with the users, their messages will include their usernames.`,
 	),
 ]);
 
@@ -62,8 +60,7 @@ type AnswerOutput =
 	  };
 
 export async function answerQuestionOnTranscript(
-	question: string,
-	username: string,
+	conversationHistory: string | string[],
 	transcriptLines: string[],
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
@@ -71,15 +68,31 @@ export async function answerQuestionOnTranscript(
 		return { status: 'error', error: 'No transcript found' };
 	}
 
-	console.log(`${username}:`, question);
+	// If the conversation history is a string, convert it to an array
+	if (typeof conversationHistory === 'string') {
+		conversationHistory = [conversationHistory];
+	}
 
-	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
+	const promptTemplate = createChatPromptTemplateFromHistory(conversationHistory);
+
+	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, promptTemplate.promptMessages.join('')).join(
+		'\n',
+	);
+
+	const secretaryFormat = await secretary.formatPromptValue({
+		transcript: shortenedTranscript,
+	});
+
+	const secretaryMessages = await secretaryFormat.toChatMessages();
+
+	// Append the secretary messages to the conversation history
+	conversationHistory = [...conversationHistory, ...secretaryMessages.map((m) => m.text)];
 
 	console.log('Transcript text: ', shortenedTranscript);
+	console.log('Prompt text: ', promptTemplate.promptMessages.join('\n'));
 
 	const answer = await gptFour.generatePrompt([
-		await secretary.formatPromptValue({
-			question: question,
+		await promptTemplate.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
 	]);
@@ -142,4 +155,18 @@ export async function generateMeetingName(transcriptLines: string[]): Promise<An
 		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
 		languageModel: gptFour.modelName,
 	};
+}
+
+function createChatPromptTemplateFromHistory(conversationHistory: string[]) {
+	const promptMessages = conversationHistory.map((message, index) => {
+		if (index % 2 === 0) {
+			// User message
+			return new HumanChatMessage(`${message}`);
+		} else {
+			// Teno's message
+			return new AIChatMessage(`${message}`);
+		}
+	});
+
+	return promptMessages;
 }

@@ -45,9 +45,19 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 			invariant(
 				repliedMessage.author.id === teno.getClient().user?.id && message.author.id !== teno.getClient().user?.id,
 			);
-			console.log('Checking in db if message is a reply to a meeting message...');
-			const isTargetMeeting = await findMeetingByMeetingMessage(message.author.id, message.reference?.messageId, teno);
-			return Boolean(isTargetMeeting);
+
+			// Get the conversation history
+			const conversationHistory = await getMessageChain(message);
+
+			// Check if any message in the conversation history is a meeting message
+			for (const historyMessageId of conversationHistory) {
+				const isTargetMeeting = await findMeetingByMeetingMessage(message.author.id, historyMessageId, teno);
+				if (isTargetMeeting) {
+					return true;
+				}
+			}
+
+			return false;
 		} catch (e) {
 			return false;
 		}
@@ -65,10 +75,10 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		const targetMeetingMessageId = message.reference?.messageId;
 		const targetMeeting = await findMeetingByMeetingMessage(message.author.id, targetMeetingMessageId, teno);
 
+		invariant(targetMeetingMessageId);
 		invariant(targetMeeting);
 		invariant(targetMeeting.transcript);
 
-		const question = message.content;
 		const transcript = await Transcript.load({
 			meetingId: targetMeeting.id,
 			prismaClient: teno.getPrismaClient(),
@@ -77,9 +87,12 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		});
 		invariant(transcript);
 
+		// Get the conversation history
+		const conversationHistory = await getConversationHistory(message, targetMeetingMessageId);
+
 		const transcriptLines = await transcript.getCleanedTranscript();
-		console.log('Question: ', question);
-		const answerOutput = await answerQuestionOnTranscript(question, message.author.username, transcriptLines);
+
+		const answerOutput = await answerQuestionOnTranscript(conversationHistory, transcriptLines);
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);
@@ -100,4 +113,33 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		console.error('Error answering question:', error);
 		await message.reply('An error occurred while trying to answer your question. Please try again.');
 	}
+}
+
+async function getConversationHistory(message: Message, meetingMessageId: string): Promise<string[]> {
+	const history: string[] = [];
+	let currentMessage = message;
+
+	while (currentMessage.reference?.messageId && currentMessage.reference.messageId !== meetingMessageId) {
+		const parentMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
+		const contentWithUsername = currentMessage.author.bot
+			? parentMessage.content
+			: `${currentMessage.author.username}: ${parentMessage.content}`;
+		history.unshift(contentWithUsername);
+		currentMessage = parentMessage;
+	}
+
+	return history;
+}
+
+async function getMessageChain(message: Message): Promise<string[]> {
+	const history: string[] = [];
+	let currentMessage = message;
+
+	while (currentMessage.reference?.messageId) {
+		const parentMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
+		history.unshift(parentMessage.id);
+		currentMessage = parentMessage;
+	}
+
+	return history;
 }

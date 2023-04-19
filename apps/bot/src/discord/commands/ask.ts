@@ -89,7 +89,10 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 		});
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
-		const answerOutput = await answerQuestionOnTranscript(prompt, interaction.user.username, transcriptLines);
+
+		// Format prompt with username prepended
+		const promptWithUsername = `${interaction.user.username}: ${prompt}`;
+		const answerOutput = await answerQuestionOnTranscript(promptWithUsername, transcriptLines);
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);
