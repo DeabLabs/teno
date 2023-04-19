@@ -13,7 +13,7 @@ const gptFour = new ChatOpenAI({
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful bot named Teno (might be transcribed ten o, tanno, tunnel, ect.), and you will be given a rough transcript of a voice call.
+		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
 The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
@@ -22,20 +22,19 @@ In your responses, DO NOT include phrases like "based on the transcript" or "acc
 Limit all unnecessary prose.
 Here is the transcript, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
-Below is your conversation with the users, their messages will include their usernames.`,
+Below is your conversation with the users, their messages will include their usernames. Your responses do not need to include usernames.`,
 	),
 ]);
 
 const chimeInTemplate = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful bot named Teno (might be transcribed ten o, tanno, tunnel, ect.), and you will be given a rough transcript of a voice call.
+		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
 The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
-You will read the transcript, then chime in on the conversation based on the most recent portion of the transcript. If there is an open
-question being discussed, or a question directed specifically at you, you will answer the question. If there is no open question, you will chime in on the most recent topic of discussion.
+You will read the transcript, then chime in on the conversation. If the last few lines contain an open question, or a question directed specifically at you, answer the question. If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
 In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context. Do not include the username or timestamp in your response, that will be added automatically.
-Here is the transcript, surrounded by \`\`\`:
+Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\``,
 	),
 ]);
@@ -73,11 +72,10 @@ export async function answerQuestionOnTranscript(
 		conversationHistory = [conversationHistory];
 	}
 
-	const promptTemplate = createChatPromptTemplateFromHistory(conversationHistory);
+	const conversationMessages = createChatPromptTemplateFromHistory(conversationHistory);
+	console.log('Conversation history: ', conversationMessages);
 
-	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, promptTemplate.promptMessages.join('')).join(
-		'\n',
-	);
+	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
 	const secretaryFormat = await secretary.formatPromptValue({
 		transcript: shortenedTranscript,
@@ -85,17 +83,14 @@ export async function answerQuestionOnTranscript(
 
 	const secretaryMessages = await secretaryFormat.toChatMessages();
 
-	// Append the secretary messages to the conversation history
-	conversationHistory = [...conversationHistory, ...secretaryMessages.map((m) => m.text)];
+	// Append the conversation history messages to the secretary messages
+	const fullPrompt = secretaryMessages.concat(conversationMessages);
 
 	console.log('Transcript text: ', shortenedTranscript);
-	console.log('Prompt text: ', promptTemplate.promptMessages.join('\n'));
 
-	const answer = await gptFour.generatePrompt([
-		await promptTemplate.formatPromptValue({
-			transcript: shortenedTranscript,
-		}),
-	]);
+	console.log(fullPrompt);
+
+	const answer = await gptFour.generate([fullPrompt]);
 
 	return {
 		status: 'success',

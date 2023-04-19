@@ -47,14 +47,14 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 			);
 
 			// Get the conversation history
-			const conversationHistory = await getMessageChain(message);
+			const conversationHistory = await getConversationHistory(message);
 
-			// Check if any message in the conversation history is a meeting message
-			for (const historyMessageId of conversationHistory) {
-				const isTargetMeeting = await findMeetingByMeetingMessage(message.author.id, historyMessageId, teno);
-				if (isTargetMeeting) {
-					return true;
-				}
+			const firstHistoryMessage = conversationHistory[0];
+			invariant(firstHistoryMessage);
+			console.log('First history message: ', firstHistoryMessage.content);
+			const isTargetMeeting = await findMeetingByMeetingMessage(message.author.id, firstHistoryMessage.id, teno);
+			if (isTargetMeeting) {
+				return true;
 			}
 
 			return false;
@@ -63,16 +63,23 @@ export const replyToMeetingMessageHandler = createMessageHandler(
 		}
 	},
 	(message, teno) => {
-		return replyToMeetingMessage(message, teno);
+		return replyToMeetingMessage(message, teno); // Pass conversationHistory to the replyToMeetingMessage function
 	},
 );
 
 async function replyToMeetingMessage(message: Message, teno: Teno) {
 	try {
+		const conversationHistory = await getConversationHistory(message); // Get the conversation history
+
+		const meetingMessage = conversationHistory[0]; // Get the first message in the conversation history
+
+		invariant(message);
+		invariant(meetingMessage);
+
 		console.log('Replying to meeting message...');
 		const loadingMessage = await message.reply('One sec...');
 
-		const targetMeetingMessageId = message.reference?.messageId;
+		const targetMeetingMessageId = meetingMessage.id; // Use the ID of the first message in the conversation history
 		const targetMeeting = await findMeetingByMeetingMessage(message.author.id, targetMeetingMessageId, teno);
 
 		invariant(targetMeetingMessageId);
@@ -87,12 +94,15 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 		});
 		invariant(transcript);
 
-		// Get the conversation history
-		const conversationHistory = await getConversationHistory(message, targetMeetingMessageId);
+		const conversationHistoryContent = conversationHistory.map((msg) =>
+			msg.author.bot ? msg.content : `${msg.author.username}: ${msg.content}`,
+		);
 
 		const transcriptLines = await transcript.getCleanedTranscript();
 
-		const answerOutput = await answerQuestionOnTranscript(conversationHistory, transcriptLines);
+		console.log('Conversation history:', conversationHistoryContent);
+
+		const answerOutput = await answerQuestionOnTranscript(conversationHistoryContent.slice(1), transcriptLines);
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);
@@ -115,31 +125,18 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 	}
 }
 
-async function getConversationHistory(message: Message, meetingMessageId: string): Promise<string[]> {
-	const history: string[] = [];
-	let currentMessage = message;
-
-	while (currentMessage.reference?.messageId && currentMessage.reference.messageId !== meetingMessageId) {
-		const parentMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
-		const contentWithUsername = currentMessage.author.bot
-			? parentMessage.content
-			: `${currentMessage.author.username}: ${parentMessage.content}`;
-		history.unshift(contentWithUsername);
-		currentMessage = parentMessage;
-	}
-
-	return history;
+async function getConversationHistory(message: Message): Promise<Message[]> {
+	const conversationHistory = await getParentMessage(message);
+	return conversationHistory;
 }
 
-async function getMessageChain(message: Message): Promise<string[]> {
-	const history: string[] = [];
-	let currentMessage = message;
+async function getParentMessage(message: Message, history: Message[] = []): Promise<Message[]> {
+	history.unshift(message);
 
-	while (currentMessage.reference?.messageId) {
-		const parentMessage = await currentMessage.channel.messages.fetch(currentMessage.reference.messageId);
-		history.unshift(parentMessage.id);
-		currentMessage = parentMessage;
+	if (!message.reference || !message.reference.messageId) {
+		return history;
 	}
 
-	return history;
+	const parentMessage = await message.channel.messages.fetch(message.reference.messageId);
+	return await getParentMessage(parentMessage, history);
 }
