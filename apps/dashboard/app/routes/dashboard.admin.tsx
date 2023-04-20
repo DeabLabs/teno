@@ -1,15 +1,15 @@
-import type { ActionArgs, LoaderArgs } from '@remix-run/node';
+import type { LoaderArgs } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
-import { json } from '@remix-run/node';
 import clsx from 'clsx';
-import { Form, useNavigation } from '@remix-run/react';
-import { Loader2 } from 'lucide-react';
+import { NavLink, Outlet } from '@remix-run/react';
 
 import { checkAuth } from '@/server/auth.utils.server';
-import { prisma } from '@/server/database.server';
-import { redis } from '@/server/kv.server';
-import { Button } from '@/components/ui/Button';
-import { addDefaultMeetingDuration } from '@/server/admin.server';
+import {
+	NavigationMenu,
+	NavigationMenuItem,
+	NavigationMenuList,
+	navigationMenuTriggerStyle,
+} from '@/components/ui/NavigationMenu';
 
 export const loader = async ({ request }: LoaderArgs) => {
 	const user = await checkAuth(request);
@@ -21,54 +21,34 @@ export const loader = async ({ request }: LoaderArgs) => {
 	return null;
 };
 
-const actions = ['fill-meeting-duration'] as const;
-type ActionType = (typeof actions)[number];
-
-export const action = async ({ request }: ActionArgs) => {
-	const user = await checkAuth(request);
-	const formData = await request.formData();
-	const intent = formData.get('intent') as ActionType;
-
-	switch (intent) {
-		case 'fill-meeting-duration':
-			await addDefaultMeetingDuration(user.id, prisma, redis);
-			return json({}, { status: 200 });
-		default:
-			console.log(intent);
-			return json({}, { status: 200 });
-	}
-};
-
-type AdminActionButtonProps = React.ComponentProps<typeof Button> & {
-	intent: ActionType;
-	label: React.ReactNode;
-};
-
-const AdminActionButton = ({ intent, value: _, ...props }: AdminActionButtonProps) => {
-	const { state } = useNavigation();
-	const loading = state === 'submitting';
-
-	return (
-		<Button
-			className="flex flex-1 basis-auto gap-2"
-			variant="subtle"
-			name="intent"
-			value={intent}
-			{...props}
-			disabled={loading || props.disabled}
-			type="submit"
-		>
-			{props.label}
-			{loading && <Loader2 className="animate-spin" />}
-		</Button>
-	);
-};
+const subLinks = [
+	{ to: '/dashboard/admin', label: 'Admin' },
+	{ to: '/dashboard/admin/manage-server-admins', label: 'Manage Server Admins' },
+];
 
 const Admin = () => {
 	return (
-		<Form method="post" replace className={clsx('container h-full flex flex-wrap mt-8 gap-8')}>
-			<AdminActionButton intent="fill-meeting-duration" label="Approximate Empty Meeting Durations" />
-		</Form>
+		<div className="flex-col w-full">
+			<NavigationMenu className="flex w-full gap-4 px-8 border-b border-b-gray-700">
+				<NavigationMenuList>
+					{subLinks.map((link) => (
+						<NavigationMenuItem key={link.to} className={navigationMenuTriggerStyle()}>
+							<NavLink
+								to={link.to}
+								className={({ isActive }) =>
+									clsx(isActive && link.to !== '/dashboard/admin' && 'underline underline-offset-2')
+								}
+							>
+								{link.label}
+							</NavLink>
+						</NavigationMenuItem>
+					))}
+				</NavigationMenuList>
+			</NavigationMenu>
+			<div className="container flex-col">
+				<Outlet />
+			</div>
+		</div>
 	);
 };
 
