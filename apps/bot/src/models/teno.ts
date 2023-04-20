@@ -210,6 +210,17 @@ export class Teno {
 		return this.meetings;
 	}
 
+	async getVoiceService() {
+		const vs = await this.getPrismaClient().guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			include: { VoiceServiceKey: true },
+		});
+
+		return vs?.VoiceServiceKey ?? undefined;
+	}
+
 	async cleanup() {
 		await Promise.allSettled(this.meetings.map((meeting) => meeting.endMeeting()));
 
