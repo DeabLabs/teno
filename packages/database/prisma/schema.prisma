@@ -11,23 +11,25 @@ datasource db {
 }
 
 model Guild {
-  id              Int              @id @default(autoincrement())
-  guildId         String           @unique
-  name            String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  adminEnabled    Boolean          @default(false)
-  admins          User[]
-  usageEvents     UsageEvent[]
-  VoiceServiceKey VoiceServiceKey?
+  id           Int           @id @default(autoincrement())
+  guildId      String        @unique
+  name         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  adminEnabled Boolean       @default(false)
+  admins       User[]
+  usageEvents  UsageEvent[]
+  voiceService VoiceService?
 }
 
-model VoiceServiceKey {
+model VoiceService {
   id        Int      @id @default(autoincrement())
   guildId   Int      @unique
   guild     Guild    @relation(fields: [guildId], references: [id])
-  key       String
-  profile   String?
+  // api key for voice service, elevenlabs right now
+  apiKey    String
+  // voice key that determines which voice to use
+  voiceKey  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

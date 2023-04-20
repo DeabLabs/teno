@@ -2,8 +2,7 @@ import { Readable } from 'stream';
 
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
-
-import { Config } from '@/config.js';
+import invariant from 'tiny-invariant';
 
 export async function textToSpeech(
 	voiceId: string,
@@ -62,18 +61,26 @@ export async function playAudioBuffer(arrayBuffer: ArrayBuffer, connection: Voic
 	});
 }
 
-export async function playTextToSpeech(connection: VoiceConnection | undefined, text: string): Promise<void> {
-	const defaultVoiceId = 'WSS2tQv38AU3q7jpFVPd'; // Replace with the default Voice ID you want to use
+export async function playTextToSpeech({
+	connection,
+	text,
+	apiKey,
+	voiceId,
+}: {
+	apiKey: string;
+	voiceId: string;
+	connection: VoiceConnection | undefined;
+	text: string;
+}): Promise<void> {
 	const defaultStability = 0.3;
 	const defaultSimilarityBoost = 0.8;
 
-	const apiKey = Config.ELEVENLABS_API_KEY;
-	if (!apiKey) {
-		throw new Error('ELEVENLABS_API_KEY is not set in the configuration');
-	}
+	invariant(apiKey, 'Eleven labs API key is required');
+	invariant(voiceId, 'Eleven labs voice ID is required');
+
 	try {
 		if (connection) {
-			const buffer = await textToSpeech(defaultVoiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
+			const buffer = await textToSpeech(voiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
 			await playAudioBuffer(buffer, connection);
 		} else {
 			console.error('No voice connection found for the meeting');

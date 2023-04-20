@@ -33,10 +33,10 @@ export const loader = async ({ request, params }: LoaderArgs) => {
 				},
 			},
 			include: {
-				VoiceServiceKey: {
+				voiceService: {
 					select: {
 						updatedAt: true,
-						profile: true,
+						voiceKey: true,
 					},
 				},
 			},
@@ -70,9 +70,9 @@ export const action = async ({ request, params }: ActionArgs) => {
 				},
 			},
 			include: {
-				VoiceServiceKey: {
+				voiceService: {
 					select: {
-						key: true,
+						apiKey: true,
 					},
 				},
 			},
@@ -87,30 +87,54 @@ export const action = async ({ request, params }: ActionArgs) => {
 					.string()
 					.optional()
 					.default('')
-					.transform((v) => (v === DEFAULT_KEY && guild.VoiceServiceKey?.key ? guild.VoiceServiceKey.key : v)),
-				'eleven-labs-profile': z.string().optional().default(''),
+					.transform((v) => (v === DEFAULT_KEY && guild.voiceService?.apiKey ? guild.voiceService.apiKey : v)),
+				'eleven-labs-voice': z.string().optional().default(''),
 			})
 			.parse(Object.fromEntries(form.entries()));
 
-		const { 'eleven-labs-api': key, 'eleven-labs-profile': profile } = parsed;
+		const { 'eleven-labs-api': apiKey, 'eleven-labs-voice': voiceKey } = parsed;
+
+		if (!apiKey && voiceKey) {
+			return json(
+				{
+					error: undefined,
+					errors: {
+						'eleven-labs-api': 'API Key and Voice Key must both be set, or empty.',
+					},
+				},
+				{ status: 400 },
+			);
+		}
+
+		if (apiKey && !voiceKey) {
+			return json(
+				{
+					error: undefined,
+					errors: {
+						'eleven-labs-voice': 'API Key and Voice Key must both be set, or empty.',
+					},
+				},
+				{ status: 400 },
+			);
+		}
 
 		await prisma.guild.update({
 			where: {
 				id: guildId,
 			},
 			data: {
-				VoiceServiceKey: {
+				voiceService: {
 					upsert: {
 						create: {
-							key,
-							profile,
+							apiKey,
+							voiceKey,
 						},
 						update: {
-							key,
-							profile,
+							apiKey,
+							voiceKey,
 						},
 					},
-					delete: !key,
+					delete: !apiKey || !voiceKey ? true : undefined,
 				},
 			},
 		});
@@ -118,7 +142,16 @@ export const action = async ({ request, params }: ActionArgs) => {
 		return redirect('/dashboard/servers/');
 	} catch (error) {
 		console.log(error);
-		return json({ error: 'An error occurred' }, { status: 400 });
+		return json(
+			{
+				error: 'An error occurred',
+				errors: {
+					'eleven-labs-api': undefined,
+					'eleven-labs-voice': undefined,
+				},
+			},
+			{ status: 400 },
+		);
 	}
 };
 
@@ -126,6 +159,7 @@ const Server = () => {
 	const { guild } = useLoaderData<typeof loader>();
 	const navigate = useNavigate();
 	const { state } = useNavigation();
+	const data = useActionData();
 
 	const loading = state === 'submitting';
 
@@ -143,9 +177,9 @@ const Server = () => {
 							<span className="font-normal leading-snug text-muted-foreground">
 								If provided, this key will allow Teno to speak in your meetings
 							</span>
-							{!!guild.VoiceServiceKey && (
+							{!!guild.voiceService && (
 								<span className="font-normal leading-snug text-muted-foreground">
-									Last Updated: {guild.VoiceServiceKey.updatedAt}
+									Last Updated: {guild.voiceService.updatedAt}
 								</span>
 							)}
 						</Label>
@@ -155,27 +189,33 @@ const Server = () => {
 							placeholder="1a2b3c4d5d6e1a2b3c4d5d6e"
 							autoComplete="off"
 							type="password"
-							defaultValue={guild?.VoiceServiceKey?.updatedAt ? DEFAULT_KEY : undefined}
+							defaultValue={guild?.voiceService?.updatedAt ? DEFAULT_KEY : undefined}
 						/>
+						{data?.errors?.['eleven-labs-api'] && (
+							<p className="text-red-200 text-sm leading-tight">{data?.errors?.['eleven-labs-api']}</p>
+						)}
 					</div>
 					<div className="grid gap-2">
 						<Label htmlFor="eleven-labs-api" className="flex flex-col gap-1">
-							<span>ElevenLabs Voice Profile</span>
+							<span>ElevenLabs Voice</span>
 							<span className="font-normal leading-snug text-muted-foreground">
-								If provided, this key will change Teno's voice to match the your desired profile
+								If provided, this key will change Teno's voice to match the your desired voice
 							</span>
-							{!!guild.VoiceServiceKey && (
+							{!!guild.voiceService && (
 								<span className="font-normal leading-snug text-muted-foreground">
-									Last Updated: {guild.VoiceServiceKey.updatedAt}
+									Last Updated: {guild.voiceService.updatedAt}
 								</span>
 							)}
 						</Label>
 						<Input
-							name="eleven-labs-profile"
+							name="eleven-labs-voice"
 							placeholder="1a2b3c4d5d6e"
-							defaultValue={guild?.VoiceServiceKey?.profile || ''}
+							defaultValue={guild?.voiceService?.voiceKey || ''}
 							autoComplete="off"
 						/>
+						{data?.errors?.['eleven-labs-voice'] && (
+							<p className="text-red-200 text-sm leading-tight">{data?.errors?.['eleven-labs-voice']}</p>
+						)}
 					</div>
 				</CardContent>
 				<CardFooter className="justify-between space-x-2">

@@ -27,7 +27,7 @@ export const loader = async ({ request }: LoaderArgs) => {
 				name: true,
 				guildId: true,
 				updatedAt: true,
-				VoiceServiceKey: {
+				voiceService: {
 					select: {
 						createdAt: true,
 					},
@@ -35,7 +35,7 @@ export const loader = async ({ request }: LoaderArgs) => {
 			},
 		})
 		.then((guilds) => {
-			return guilds.map(({ VoiceServiceKey: _v, ...guild }) => {
+			return guilds.map(({ voiceService: _v, ...guild }) => {
 				return {
 					...guild,
 					updatedAt: guild.updatedAt?.toISOString(),

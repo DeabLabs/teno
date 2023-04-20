@@ -215,10 +215,10 @@ export class Teno {
 			where: {
 				guildId: this.id,
 			},
-			include: { VoiceServiceKey: true },
+			include: { voiceService: true },
 		});
 
-		return vs?.VoiceServiceKey ?? undefined;
+		return vs?.voiceService ?? undefined;
 	}
 
 	async cleanup() {
