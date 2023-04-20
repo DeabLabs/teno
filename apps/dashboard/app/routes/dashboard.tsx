@@ -17,6 +17,7 @@ export const loader = async ({ request }: LoaderArgs) => {
 const _links: (LinkItem & { admin?: boolean })[] = [
 	{ to: '/dashboard', label: 'Dashboard' },
 	{ to: '/dashboard/meetings', label: 'Meetings' },
+	{ to: '/dashboard/servers', label: 'Servers' },
 	{ to: '/dashboard/admin', label: 'Admin', admin: true },
 ];
 

@@ -185,7 +185,7 @@ const DashboardServerAdmins = () => {
 					title="Guilds"
 					items={guilds}
 					setSelected={setSelectedGuild}
-					getLabel={(guild) => guild.guildId}
+					getLabel={(guild) => `${guild.name ? `${guild.name}#` : ''}${guild.guildId}`}
 					getSelected={(guild) => guild === selectedGuild}
 					selected={selectedGuild}
 					placeholder="Select a guild..."
@@ -195,7 +195,14 @@ const DashboardServerAdmins = () => {
 						if (!guild) {
 							return -1;
 						}
-						return guild.guildId.toLowerCase().indexOf(search.toLowerCase()) + 1;
+
+						const subjects = [guild.name, guild.guildId];
+						return (
+							(subjects
+								.map((s) => s?.toLowerCase()?.indexOf(search.toLowerCase()))
+								.filter((f) => typeof f === 'number')
+								.shift() ?? -1) + 1
+						);
 					}}
 				/>
 				<List
