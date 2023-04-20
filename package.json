@@ -40,7 +40,7 @@
 		"@manypkg/cli": "0.20.0",
 		"dotenv-cli": "^7.2.1",
 		"prettier": "2.8.4",
-		"turbo": "^1.9.0",
+		"turbo": "^1.9.3",
 		"typescript": "^5.0.3"
 	},
 	"engines": {
