@@ -10,7 +10,8 @@
 		"clean": "rimraf build .cache .turbo node_modules",
 		"typecheck": "tsc",
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-		"format": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
+		"format": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+		"ci": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@radix-ui/react-dialog": "^1.0.3",

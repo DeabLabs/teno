@@ -17,7 +17,7 @@
 		"clean": "turbo run clean --no-daemon",
 		"format": "prettier --write \"**/*.{ts,tsx,md,css,json}\" && turbo run format --no-daemon",
 		"lint:prettier": "prettier --check .",
-		"ci": "yarn lint test:ci build",
+		"ci": "yarn lint && turbo run ci test:ci build --no-daemon",
 		"fix-deps": "manypkg fix",
 		"postinstall": "manypkg check",
 		"db:push": "dotenv -- turbo run db:push --no-daemon",

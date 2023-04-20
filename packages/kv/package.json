@@ -11,6 +11,7 @@
 	],
 	"scripts": {
 		"build": "tsup",
+		"ci": "tsc --noEmit",
 		"clean": "rimraf .turbo node_modules dist"
 	},
 	"dependencies": {

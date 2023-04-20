@@ -16,7 +16,7 @@
 		"build:check": "tsc --noEmit --incremental false",
 		"test": "vitest",
 		"test:ci": "vitest run",
-		"ci": "yarn test:ci && yarn build && yarn lint",
+		"ci": "tsc --noEmit && yarn test:ci && yarn build && yarn lint",
 		"clean": "rimraf dist node_modules .turbo"
 	},
 	"author": "Blindmansion <blindmansion@gmail.com>",
