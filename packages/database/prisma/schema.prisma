@@ -11,13 +11,25 @@ datasource db {
 }
 
 model Guild {
-  id           Int          @id @default(autoincrement())
-  guildId      String       @unique
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  adminEnabled Boolean      @default(false)
-  admins       User[]
-  usageEvents  UsageEvent[]
+  id              Int              @id @default(autoincrement())
+  guildId         String           @unique
+  name            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  adminEnabled    Boolean          @default(false)
+  admins          User[]
+  usageEvents     UsageEvent[]
+  VoiceServiceKey VoiceServiceKey?
+}
+
+model VoiceServiceKey {
+  id        Int      @id @default(autoincrement())
+  guildId   Int      @unique
+  guild     Guild    @relation(fields: [guildId], references: [id])
+  key       String
+  profile   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // using guildId: we can track how many tokens are used per guild across all users

@@ -12,6 +12,7 @@
 	"scripts": {
 		"build": "tsup",
 		"clean": "rimraf .turbo node_modules dist",
+		"ci": "tsc --noEmit",
 		"db:migrate:deploy": "prisma migrate deploy",
 		"db:migrate:dev": "prisma migrate dev",
 		"db:push": "prisma db push --skip-generate",

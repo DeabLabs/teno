@@ -78,7 +78,10 @@ export class Meeting {
 
 	static async load(args: MeetingLoadArgs) {
 		try {
-			const user = await userQueries.createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
+			const user = await userQueries.getUser(args.prismaClient, {
+				discordId: args.userDiscordId,
+			});
+			invariant(user, 'User not found');
 			const _meeting = await args.prismaClient.meeting.upsert({
 				where: { id: args?.id ?? -1 },
 				create: {
@@ -252,8 +255,12 @@ export class Meeting {
 	 * Add a user to the attendees list, which allows them to ask Teno about the meeting
 	 * @param userId The user to add
 	 */
-	public async addMember(userId: string) {
-		const user = await userQueries.createOrGetUser(this.prismaClient, { discordId: userId });
+	public async addMember(userId: string, username: string, discriminator: string) {
+		const user = await userQueries.createOrGetUser(this.prismaClient, {
+			discordId: userId,
+			name: username,
+			discriminator,
+		});
 		invariant(user);
 		await this.prismaClient.meeting.update({
 			where: { id: this.id },

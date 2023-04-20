@@ -10,11 +10,15 @@
 		"clean": "rimraf build .cache .turbo node_modules",
 		"typecheck": "tsc",
 		"lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-		"format": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
+		"format": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+		"ci": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@radix-ui/react-dialog": "^1.0.3",
+		"@radix-ui/react-label": "^2.0.1",
 		"@radix-ui/react-navigation-menu": "^1.1.2",
+		"@radix-ui/react-popover": "^1.0.5",
+		"@radix-ui/react-scroll-area": "^1.0.3",
 		"@radix-ui/react-tabs": "^1.0.3",
 		"@remix-run/node": "^1.15.0",
 		"@remix-run/react": "^1.15.0",
@@ -22,6 +26,7 @@
 		"@tanstack/react-table": "^8.8.5",
 		"class-variance-authority": "^0.5.1",
 		"clsx": "^1.2.1",
+		"cmdk": "^0.2.0",
 		"database": "*",
 		"date-fns": "^2.29.3",
 		"dotenv": "^16.0.3",

@@ -44,8 +44,11 @@ export class Teno {
 			where: {
 				guildId: this.id,
 			},
-			update: {},
+			update: {
+				name: this.guild.name,
+			},
 			create: {
+				name: this.guild.name,
 				guildId: this.id,
 			},
 		});

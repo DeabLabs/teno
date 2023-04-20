@@ -34,7 +34,11 @@ const discordStrategy = new DiscordStrategy(
 		 * Construct the user profile to your liking by adding data you fetched etc.
 		 * and only returning the data that you actually need for your application.
 		 */
-		const user = await userQueries.createOrGetUser(prisma, { discordId: profile.id });
+		const user = await userQueries.createOrGetUser(prisma, {
+			discordId: profile.id,
+			name: profile.__json.username,
+			discriminator: profile.__json.discriminator,
+		});
 		return {
 			id: user.id,
 			admin: user.admin,

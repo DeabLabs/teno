@@ -59,7 +59,11 @@ async function autojoinOn(interaction: CommandInteraction, teno: Teno) {
 
 		invariant(guild);
 
-		const user = await userQueries.createOrGetUser(teno.getPrismaClient(), { discordId: userId });
+		const user = await userQueries.createOrGetUser(teno.getPrismaClient(), {
+			discordId: userId,
+			name: interaction.user.username,
+			discriminator: interaction.user.discriminator,
+		});
 		await teno.getPrismaClient().user.update({
 			where: { id: user.id },
 			data: {
