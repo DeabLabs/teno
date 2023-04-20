@@ -8,7 +8,7 @@ RUN turbo prune --scope=bot --docker
 FROM node:18-slim AS installer
 
 RUN apt-get update
-RUN apt-get install -y ffmpeg python3 make g++ openssl libssl-dev ca-certificates
+RUN apt-get install -y python3 make automake libtool-bin autoconf g++ openssl libssl-dev ca-certificates
 RUN update-ca-certificates
 WORKDIR /app
 
@@ -30,7 +30,9 @@ ARG OPENAI_API_KEY
 ARG ELEVENLABS_API_KEY
 ARG DEEPGRAM
 ARG TOKEN
-EXPOSE 45000-60000
+
+RUN apt-get update
+RUN apt-get install -y ffmpeg
 
 WORKDIR /app
 COPY --from=installer /app/apps/bot/dist/* .

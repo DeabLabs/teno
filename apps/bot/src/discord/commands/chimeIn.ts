@@ -2,12 +2,14 @@ import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 import { usageQueries } from 'database';
+import { getVoiceConnection } from '@discordjs/voice';
 
 import { chimeInOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 import { Utterance } from '@/models/utterance.js';
+import { playTextToSpeech } from '@/services/textToSpeech.js';
 
 export const chimeInCommand = createCommand({
 	commandArgs: {
@@ -17,12 +19,31 @@ export const chimeInCommand = createCommand({
 	handler: chimeIn,
 });
 
+const thinkingTextVariations = [
+	'Hmmm, give me a second to think about that...',
+	'Hold on, let me ponder on that for a moment...',
+	'Wait a sec, I need to contemplate that...',
+	'Allow me a moment to mull over that...',
+	'One moment, just thinking about that...',
+	'Hold up, let me process that for a bit...',
+	"Just a second, I'm reflecting on that...",
+	'Bear with me, I need to consider that...',
+	"Wait a moment, I'm weighing that in my mind...",
+	'Let me think that through for a moment...',
+] as const;
+
+async function sleep(timeMs: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, timeMs));
+}
+
 async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply();
+	await sleep(1000);
 
 	const guildId = interaction.guildId;
 	const member = interaction.member;
 	const tenoId = teno.getClient().user?.id;
+	const voiceConfig = await teno.getVoiceService();
 
 	try {
 		invariant(member instanceof GuildMember);
@@ -34,6 +55,21 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 			components: [],
 		});
 		return;
+	}
+
+	if (voiceConfig) {
+		try {
+			playTextToSpeech({
+				apiKey: voiceConfig.apiKey,
+				voiceId: voiceConfig.voiceKey,
+				text:
+					thinkingTextVariations[Math.floor(Math.random() * thinkingTextVariations.length)] ??
+					thinkingTextVariations[0],
+				connection: getVoiceConnection(guildId),
+			});
+		} catch {
+			// ignore
+		}
 	}
 
 	try {
@@ -107,8 +143,21 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 
 		await transcript.appendTranscript(transcriptLine, timestamp);
 
+		if (voiceConfig) {
+			try {
+				playTextToSpeech({
+					apiKey: voiceConfig.apiKey,
+					voiceId: voiceConfig.voiceKey,
+					text: answer,
+					connection: getVoiceConnection(guildId),
+				});
+			} catch {
+				// ignore
+			}
+		}
+
 		await interaction.editReply({
-			content: `Meeting: ${active.name}\n${answer}`,
+			content: `${answer}`,
 		});
 	} catch (e) {
 		await interaction.editReply({
