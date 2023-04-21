@@ -100,7 +100,7 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
 		invariant(transcript);
-		const answerOutput = await chimeInOnTranscript(transcriptLines);
+		const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4');
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);

@@ -1,8 +1,12 @@
 import { Readable } from 'stream';
+import { PassThrough } from 'stream';
 
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import invariant from 'tiny-invariant';
+import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
+
+import { Config } from '@/config.js';
 
 export async function textToSpeech(
 	voiceId: string,
@@ -80,7 +84,8 @@ export async function playTextToSpeech({
 
 	try {
 		if (connection) {
-			const buffer = await textToSpeech(voiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
+			//const buffer = await textToSpeech(voiceId, text, apiKey, defaultStability, defaultSimilarityBoost);
+			const buffer = await synthesizeSpeech(text);
 			await playAudioBuffer(buffer, connection);
 		} else {
 			console.error('No voice connection found for the meeting');
@@ -88,4 +93,30 @@ export async function playTextToSpeech({
 	} catch (error) {
 		console.error('Error error playing text to speech:', error);
 	}
+}
+
+const speechKey = Config.SPEECH_KEY;
+const speechRegion = Config.SPEECH_REGION;
+
+const speechConfig = sdk.SpeechConfig.fromSubscription(speechKey, speechRegion);
+
+// Set the output format
+speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus;
+
+const speechSynthesizer = new sdk.SpeechSynthesizer(speechConfig);
+
+function synthesizeSpeech(text: string): Promise<ArrayBuffer> {
+	return new Promise<ArrayBuffer>((resolve, reject) => {
+		speechSynthesizer.speakTextAsync(
+			text,
+			(result) => {
+				const { audioData } = result;
+				resolve(audioData);
+			},
+			(error) => {
+				console.log(error);
+				reject(error);
+			},
+		);
+	});
 }

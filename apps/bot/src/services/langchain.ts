@@ -17,6 +17,13 @@ const gptTurbo = new ChatOpenAI({
 	openAIApiKey: Config.OPENAI_API_KEY,
 });
 
+const models = {
+	'gpt-4': gptFour,
+	'gpt-3.5-turbo': gptTurbo,
+} as const;
+
+export type SupportedModels = keyof typeof models;
+
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
 		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
@@ -37,13 +44,15 @@ const chimeInTemplate = ChatPromptTemplate.fromPromptMessages([
 		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
-The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
-You will read the transcript, then chime in on the conversation. If the last few lines contain an open question, or a question directed specifically at you, answer the question. If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
-In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
-Do not include the username "Teno" or any timestamp (xx:xx) in your response.
-If you have already answered a question, or addressed a topic, do not address it again unless asked to.
-You do not need to summarize the transcript or question unless the question calls for it.
-You do not need to remind the user that you can answer more questions when you are done.
+The transcript may include transcription errors, like mispelled words and broken sentences.
+If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
+You will read the transcript, then contribute to the conversation.
+If the last few lines of the transcript contain an open question, or a question directed specifically at you, answer the question.
+If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
+Do NOT include phrases like "based on the transcript" or "according to the transcript" in your response.
+Do NOT include the username "Teno" or any timestamp (xx:xx) in your response.
+Do NOT summarize the transcript or rephrase the question in your response.
+Do NOT include phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", in your response.
 Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
 Teno (xx:xx):`,
@@ -56,6 +65,8 @@ const voiceActivationTemplate = ChatPromptTemplate.fromPromptMessages([
 Decide if this line is asking you to chime in, answer a question, or contribute to the conversation directly.
 You should only say "yes" if the line is directly asking you to contribute. You should not say "yes" if there is an undirected question in the line, or if the line is a statement.
 Here are some examples lines and what a correct response would be:
+- "ten O, what do you think about this?"
+- "yes"
 - "Teno, what do you think about this?"
 - "yes"
 - "Teno, can you help me with this?"
@@ -66,7 +77,11 @@ Here are some examples lines and what a correct response would be:
 - "yes"
 - "I wonder how Teno would respond to this"
 - "yes"
+- "I wonder how tunnel would respond to this"
+- "yes"
 - "Teno respond"
+- "yes"
+- "tunnel, respond"
 - "yes"
 - "What do we think about this?"
 - "no"
@@ -74,9 +89,11 @@ Here are some examples lines and what a correct response would be:
 - "no"
 - "I think Teno would say this"
 - "no"
-Here is the line, surrounded by \`\`\`:
+- "Bot, respond"
+- "yes"
+Here is the line you should classify, surrounded by \`\`\`. Respond with "yes" or "no" based on the criteria and examples above:
 \`\`\`{line}\`\`\`
-Respond with "yes" or "no" if the criteria above is met:`,
+`,
 	),
 ]);
 
@@ -122,7 +139,7 @@ export async function answerQuestionOnTranscript(
 		transcript: shortenedTranscript,
 	});
 
-	const secretaryMessages = await secretaryFormat.toChatMessages();
+	const secretaryMessages = secretaryFormat.toChatMessages();
 
 	// Append the conversation history messages to the secretary messages
 	const fullPrompt = secretaryMessages.concat(conversationMessages);
@@ -156,22 +173,24 @@ export async function triggerVoiceActivation(utterance: string): Promise<boolean
 	return a?.includes('yes') ?? false;
 }
 
-export async function chimeInOnTranscript(transcriptLines: string[]): Promise<AnswerOutput> {
+export async function chimeInOnTranscript(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
+	const llm = models[model];
+
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
-		secretary.promptMessages.join(''),
-		4000,
+		chimeInTemplate.promptMessages.join(''),
+		llm.maxTokens,
 		500,
 	).join('\n');
 
 	console.log('Transcript text: ', shortenedTranscript);
 
-	const answer = await gptTurbo.generatePrompt([
+	const answer = await llm.generatePrompt([
 		await chimeInTemplate.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
