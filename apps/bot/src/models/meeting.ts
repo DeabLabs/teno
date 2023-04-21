@@ -456,7 +456,10 @@ export class Meeting {
 	 */
 	public async endMeeting(): Promise<void> {
 		const active = await this.getActive();
-		if (!active) return;
+		if (!active) {
+			console.log('Meeting not active');
+			return;
+		}
 
 		console.log('Ending meeting', this.getId());
 		await this.setActive(false);

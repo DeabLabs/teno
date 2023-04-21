@@ -2,6 +2,7 @@ import { prisma } from 'database';
 import { GatewayIntentBits } from 'discord-api-types/v10';
 import { Client, Events } from 'discord.js';
 import { createRedisClient } from 'kv';
+import Graceful from 'node-graceful';
 
 import { Config } from './config.js';
 import { deploy } from './discord/deploy.js';
@@ -84,7 +85,9 @@ const cleanup = async () => {
 	status.cleaningUp = true;
 	console.log('\nCleaning up...');
 	// end every meeting in every teno instance
-	await Promise.allSettled(Array.from(tenoInstances.values()).map((teno) => teno.cleanup()));
+	const tenos = Array.from(tenoInstances.values()).map((teno) => teno.cleanup());
+	console.log(tenos.length, 'tenos to clean up');
+	await Promise.allSettled(tenos);
 
 	console.log('Disconnecting clients...');
 	await redisClient.quit();
@@ -92,10 +95,10 @@ const cleanup = async () => {
 	client.destroy();
 
 	console.log('Exiting...');
-	process.exit(0);
+	process.exitCode = 0;
 };
 
-process.on('SIGINT', cleanup);
-process.on('SIGTERM', cleanup);
+Graceful.default.exitOnDouble = false;
+Graceful.default.on('exit', cleanup);
 
 void client.login(botToken);

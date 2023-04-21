@@ -7615,6 +7615,11 @@ node-forge@^1.3.1:
   resolved "https://registry.npmjs.org/node-forge/-/node-forge-1.3.1.tgz"
   integrity sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==
 
+node-graceful@^3.1.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/node-graceful/-/node-graceful-3.1.0.tgz#fab88c96ed1975b939a91bc5be48f0e1c10d0afe"
+  integrity sha512-fGH0ijsO5ZDDY405mP6bE0eNrHQhpjDrihhaviqprP1+aJEWy7bZtzXESp3ZAo6hBTtxOFe7RfSkcqFX001gJQ==
+
 node-gyp-build@^4.3.0:
   version "4.6.0"
   resolved "https://registry.npmjs.org/node-gyp-build/-/node-gyp-build-4.6.0.tgz"
