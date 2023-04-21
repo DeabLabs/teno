@@ -7,8 +7,10 @@ import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { generateMeetingName } from '@/services/langchain.js';
+import { chimeInOnTranscript, generateMeetingName, triggerVoiceActivation } from '@/services/langchain.js';
+import { getRandomThinkingText } from '@/utils/thinkingMessages.js';
 
+import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
 
@@ -18,6 +20,7 @@ type MeetingArgs = {
 	voiceChannelId: string;
 	guildId: string;
 	prismaClient: PrismaClientType;
+	teno: Teno;
 	startTime: number;
 	transcript: Transcript;
 	client: Client;
@@ -46,6 +49,7 @@ export class Meeting {
 	private client: Client;
 	private active = false;
 	private name: string;
+	private teno: Teno;
 
 	private constructor({
 		guildId,
@@ -58,6 +62,7 @@ export class Meeting {
 		client,
 		active,
 		name,
+		teno,
 	}: MeetingArgs) {
 		this.id = id;
 		this.meetingMessageId = meetingMessageId;
@@ -72,6 +77,7 @@ export class Meeting {
 		this.transcript = transcript;
 		this.active = active;
 		this.name = name;
+		this.teno = teno;
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 	}
@@ -117,6 +123,7 @@ export class Meeting {
 				transcript,
 				active: _meeting.active,
 				name: _meeting.name,
+				teno: args.teno,
 			});
 		} catch (e) {
 			console.error('Error loading/creating meeting: ', e);
@@ -213,15 +220,54 @@ export class Meeting {
 	 * Called when an utterance has been transcribed
 	 * @param utterance The utterance that has been transcribed
 	 */
-	private onTranscriptionComplete(utterance: Utterance): void {
+	private async onTranscriptionComplete(utterance: Utterance) {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
+
 			if (utterance.duration) {
 				usageQueries.createUsageEvent(this.prismaClient, {
 					discordGuildId: this.guildId,
 					discordUserId: utterance.userId,
 					meetingId: this.id,
 					utteranceDurationSeconds: utterance.duration,
+				});
+			}
+
+			const vConfig = await this.teno.getVoiceService();
+			if (utterance.textContent && vConfig) {
+				triggerVoiceActivation(utterance.textContent).then(async (canSpeak) => {
+					if (canSpeak && !this.teno.thinking) {
+						this.teno.thinking = true;
+						this.teno.saySomething(getRandomThinkingText(), true);
+						const transcriptLines = await this.transcript?.getCleanedTranscript();
+
+						if (transcriptLines) {
+							const answerOutput = await chimeInOnTranscript(transcriptLines);
+							if (answerOutput.status === 'success') {
+								usageQueries.createUsageEvent(this.prismaClient, {
+									discordGuildId: this.teno.id,
+									// discordUserId: interaction.user.id,
+									// meetingId: active.id,
+									languageModel: answerOutput.languageModel,
+									promptTokens: answerOutput.promptTokens,
+									completionTokens: answerOutput.completionTokens,
+								});
+
+								const timestamp = Date.now();
+								const transcriptLine = Utterance.createTranscriptLine(
+									`Teno`,
+									this.teno.id,
+									answerOutput.answer,
+									(timestamp - this.startTime) / 1000,
+									timestamp,
+								);
+
+								this.transcript.appendTranscript(transcriptLine, timestamp);
+								this.teno.saySomething(answerOutput.answer);
+							}
+						}
+						this.teno.thinking = false;
+					}
 				});
 			}
 		}

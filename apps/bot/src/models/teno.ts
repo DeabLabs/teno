@@ -9,16 +9,19 @@ import invariant from 'tiny-invariant';
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
 import { createMeeting } from '@/utils/createMeeting.js';
+import { playTextToSpeech } from '@/services/textToSpeech.js';
 
 import type { Meeting } from './meeting.js';
 
 export class Teno {
-	private id: string;
+	public id: string;
 	private client: Client;
 	private meetings: Meeting[] = [];
 	private guild: Guild;
 	private redisClient: RedisClient;
 	private prismaClient: PrismaClientType;
+	private speaking = false;
+	public thinking = false;
 
 	constructor({
 		client,
@@ -220,6 +223,25 @@ export class Teno {
 
 		return vs?.voiceService ?? undefined;
 	}
+
+	saySomething = async (text: string, interruptible?: boolean) => {
+		if (!this.speaking) {
+			this.speaking = !interruptible;
+
+			const vConfig = await this.getVoiceService();
+
+			if (vConfig) {
+				await playTextToSpeech({
+					apiKey: vConfig.apiKey,
+					voiceId: vConfig.voiceKey,
+					text,
+					connection: getVoiceConnection(this.id),
+				});
+			}
+
+			this.speaking = false;
+		}
+	};
 
 	cleanup = async () => {
 		const p = this.meetings.map((meeting) => meeting.endMeeting());

@@ -5,7 +5,7 @@ type CreateUsageEventArgs =
 	| {
 			discordUserId?: string;
 			discordGuildId: string;
-			meetingId: number;
+			meetingId?: number;
 			languageModel: string;
 			promptTokens: number;
 			completionTokens: number;
@@ -42,9 +42,13 @@ export const createUsageEvent = async (client: PrismaClientType, args: CreateUsa
 				},
 			},
 			meeting: {
-				connect: {
-					id: args.meetingId,
-				},
+				...(args.meetingId !== undefined
+					? {
+							connect: {
+								id: args.meetingId,
+							},
+					  }
+					: {}),
 			},
 			...('languageModel' in args
 				? {

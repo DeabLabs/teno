@@ -11,6 +11,12 @@ const gptFour = new ChatOpenAI({
 	openAIApiKey: Config.OPENAI_API_KEY,
 });
 
+const gptTurbo = new ChatOpenAI({
+	temperature: 0.9,
+	modelName: 'gpt-3.5-turbo',
+	openAIApiKey: Config.OPENAI_API_KEY,
+});
+
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
 		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
@@ -33,9 +39,44 @@ The transcript contains one or many users, with each user's speaking turns separ
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
 The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
 You will read the transcript, then chime in on the conversation. If the last few lines contain an open question, or a question directed specifically at you, answer the question. If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
-In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context. Do not include the username or timestamp in your response, that will be added automatically.
+In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
+Do not include the username "Teno" or any timestamp (xx:xx) in your response.
+If you have already answered a question, or addressed a topic, do not address it again unless asked to.
+You do not need to summarize the transcript or question unless the question calls for it.
+You do not need to remind the user that you can answer more questions when you are done.
 Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
-\`\`\`{transcript}\`\`\``,
+\`\`\`{transcript}\`\`\`
+Teno (xx:xx):`,
+	),
+]);
+
+const voiceActivationTemplate = ChatPromptTemplate.fromPromptMessages([
+	HumanMessagePromptTemplate.fromTemplate(
+		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a single line of a rough transcript of a voice call.
+Decide if this line is asking you to chime in, answer a question, or contribute to the conversation directly.
+You should only say "yes" if the line is directly asking you to contribute. You should not say "yes" if there is an undirected question in the line, or if the line is a statement.
+Here are some examples lines and what a correct response would be:
+- "Teno, what do you think about this?"
+- "yes"
+- "Teno, can you help me with this?"
+- "yes"
+- "What does the bot think?"
+- "yes"
+- "Does Teno have an opinion on this?"
+- "yes"
+- "I wonder how Teno would respond to this"
+- "yes"
+- "Teno respond"
+- "yes"
+- "What do we think about this?"
+- "no"
+- "What do you think about this?"
+- "no"
+- "I think Teno would say this"
+- "no"
+Here is the line, surrounded by \`\`\`:
+\`\`\`{line}\`\`\`
+Respond with "yes" or "no" if the criteria above is met:`,
 	),
 ]);
 
@@ -101,17 +142,36 @@ export async function answerQuestionOnTranscript(
 	};
 }
 
+export async function triggerVoiceActivation(utterance: string): Promise<boolean> {
+	const answer = await gptTurbo.generatePrompt([
+		await voiceActivationTemplate.formatPromptValue({
+			line: utterance,
+		}),
+	]);
+
+	const a = answer.generations[0]?.[0]?.text?.trim()?.toLocaleLowerCase();
+
+	console.log(a);
+
+	return a?.includes('yes') ?? false;
+}
+
 export async function chimeInOnTranscript(transcriptLines: string[]): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
-	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
+	const shortenedTranscript = constrainLinesToTokenLimit(
+		transcriptLines,
+		secretary.promptMessages.join(''),
+		4000,
+		500,
+	).join('\n');
 
 	console.log('Transcript text: ', shortenedTranscript);
 
-	const answer = await gptFour.generatePrompt([
+	const answer = await gptTurbo.generatePrompt([
 		await chimeInTemplate.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),

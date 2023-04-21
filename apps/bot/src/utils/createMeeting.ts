@@ -41,6 +41,7 @@ export async function createMeeting({
 			prismaClient: teno.getPrismaClient(),
 			userDiscordId,
 			client: teno.getClient(),
+			teno: teno,
 			active: true,
 		});
 		invariant(newMeeting);
