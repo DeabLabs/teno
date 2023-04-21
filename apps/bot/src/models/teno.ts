@@ -21,7 +21,7 @@ export class Teno {
 	private redisClient: RedisClient;
 	private prismaClient: PrismaClientType;
 	private speaking = false;
-	public thinking = false;
+	private thinking = false;
 
 	constructor({
 		client,
@@ -211,6 +211,22 @@ export class Teno {
 
 	getMeetings() {
 		return this.meetings;
+	}
+
+	getThinking() {
+		return this.thinking;
+	}
+
+	setThinking(thinking: boolean) {
+		this.thinking = thinking;
+	}
+
+	getSpeaking() {
+		return this.speaking;
+	}
+
+	setSpeaking(speaking: boolean) {
+		this.speaking = speaking;
 	}
 
 	async getVoiceService() {

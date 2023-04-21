@@ -236,13 +236,13 @@ export class Meeting {
 			const vConfig = await this.teno.getVoiceService();
 			if (utterance.textContent && vConfig) {
 				triggerVoiceActivation(utterance.textContent).then(async (canSpeak) => {
-					if (canSpeak && !this.teno.thinking) {
-						this.teno.thinking = true;
+					if (canSpeak && !this.teno.getThinking()) {
+						this.teno.setThinking(true);
 						this.teno.saySomething(getRandomThinkingText(), true);
 						const transcriptLines = await this.transcript?.getCleanedTranscript();
 
 						if (transcriptLines) {
-							const answerOutput = await chimeInOnTranscript(transcriptLines);
+							const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4');
 							if (answerOutput.status === 'success') {
 								usageQueries.createUsageEvent(this.prismaClient, {
 									discordGuildId: this.teno.id,
@@ -266,7 +266,7 @@ export class Meeting {
 								this.teno.saySomething(answerOutput.answer);
 							}
 						}
-						this.teno.thinking = false;
+						this.teno.setThinking(false);
 					}
 				});
 			}
@@ -519,6 +519,8 @@ export class Meeting {
 			}
 		}
 		this.clearSpeaking();
+		this.teno.setSpeaking(false);
+		this.teno.setThinking(false);
 	}
 
 	private async handleVoiceStateUpdate(prevState: VoiceState) {
