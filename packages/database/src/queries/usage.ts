@@ -30,8 +30,10 @@ export const createUsageEvent = async (client: PrismaClientType, args: CreateUsa
 			...(args.discordUserId
 				? {
 						user: {
-							connect: {
-								discordId: args.discordUserId,
+							// user may not exist yet, make sure they do
+							connectOrCreate: {
+								where: { discordId: args.discordUserId },
+								create: { discordId: args.discordUserId },
 							},
 						},
 				  }
