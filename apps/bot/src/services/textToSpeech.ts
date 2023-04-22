@@ -3,11 +3,8 @@ import { Readable } from 'stream';
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
-import opus from '@discordjs/opus';
 
 import { Config } from '@/config.js';
-
-const { OpusEncoder } = opus;
 
 type TTSResult = {
 	arrayBuffer: ArrayBuffer;
@@ -111,7 +108,11 @@ async function playAudioBuffer(
 	audioFormat: string,
 	connection: VoiceConnection,
 ): Promise<void> {
-	const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+	const trimDuration = 0.03; // Set this value to the desired amount of silence to trim, in seconds
+	const trimBytes = Math.floor(trimDuration * 48000 * 2 * 2); // Assuming 48kHz, 16-bit audio, and 2 channels
+
+	const trimmedArrayBuffer = arrayBuffer.slice(0, -trimBytes);
+	const buffer = Buffer.from(new Uint8Array(trimmedArrayBuffer));
 	const bufferStream = Readable.from(buffer);
 	const audioResource = createAudioResource(bufferStream);
 	const audioPlayer = createAudioPlayer();
