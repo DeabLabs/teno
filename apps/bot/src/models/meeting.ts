@@ -60,6 +60,7 @@ export class Meeting {
 	private name: string;
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
+	private sentenceQueue: string[] = [];
 
 	private constructor({
 		guildId,
@@ -324,54 +325,110 @@ export class Meeting {
 	private async onTranscriptionComplete(utterance: Utterance) {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
+			this.updateUsageData(utterance);
+			await this.processVoiceActivation(utterance);
+		}
+	}
 
-			if (utterance.duration) {
-				usageQueries.createUsageEvent(this.prismaClient, {
-					discordGuildId: this.guildId,
-					discordUserId: utterance.userId,
-					meetingId: this.id,
-					utteranceDurationSeconds: utterance.duration,
-				});
-			}
+	private updateUsageData(utterance: Utterance) {
+		if (utterance.duration) {
+			usageQueries.createUsageEvent(this.prismaClient, {
+				discordGuildId: this.guildId,
+				discordUserId: utterance.userId,
+				meetingId: this.id,
+				utteranceDurationSeconds: utterance.duration,
+			});
+		}
+	}
 
-			const vConfig = await this.teno.getVoiceService();
-			if (utterance.textContent && vConfig) {
-				triggerVoiceActivation(utterance.textContent).then(async (canSpeak) => {
-					if (canSpeak && !this.teno.getThinking()) {
-						this.teno.setThinking(true);
-						this.teno.saySomething(getRandomThinkingText(), true);
-						const transcriptLines = await this.transcript?.getCleanedTranscript();
+	private async processVoiceActivation(utterance: Utterance) {
+		const vConfig = await this.teno.getVoiceService();
+		if (utterance.textContent && vConfig) {
+			triggerVoiceActivation(utterance.textContent).then(async (canSpeak) => {
+				if (canSpeak && !this.teno.getThinking()) {
+					this.startThinking();
+					const transcriptLines = await this.transcript?.getCleanedTranscript();
 
-						if (transcriptLines) {
-							const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4');
-							if (answerOutput.status === 'success') {
-								usageQueries.createUsageEvent(this.prismaClient, {
-									discordGuildId: this.teno.id,
-									// discordUserId: interaction.user.id,
-									// meetingId: active.id,
-									languageModel: answerOutput.languageModel,
-									promptTokens: answerOutput.promptTokens,
-									completionTokens: answerOutput.completionTokens,
-								});
-
-								const timestamp = Date.now();
-								const transcriptLine = Utterance.createTranscriptLine(
-									`Teno`,
-									this.teno.id,
-									answerOutput.answer,
-									(timestamp - this.startTime) / 1000,
-									timestamp,
-								);
-
-								this.transcript.appendTranscript(transcriptLine, timestamp);
-								this.teno.saySomething(answerOutput.answer);
-							}
-						}
-						this.teno.setThinking(false);
+					if (transcriptLines) {
+						await this.handleTranscriptChimeIn(transcriptLines);
 					}
-				});
+					this.stopThinking();
+				}
+			});
+		}
+	}
+
+	private startThinking() {
+		this.teno.setThinking(true);
+		// this.teno.saySomething(getRandomThinkingText(), true);
+	}
+
+	private stopThinking() {
+		this.teno.setThinking(false);
+	}
+
+	private async handleTranscriptChimeIn(transcriptLines: string[]) {
+		const splitTokens = ['.', '?', '!', ';', '. ', '? ', '! ', '; ', '...', '... '];
+		let currentSentence = '';
+		let started = false;
+
+		const onNewToken = (token: string) => {
+			currentSentence += token;
+			if (splitTokens.some((splitToken) => token.includes(splitToken))) {
+				this.enqueueSentence(currentSentence);
+				currentSentence = '';
+				if (!started) {
+					started = true;
+					this.playNextSentence();
+				}
+			}
+		};
+
+		const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4', onNewToken);
+		if (answerOutput.status === 'success') {
+			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
+			this.addAnswerToTranscript(answerOutput.answer);
+			// this.teno.saySomething(answerOutput.answer);
+		}
+	}
+
+	private enqueueSentence(sentence: string): void {
+		this.sentenceQueue.push(sentence);
+	}
+
+	private async playNextSentence(): Promise<void> {
+		if (this.sentenceQueue.length > 0) {
+			const sentence = this.sentenceQueue.shift();
+			if (sentence) {
+				console.log('Playing sentence: ' + sentence);
+				await this.teno.saySomething(sentence);
+				this.playNextSentence();
 			}
 		}
+	}
+
+	private createAIUsageEvent(languageModel: string, promptTokens: number, completionTokens: number) {
+		usageQueries.createUsageEvent(this.prismaClient, {
+			discordGuildId: this.teno.id,
+			// discordUserId: interaction.user.id,
+			// meetingId: active.id,
+			languageModel: languageModel,
+			promptTokens: promptTokens,
+			completionTokens: completionTokens,
+		});
+	}
+
+	private addAnswerToTranscript(answer: string) {
+		const timestamp = Date.now();
+		const transcriptLine = Utterance.createTranscriptLine(
+			`Teno`,
+			this.teno.id,
+			answer,
+			(timestamp - this.startTime) / 1000,
+			timestamp,
+		);
+
+		this.transcript.appendTranscript(transcriptLine, timestamp);
 	}
 
 	/**

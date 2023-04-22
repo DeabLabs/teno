@@ -247,15 +247,19 @@ export class Teno {
 			const vConfig = await this.getVoiceService();
 
 			if (vConfig) {
-				await playTextToSpeech({
-					service: 'azure',
-					apiKey: vConfig.apiKey,
-					text,
-					connection: getVoiceConnection(this.id),
-				});
+				try {
+					await playTextToSpeech({
+						service: 'azure',
+						apiKey: vConfig.apiKey,
+						text,
+						connection: getVoiceConnection(this.id),
+					});
+				} catch (error) {
+					console.error('Error playing text to speech:', error);
+				} finally {
+					this.speaking = false;
+				}
 			}
-
-			this.speaking = false;
 		}
 	};
 
