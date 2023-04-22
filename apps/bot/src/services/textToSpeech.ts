@@ -116,6 +116,26 @@ async function playAudioBuffer(
 	const audioResource = createAudioResource(bufferStream);
 	const audioPlayer = createAudioPlayer();
 
+	audioPlayer.on(AudioPlayerStatus.Playing, () => {
+		console.log('Audio playing');
+	});
+
+	audioPlayer.on(AudioPlayerStatus.Paused, () => {
+		console.log('Audio paused');
+	});
+
+	audioPlayer.on(AudioPlayerStatus.AutoPaused, () => {
+		console.log('Audio auto paused');
+	});
+
+	audioPlayer.on(AudioPlayerStatus.Idle, () => {
+		console.log('Audio idle');
+	});
+
+	audioPlayer.on(AudioPlayerStatus.Buffering, () => {
+		console.log('Audio buffering');
+	});
+
 	audioPlayer.play(audioResource);
 	connection.subscribe(audioPlayer);
 
@@ -135,7 +155,7 @@ export async function playTextToSpeech(params: TTSParams): Promise<void> {
 	try {
 		if (params.connection) {
 			const ttsResult = await textToSpeech(params);
-			await playAudioBuffer(ttsResult.arrayBuffer, ttsResult.audioFormat, params.connection);
+			return await playAudioBuffer(ttsResult.arrayBuffer, ttsResult.audioFormat, params.connection);
 		} else {
 			console.error('No voice connection found for the meeting');
 		}

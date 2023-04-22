@@ -1,20 +1,37 @@
 import { ChatOpenAI } from 'langchain/chat_models';
 import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
 import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
+import { CallbackManager } from 'langchain/callbacks';
 
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
+
+class TenoCallbackHandler extends CallbackManager {
+	private tokenHandler: (token: string) => void;
+
+	constructor(tokenHandler: (token: string) => void) {
+		super();
+		this.tokenHandler = tokenHandler;
+	}
+
+	override handleLLMNewToken(token: string, verbose?: boolean | undefined): Promise<void> {
+		this.tokenHandler(token);
+		return Promise.resolve();
+	}
+}
 
 const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
+	streaming: true,
 });
 
 const gptTurbo = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-3.5-turbo',
 	openAIApiKey: Config.OPENAI_API_KEY,
+	streaming: true,
 });
 
 const models = {
@@ -103,7 +120,7 @@ const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
-type AnswerOutput =
+export type AnswerOutput =
 	| {
 			status: 'error';
 			error: string;
@@ -173,13 +190,22 @@ export async function triggerVoiceActivation(utterance: string): Promise<boolean
 	return a?.includes('yes') ?? false;
 }
 
-export async function chimeInOnTranscript(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
+export async function chimeInOnTranscript(
+	transcriptLines: string[],
+	model: SupportedModels,
+	onNewToken?: (token: string) => void,
+): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
 	const llm = models[model];
+	const originalCallbackManager = llm.callbackManager;
+
+	if (onNewToken) {
+		llm.callbackManager = new TenoCallbackHandler(onNewToken);
+	}
 
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
@@ -195,6 +221,9 @@ export async function chimeInOnTranscript(transcriptLines: string[], model: Supp
 			transcript: shortenedTranscript,
 		}),
 	]);
+
+	// Restore the original callback manager
+	llm.callbackManager = originalCallbackManager;
 
 	return {
 		status: 'success',
