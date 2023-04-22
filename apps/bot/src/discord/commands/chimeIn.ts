@@ -48,10 +48,10 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 	if (voiceConfig) {
 		try {
 			playTextToSpeech({
-				apiKey: voiceConfig.apiKey,
-				voiceId: voiceConfig.voiceKey,
-				text: getRandomThinkingText(),
 				connection: getVoiceConnection(guildId),
+				text: getRandomThinkingText(),
+				service: 'azure',
+				apiKey: voiceConfig.apiKey,
 			});
 		} catch {
 			// ignore
@@ -132,10 +132,10 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		if (voiceConfig) {
 			try {
 				playTextToSpeech({
-					apiKey: voiceConfig.apiKey,
-					voiceId: voiceConfig.voiceKey,
-					text: answer,
 					connection: getVoiceConnection(guildId),
+					text: answer,
+					service: 'azure',
+					apiKey: voiceConfig.apiKey,
 				});
 			} catch {
 				// ignore

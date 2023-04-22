@@ -248,8 +248,8 @@ export class Teno {
 
 			if (vConfig) {
 				await playTextToSpeech({
+					service: 'azure',
 					apiKey: vConfig.apiKey,
-					voiceId: vConfig.voiceKey,
 					text,
 					connection: getVoiceConnection(this.id),
 				});

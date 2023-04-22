@@ -10,8 +10,8 @@ const envKeys = [
 	'OPENAI_API_KEY',
 	'REDIS_URL',
 	'DATABASE_URL',
-	'SPEECH_KEY',
-	'SPEECH_REGION',
+	'AZURE_SPEECH_KEY',
+	'AZURE_SPEECH_REGION',
 ] as const;
 
 // Create a zod schema from the envKeys array
