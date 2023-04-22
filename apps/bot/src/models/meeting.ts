@@ -326,7 +326,10 @@ export class Meeting {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
 			this.updateUsageData(utterance);
-			await this.processVoiceActivation(utterance);
+			// check if utterance contains text
+			if (utterance.textContent && utterance.textContent.length > 0) {
+				await this.processVoiceActivation();
+			}
 		}
 	}
 
@@ -341,17 +344,18 @@ export class Meeting {
 		}
 	}
 
-	private async processVoiceActivation(utterance: Utterance) {
+	private async processVoiceActivation(): Promise<void> {
+		const numCheckLines = 5; // Set this value to modulate how many lines you want to check
+
 		const vConfig = await this.teno.getVoiceService();
-		if (utterance.textContent && vConfig) {
-			triggerVoiceActivation(utterance.textContent).then(async (canSpeak) => {
+		const transcriptLines = await this.transcript?.getCleanedTranscript();
+		if (vConfig && transcriptLines) {
+			const checkLines = transcriptLines.slice(-numCheckLines);
+
+			triggerVoiceActivation(checkLines).then(async (canSpeak) => {
 				if (canSpeak && !this.teno.getThinking()) {
 					this.startThinking();
-					const transcriptLines = await this.transcript?.getCleanedTranscript();
-
-					if (transcriptLines) {
-						await this.handleTranscriptChimeIn(transcriptLines);
-					}
+					await this.handleTranscriptChimeIn(transcriptLines);
 					this.stopThinking();
 				}
 			});

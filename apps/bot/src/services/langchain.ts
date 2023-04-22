@@ -69,7 +69,7 @@ If there is no obvious question to answer, provide advice and/or analysis about 
 Do NOT include phrases like "based on the transcript" or "according to the transcript" in your response.
 Do NOT include the username "Teno" or any timestamp (xx:xx) in your response.
 Do NOT summarize the transcript or rephrase the question in your response.
-Do NOT include phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", in your response.
+Do NOT include superfluous phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", or "If you'd like more information or have any other questions, feel free to ask." in your response.
 Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
 Teno (xx:xx):`,
@@ -78,39 +78,11 @@ Teno (xx:xx):`,
 
 const voiceActivationTemplate = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a single line of a rough transcript of a voice call.
-Decide if this line is asking you to chime in, answer a question, or contribute to the conversation directly.
-You should only say "yes" if the line is directly asking you to contribute. You should not say "yes" if there is an undirected question in the line, or if the line is a statement.
-Here are some examples lines and what a correct response would be:
-- "ten O, what do you think about this?"
-- "yes"
-- "Teno, what do you think about this?"
-- "yes"
-- "Teno, can you help me with this?"
-- "yes"
-- "What does the bot think?"
-- "yes"
-- "Does Teno have an opinion on this?"
-- "yes"
-- "I wonder how Teno would respond to this"
-- "yes"
-- "I wonder how tunnel would respond to this"
-- "yes"
-- "Teno respond"
-- "yes"
-- "tunnel, respond"
-- "yes"
-- "What do we think about this?"
-- "no"
-- "What do you think about this?"
-- "no"
-- "I think Teno would say this"
-- "no"
-- "Bot, respond"
-- "yes"
-Here is the line you should classify, surrounded by \`\`\`. Respond with "yes" or "no" based on the criteria and examples above:
-\`\`\`{line}\`\`\`
-`,
+		`You are a helpful discord bot, and your name might be transcribed as Teno, ten o, tanno, tunnel, Tano, Tina, Loteno, To know, or other similar variations. You will be given several lines of a rough transcript of a voice call. Your task is to decide if the most recent line is asking you to chime in, answer a question, or contribute to the conversation directly.
+  You should say "yes" if the most recent line is directly asking you to contribute, or if it is clear from the context that the user is expecting a response from you, even if your name is not explicitly mentioned. You should say "no" if there is an undirected question in the line, or if the line is a statement without an implicit request for your input, or if you were the last speaker. Use the content of the previous lines for context, but only look in the most recent line when deciding if the user is expecting a response. Never respond with anything other than "yes" or "no". If you aren't sure what to respond with, respond with "no".
+  Here are the lines you should classify, surrounded by \`\`\`. Respond with "yes" or "no" based on the criteria above:
+  \`\`\`{lines}\`\`\`
+  `,
 	),
 ]);
 
@@ -176,10 +148,11 @@ export async function answerQuestionOnTranscript(
 	};
 }
 
-export async function triggerVoiceActivation(utterance: string): Promise<boolean> {
+export async function triggerVoiceActivation(lines: string[]): Promise<boolean> {
+	const joinedLines = lines.join('\n');
 	const answer = await gptTurbo.generatePrompt([
 		await voiceActivationTemplate.formatPromptValue({
-			line: utterance,
+			lines: joinedLines,
 		}),
 	]);
 
