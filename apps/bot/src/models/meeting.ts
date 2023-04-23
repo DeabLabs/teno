@@ -1,12 +1,17 @@
 import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { bold } from 'discord.js';
+import { time } from 'discord.js';
+import { inlineCode } from 'discord.js';
+import { channelMention } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
-import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
+import { formatTime, makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { chimeInOnTranscript, generateMeetingName, triggerVoiceActivation } from '@/services/langchain.js';
 import { getRandomThinkingText } from '@/utils/thinkingMessages.js';
 
@@ -26,6 +31,8 @@ type MeetingArgs = {
 	client: Client;
 	active: boolean;
 	name: string;
+	authorName: string;
+	authorDiscordId: string;
 };
 
 type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active'> & {
@@ -44,12 +51,15 @@ export class Meeting {
 	private startTime: number;
 	private attendees: Set<string>;
 	private id: number;
+	private authorName: string;
+	private authorDiscordId: string;
 	private transcript: Transcript;
 	private meetingMessageId: string;
 	private client: Client;
 	private active = false;
 	private name: string;
 	private teno: Teno;
+	private meetingTimeout: NodeJS.Timeout | null = null;
 
 	private constructor({
 		guildId,
@@ -61,6 +71,8 @@ export class Meeting {
 		voiceChannelId,
 		client,
 		active,
+		authorName,
+		authorDiscordId,
 		name,
 		teno,
 	}: MeetingArgs) {
@@ -76,10 +88,15 @@ export class Meeting {
 		this.ignore = new Set<string>();
 		this.transcript = transcript;
 		this.active = active;
+		this.authorName = authorName;
+		this.authorDiscordId = authorDiscordId;
 		this.name = name;
 		this.teno = teno;
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
+		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
+
+		this.renderMeetingMessage();
 	}
 
 	static async load(args: MeetingLoadArgs) {
@@ -99,6 +116,15 @@ export class Meeting {
 					meetingMessageId: args.meetingMessageId,
 				},
 				update: {},
+				include: {
+					author: {
+						select: {
+							name: true,
+							id: true,
+							discordId: true,
+						},
+					},
+				},
 			});
 			const transcript = await Transcript.load({
 				redisClient: args.redisClient,
@@ -124,10 +150,81 @@ export class Meeting {
 				active: _meeting.active,
 				name: _meeting.name,
 				teno: args.teno,
+				authorName: _meeting.author.name ?? 'Someone',
+				authorDiscordId: _meeting.author.discordId,
 			});
 		} catch (e) {
 			console.error('Error loading/creating meeting: ', e);
 			return null;
+		}
+	}
+
+	/**
+	 * Iterate through all channels in the client cache, then for each channel, attempt to fetch the meeting message by meeting mesage id in the channel,
+	 * if the meeting message ID is found, return the channel and the message object
+	 */
+	public async findMeetingMessage() {
+		for (const channel of this.client.channels.cache.values()) {
+			if (channel.isTextBased()) {
+				try {
+					const message = await channel.messages.fetch(this.meetingMessageId);
+					if (message) {
+						return { channel, message };
+					}
+				} catch (e) {
+					// ignore
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * - Get the text channel for the meeting message
+	 * - Update the meeting message with current meeting state
+	 */
+	private async renderMeetingMessage() {
+		const done = !(await this.getActive());
+		const result = await this.findMeetingMessage();
+
+		if (result) {
+			const { message } = result;
+
+			const seconds = Math.floor(this.startTime / 1000);
+
+			const embed = new EmbedBuilder()
+				.setColor('Green')
+				.setTitle(`Meeting ${done ? '' : 'started'} by ${this.authorName}`)
+				.setDescription(!done ? bold('📝 Teno is listening...') : bold(`✅ ${this.getName()}`))
+				.addFields(
+					{
+						name: 'Channel',
+						value: channelMention(this.voiceChannelId),
+						inline: true,
+					},
+					{
+						name: 'Attendees',
+						value: String(this.attendees.size),
+						inline: true,
+					},
+					{
+						name: 'Started At',
+						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
+					},
+				);
+			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
+
+			if (authorAvatarUrl) {
+				embed.setThumbnail(authorAvatarUrl);
+			}
+
+			await message.edit({ embeds: [embed], content: '' });
+		}
+
+		if (!done) {
+			this.meetingTimeout = setTimeout(() => {
+				this.renderMeetingMessage();
+			}, 5000);
 		}
 	}
 
@@ -153,9 +250,13 @@ export class Meeting {
 		textChannel: TextChannel;
 	}) {
 		try {
-			const meetingMessage = await textChannel.send(
-				`Teno is listening to a meeting in ${voiceChannel.name}. Reply to this message, or use /ask to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
-			);
+			const meetingMessage = await textChannel.send({
+				embeds: [
+					new EmbedBuilder()
+						.setTitle('Starting meeting...')
+						.setDescription(`A meeting is starting in ${channelMention(voiceChannel.id)}`),
+				],
+			});
 
 			return meetingMessage;
 		} catch {
