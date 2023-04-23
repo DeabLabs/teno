@@ -9,9 +9,9 @@ import invariant from 'tiny-invariant';
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
 import { createMeeting } from '@/utils/createMeeting.js';
-import { playTextToSpeech } from '@/services/textToSpeech.js';
 
 import type { Meeting } from './meeting.js';
+import { Responder } from './responder.js';
 
 export class Teno {
 	public id: string;
@@ -20,8 +20,7 @@ export class Teno {
 	private guild: Guild;
 	private redisClient: RedisClient;
 	private prismaClient: PrismaClientType;
-	private speaking = false;
-	private thinking = false;
+	private responder: Responder;
 
 	constructor({
 		client,
@@ -39,6 +38,12 @@ export class Teno {
 		this.id = guild.id;
 		this.redisClient = redisClient;
 		this.prismaClient = prismaClient;
+		this.responder = new Responder({
+			teno: this,
+			client,
+			redisClient,
+			prismaClient,
+		});
 		this.initialize();
 	}
 
@@ -197,6 +202,21 @@ export class Teno {
 		return this.meetings.find((meeting) => meeting.getId() === id);
 	}
 
+	async getVoiceService() {
+		const vs = await this.getPrismaClient().guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			include: { voiceService: true },
+		});
+
+		return vs?.voiceService ?? undefined;
+	}
+
+	getResponder(): Responder {
+		return this.responder;
+	}
+
 	getClient(): Client {
 		return this.client;
 	}
@@ -212,56 +232,6 @@ export class Teno {
 	getMeetings() {
 		return this.meetings;
 	}
-
-	getThinking() {
-		return this.thinking;
-	}
-
-	setThinking(thinking: boolean) {
-		this.thinking = thinking;
-	}
-
-	getSpeaking() {
-		return this.speaking;
-	}
-
-	setSpeaking(speaking: boolean) {
-		this.speaking = speaking;
-	}
-
-	async getVoiceService() {
-		const vs = await this.getPrismaClient().guild.findUnique({
-			where: {
-				guildId: this.id,
-			},
-			include: { voiceService: true },
-		});
-
-		return vs?.voiceService ?? undefined;
-	}
-
-	saySomething = async (text: string, interruptible?: boolean) => {
-		if (!this.speaking) {
-			this.speaking = !interruptible;
-
-			const vConfig = await this.getVoiceService();
-
-			if (vConfig) {
-				try {
-					await playTextToSpeech({
-						service: 'azure',
-						apiKey: vConfig.apiKey,
-						text,
-						connection: getVoiceConnection(this.id),
-					});
-				} catch (error) {
-					console.error('Error playing text to speech:', error);
-				} finally {
-					this.speaking = false;
-				}
-			}
-		}
-	};
 
 	cleanup = async () => {
 		const p = this.meetings.map((meeting) => meeting.endMeeting());

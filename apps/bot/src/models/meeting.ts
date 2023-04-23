@@ -7,8 +7,7 @@ import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { chimeInOnTranscript, generateMeetingName, triggerVoiceActivation } from '@/services/langchain.js';
-import { getRandomThinkingText } from '@/utils/thinkingMessages.js';
+import { generateMeetingName } from '@/services/langchain.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -224,107 +223,23 @@ export class Meeting {
 	private async onTranscriptionComplete(utterance: Utterance) {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
-			this.updateUsageData(utterance);
-			// check if utterance contains text
+			// Respond to the transcript if the bot is expected to respond
+			console.log(utterance.textContent);
 			if (utterance.textContent && utterance.textContent.length > 0) {
-				await this.processVoiceActivation();
-			}
-		}
-	}
-
-	private updateUsageData(utterance: Utterance) {
-		if (utterance.duration) {
-			usageQueries.createUsageEvent(this.prismaClient, {
-				discordGuildId: this.guildId,
-				discordUserId: utterance.userId,
-				meetingId: this.id,
-				utteranceDurationSeconds: utterance.duration,
-			});
-		}
-	}
-
-	private async processVoiceActivation(): Promise<void> {
-		const numCheckLines = 5; // Set this value to modulate how many lines you want to check
-
-		const vConfig = await this.teno.getVoiceService();
-		const transcriptLines = await this.transcript?.getCleanedTranscript();
-		if (vConfig && transcriptLines) {
-			const checkLines = transcriptLines.slice(-numCheckLines);
-
-			triggerVoiceActivation(checkLines).then(async (canSpeak) => {
-				if (canSpeak && !this.teno.getThinking()) {
-					this.startThinking();
-					await this.handleTranscriptChimeIn(transcriptLines);
-					this.stopThinking();
-				}
-			});
-		}
-	}
-
-	private startThinking() {
-		this.teno.setThinking(true);
-		// this.teno.saySomething(getRandomThinkingText(), true);
-	}
-
-	private stopThinking() {
-		this.teno.setThinking(false);
-	}
-
-	private async handleTranscriptChimeIn(transcriptLines: string[]) {
-		const splitTokens = ['.', '?', '!', ';', '. ', '? ', '! ', '; ', '...', '... '];
-		let currentSentence = '';
-		let started = false;
-
-		const onNewToken = (token: string) => {
-			currentSentence += token;
-			if (splitTokens.some((splitToken) => token.includes(splitToken))) {
-				this.enqueueSentence(currentSentence);
-				currentSentence = '';
-				if (!started) {
-					started = true;
-					this.playNextSentence();
+				const responder = this.teno.getResponder();
+				if (await responder.isBotResponseExpected(this)) {
+					if (!responder.isSpeaking()) {
+						responder.respondToTranscript(this);
+					}
 				}
 			}
-		};
-
-		const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4', onNewToken);
-		if (answerOutput.status === 'success') {
-			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
-			this.addAnswerToTranscript(answerOutput.answer);
-			// this.teno.saySomething(answerOutput.answer);
 		}
 	}
 
-	private enqueueSentence(sentence: string): void {
-		this.sentenceQueue.push(sentence);
-	}
-
-	private async playNextSentence(): Promise<void> {
-		if (this.sentenceQueue.length > 0) {
-			const sentence = this.sentenceQueue.shift();
-			if (sentence) {
-				console.log('Playing sentence: ' + sentence);
-				await this.teno.saySomething(sentence);
-				this.playNextSentence();
-			}
-		}
-	}
-
-	private createAIUsageEvent(languageModel: string, promptTokens: number, completionTokens: number) {
-		usageQueries.createUsageEvent(this.prismaClient, {
-			discordGuildId: this.teno.id,
-			// discordUserId: interaction.user.id,
-			// meetingId: active.id,
-			languageModel: languageModel,
-			promptTokens: promptTokens,
-			completionTokens: completionTokens,
-		});
-	}
-
-	private addAnswerToTranscript(answer: string) {
+	public addBotLine(answer: string, botName: string) {
 		const timestamp = Date.now();
 		const transcriptLine = Utterance.createTranscriptLine(
-			`Teno`,
+			`${botName}:`,
 			this.teno.id,
 			answer,
 			(timestamp - this.startTime) / 1000,
@@ -580,8 +495,8 @@ export class Meeting {
 			}
 		}
 		this.clearSpeaking();
-		this.teno.setSpeaking(false);
-		this.teno.setThinking(false);
+		this.teno.getResponder().stopSpeaking();
+		this.teno.getResponder().stopThinking();
 	}
 
 	private async handleVoiceStateUpdate(prevState: VoiceState) {
