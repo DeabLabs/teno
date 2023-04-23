@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import type { VoiceConnection } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioPlayer, createAudioResource } from '@discordjs/voice';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
+import invariant from 'tiny-invariant';
 
 import { Config } from '@/config.js';
 
@@ -12,9 +13,8 @@ type TTSResult = {
 };
 
 type ElevenLabsParams = {
-	connection: VoiceConnection | undefined;
-	text: string;
 	service: 'elevenlabs';
+	text: string;
 	apiKey: string;
 	voiceId: string;
 	stability?: number;
@@ -22,9 +22,8 @@ type ElevenLabsParams = {
 };
 
 type AzureParams = {
-	connection: VoiceConnection | undefined;
-	text: string;
 	service: 'azure';
+	text: string;
 	apiKey: string;
 };
 
@@ -103,12 +102,13 @@ async function getAzureTTS(params: AzureParams): Promise<TTSResult> {
 	});
 }
 
-async function playAudioBuffer(
+export async function playArrayBuffer(
 	arrayBuffer: ArrayBuffer,
-	audioFormat: string,
-	connection: VoiceConnection,
+	connection: VoiceConnection | undefined,
 ): Promise<void> {
-	const trimDuration = 0.03; // Set this value to the desired amount of silence to trim, in seconds
+	invariant(connection, 'No voice connection found');
+
+	const trimDuration = 0.04; // Set this value to the desired amount of silence to trim, in seconds
 	const trimBytes = Math.floor(trimDuration * 48000 * 2 * 2); // Assuming 48kHz, 16-bit audio, and 2 channels
 
 	const trimmedArrayBuffer = arrayBuffer.slice(0, -trimBytes);
@@ -116,26 +116,6 @@ async function playAudioBuffer(
 	const bufferStream = Readable.from(buffer);
 	const audioResource = createAudioResource(bufferStream);
 	const audioPlayer = createAudioPlayer();
-
-	audioPlayer.on(AudioPlayerStatus.Playing, () => {
-		console.log('Audio playing');
-	});
-
-	audioPlayer.on(AudioPlayerStatus.Paused, () => {
-		console.log('Audio paused');
-	});
-
-	audioPlayer.on(AudioPlayerStatus.AutoPaused, () => {
-		console.log('Audio auto paused');
-	});
-
-	audioPlayer.on(AudioPlayerStatus.Idle, () => {
-		console.log('Audio idle');
-	});
-
-	audioPlayer.on(AudioPlayerStatus.Buffering, () => {
-		console.log('Audio buffering');
-	});
 
 	audioPlayer.play(audioResource);
 	connection.subscribe(audioPlayer);
@@ -152,15 +132,25 @@ async function playAudioBuffer(
 	});
 }
 
-export async function playTextToSpeech(params: TTSParams): Promise<void> {
+export async function playText(params: TTSParams, connection: VoiceConnection): Promise<void> {
 	try {
-		if (params.connection) {
+		if (connection) {
 			const ttsResult = await textToSpeech(params);
-			return await playAudioBuffer(ttsResult.arrayBuffer, ttsResult.audioFormat, params.connection);
+			return await playArrayBuffer(ttsResult.arrayBuffer, connection);
 		} else {
 			console.error('No voice connection found for the meeting');
 		}
 	} catch (error) {
 		console.error('Error playing text to speech:', error);
+	}
+}
+
+export async function getArrayBufferFromText(params: TTSParams): Promise<ArrayBuffer> {
+	try {
+		const ttsResult = await textToSpeech(params);
+		return ttsResult.arrayBuffer;
+	} catch (error) {
+		console.error('Error converting text to speech:', error);
+		throw error;
 	}
 }

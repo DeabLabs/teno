@@ -2,15 +2,12 @@ import type { CommandInteraction } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 import { usageQueries } from 'database';
-import { getVoiceConnection } from '@discordjs/voice';
 
 import { chimeInOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
 import { Utterance } from '@/models/utterance.js';
-import { playTextToSpeech } from '@/services/textToSpeech.js';
-import { getRandomThinkingText } from '@/utils/thinkingMessages.js';
 
 export const chimeInCommand = createCommand({
 	commandArgs: {
@@ -31,7 +28,6 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 	const guildId = interaction.guildId;
 	const member = interaction.member;
 	const tenoId = teno.getClient().user?.id;
-	const voiceConfig = await teno.getVoiceService();
 
 	try {
 		invariant(member instanceof GuildMember);
@@ -45,18 +41,18 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		return;
 	}
 
-	if (voiceConfig) {
-		try {
-			playTextToSpeech({
-				connection: getVoiceConnection(guildId),
-				text: getRandomThinkingText(),
-				service: 'azure',
-				apiKey: voiceConfig.apiKey,
-			});
-		} catch {
-			// ignore
-		}
-	}
+	// if (voiceConfig) {
+	// 	try {
+	// 		playTextToSpeech({
+	// 			connection: getVoiceConnection(guildId),
+	// 			text: getRandomThinkingText(),
+	// 			service: 'azure',
+	// 			apiKey: voiceConfig.apiKey,
+	// 		});
+	// 	} catch {
+	// 		// ignore
+	// 	}
+	// }
 
 	try {
 		const active = await teno.getPrismaClient().meeting.findFirst({
@@ -129,18 +125,18 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 
 		await transcript.appendTranscript(transcriptLine, timestamp);
 
-		if (voiceConfig) {
-			try {
-				playTextToSpeech({
-					connection: getVoiceConnection(guildId),
-					text: answer,
-					service: 'azure',
-					apiKey: voiceConfig.apiKey,
-				});
-			} catch {
-				// ignore
-			}
-		}
+		// if (voiceConfig) {
+		// 	try {
+		// 		playTextToSpeech({
+		// 			connection: getVoiceConnection(guildId),
+		// 			text: answer,
+		// 			service: 'azure',
+		// 			apiKey: voiceConfig.apiKey,
+		// 		});
+		// 	} catch {
+		// 		// ignore
+		// 	}
+		// }
 
 		await interaction.editReply({
 			content: `${answer}`,

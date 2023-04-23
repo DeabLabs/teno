@@ -5,7 +5,7 @@
 	"pipeline": {
 		"start": {
 			"persistent": true,
-			"dependsOn": ["build"]
+			"dependsOn": ["^build", "build"]
 		},
 		"build": {
 			"dependsOn": ["^build", "db:generate"],
@@ -43,7 +43,8 @@
 			"cache": false
 		},
 		"ci": {
-			"cache": false
+			"cache": false,
+			"dependsOn": ["^build"]
 		},
 		"format": {
 			"cache": false
