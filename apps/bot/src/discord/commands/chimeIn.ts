@@ -7,7 +7,6 @@ import { chimeInOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
-import { Utterance } from '@/models/utterance.js';
 
 export const chimeInCommand = createCommand({
 	commandArgs: {
@@ -22,8 +21,7 @@ async function sleep(timeMs: number): Promise<void> {
 }
 
 async function chimeIn(interaction: CommandInteraction, teno: Teno) {
-	await interaction.deferReply();
-	await sleep(1000);
+	await interaction.deferReply({ ephemeral: true });
 
 	const guildId = interaction.guildId;
 	const member = interaction.member;
@@ -40,19 +38,6 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		});
 		return;
 	}
-
-	// if (voiceConfig) {
-	// 	try {
-	// 		playTextToSpeech({
-	// 			connection: getVoiceConnection(guildId),
-	// 			text: getRandomThinkingText(),
-	// 			service: 'azure',
-	// 			apiKey: voiceConfig.apiKey,
-	// 		});
-	// 	} catch {
-	// 		// ignore
-	// 	}
-	// }
 
 	try {
 		const active = await teno.getPrismaClient().meeting.findFirst({
@@ -87,6 +72,7 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		}
 
 		const transcriptKey = active.transcript.redisKey;
+		await sleep(500);
 		const transcript = await Transcript.load({
 			meetingId: active.id,
 			prismaClient: teno.getPrismaClient(),
@@ -111,35 +97,24 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 			completionTokens: answerOutput.completionTokens,
 		});
 
-		const answer = answerOutput.answer;
+		const meeting = teno.getActiveMeeting();
+		invariant(meeting);
 
-		const timestamp = Date.now();
+		// @TODO eventually, don't bail the whole command, responder should just respond with text
+		try {
+			invariant(await teno.getSpeechOn());
+		} catch {
+			await interaction.editReply({
+				content: `I'm not allowed to speak in this server.`,
+				components: [],
+			});
+			return;
+		}
 
-		const transcriptLine = Utterance.createTranscriptLine(
-			`Teno`,
-			tenoId,
-			answer,
-			(timestamp - active.createdAt.getTime()) / 1000,
-			timestamp,
-		);
-
-		await transcript.appendTranscript(transcriptLine, timestamp);
-
-		// if (voiceConfig) {
-		// 	try {
-		// 		playTextToSpeech({
-		// 			connection: getVoiceConnection(guildId),
-		// 			text: answer,
-		// 			service: 'azure',
-		// 			apiKey: voiceConfig.apiKey,
-		// 		});
-		// 	} catch {
-		// 		// ignore
-		// 	}
-		// }
+		teno.getResponder().respondToTranscript(meeting);
 
 		await interaction.editReply({
-			content: `${answer}`,
+			content: `I will chime in on the transcript in a moment.`,
 		});
 	} catch (e) {
 		await interaction.editReply({

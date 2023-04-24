@@ -67,7 +67,8 @@ client.on(Events.ClientReady, () => {
 	});
 });
 
-client.on('guildCreate', (guild) => {
+client.on('guildCreate', async (guild) => {
+	await deploy(guild);
 	const tenoInstance = new Teno({ client, guild, redisClient, prismaClient });
 	tenoInstances.set(guild.id, tenoInstance);
 });

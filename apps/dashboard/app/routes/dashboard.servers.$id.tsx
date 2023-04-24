@@ -1,7 +1,7 @@
 import type { ActionArgs, LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
-import React from 'react';
+import React, { useState } from 'react';
 import invariant from 'tiny-invariant';
 import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from '@remix-run/react';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { prisma } from '@/server/database.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/RadioGroup';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 
@@ -37,6 +38,7 @@ export const loader = async ({ request, params }: LoaderArgs) => {
 					select: {
 						updatedAt: true,
 						voiceKey: true,
+						service: true,
 					},
 				},
 			},
@@ -83,7 +85,8 @@ export const action = async ({ request, params }: ActionArgs) => {
 		const form = await request.formData();
 		const parsed = z
 			.object({
-				'eleven-labs-api': z
+				service: z.string().default('azure'),
+				'service-api': z
 					.string()
 					.optional()
 					.default('')
@@ -92,21 +95,21 @@ export const action = async ({ request, params }: ActionArgs) => {
 			})
 			.parse(Object.fromEntries(form.entries()));
 
-		const { 'eleven-labs-api': apiKey, 'eleven-labs-voice': voiceKey } = parsed;
+		const { 'service-api': apiKey, 'eleven-labs-voice': voiceKey, service } = parsed;
 
-		if (!apiKey && voiceKey) {
+		if (!apiKey && voiceKey && service === 'elevenlabs') {
 			return json(
 				{
 					error: undefined,
 					errors: {
-						'eleven-labs-api': 'API Key and Voice Key must both be set, or empty.',
+						serviceapi: 'API Key and Voice Key must both be set when service is Eleven Labs, or empty.',
 					},
 				},
 				{ status: 400 },
 			);
 		}
 
-		if (apiKey && !voiceKey) {
+		if (apiKey && !voiceKey && service === 'elevenlabs') {
 			return json(
 				{
 					error: undefined,
@@ -118,6 +121,8 @@ export const action = async ({ request, params }: ActionArgs) => {
 			);
 		}
 
+		console.log({ service, apiKey, voiceKey });
+
 		await prisma.guild.update({
 			where: {
 				id: guildId,
@@ -126,15 +131,18 @@ export const action = async ({ request, params }: ActionArgs) => {
 				voiceService: {
 					upsert: {
 						create: {
+							service,
 							apiKey,
 							voiceKey,
 						},
 						update: {
+							service,
 							apiKey,
 							voiceKey,
 						},
 					},
-					delete: !apiKey || !voiceKey ? true : undefined,
+					delete:
+						(service === 'azure' && !apiKey) || (service === 'elevenlabs' && !apiKey && !voiceKey) ? true : undefined,
 				},
 			},
 		});
@@ -146,7 +154,7 @@ export const action = async ({ request, params }: ActionArgs) => {
 			{
 				error: 'An error occurred',
 				errors: {
-					'eleven-labs-api': undefined,
+					'service-api': undefined,
 					'eleven-labs-voice': undefined,
 				},
 			},
@@ -161,19 +169,39 @@ const Server = () => {
 	const { state } = useNavigation();
 	const data = useActionData();
 
+	const [service, setService] = useState<string>(guild?.voiceService?.service ?? 'azure');
+
 	const loading = state === 'submitting';
 
 	return (
 		<Form method="post" className="flex flex-col w-full h-full justify-center items-center" data-section="cards">
-			<Card>
+			<Card className=" min-w-[560px]">
 				<CardHeader>
 					<CardTitle>{guild.name}</CardTitle>
 					<CardDescription>Change how Teno behaves in your Server</CardDescription>
 				</CardHeader>
 				<CardContent className="grid gap-6">
 					<div className="grid gap-2">
-						<Label htmlFor="eleven-labs-api" className="flex flex-col gap-1">
-							<span>ElevenLabs API Key</span>
+						<Label htmlFor="service" className="flex flex-col gap-1">
+							<span>Voice Service</span>
+							<span className="font-normal leading-snug text-muted-foreground">
+								Choose the supported voice provider that you have an API key for
+							</span>
+						</Label>
+						<RadioGroup name="service" id="service" value={service}>
+							<div className="flex items-center space-x-2">
+								<RadioGroupItem value="azure" id="r1" onClick={(e) => setService(e.currentTarget.value)} />
+								<Label htmlFor="r1">Azure</Label>
+							</div>
+							<div className="flex items-center space-x-2">
+								<RadioGroupItem value="elevenlabs" id="r2" onClick={(e) => setService(e.currentTarget.value)} />
+								<Label htmlFor="r2">ElevenLabs</Label>
+							</div>
+						</RadioGroup>
+					</div>
+					<div className="grid gap-2">
+						<Label htmlFor="service-api" className="flex flex-col gap-1">
+							<span>Voice API Key</span>
 							<span className="font-normal leading-snug text-muted-foreground">
 								If provided, this key will allow Teno to speak in your meetings
 							</span>
@@ -184,39 +212,41 @@ const Server = () => {
 							)}
 						</Label>
 						<Input
-							id="eleven-labs-api"
-							name="eleven-labs-api"
+							id="service-api"
+							name="service-api"
 							placeholder="1a2b3c4d5d6e1a2b3c4d5d6e"
 							autoComplete="off"
 							type="password"
 							defaultValue={guild?.voiceService?.updatedAt ? DEFAULT_KEY : undefined}
 						/>
 						{data?.errors?.['eleven-labs-api'] && (
-							<p className="text-red-200 text-sm leading-tight">{data?.errors?.['eleven-labs-api']}</p>
+							<p className="text-red-200 text-sm leading-tight">{data?.errors?.['service-api']}</p>
 						)}
 					</div>
-					<div className="grid gap-2">
-						<Label htmlFor="eleven-labs-api" className="flex flex-col gap-1">
-							<span>ElevenLabs Voice</span>
-							<span className="font-normal leading-snug text-muted-foreground">
-								If provided, this key will change Teno's voice to match the your desired voice
-							</span>
-							{!!guild.voiceService && (
+					{service === 'elevenlabs' && (
+						<div className="grid gap-2">
+							<Label htmlFor="eleven-labs-voice" className="flex flex-col gap-1">
+								<span>ElevenLabs Voice</span>
 								<span className="font-normal leading-snug text-muted-foreground">
-									Last Updated: {guild.voiceService.updatedAt}
+									If provided, this key will change Teno's voice to match the your desired voice
 								</span>
+								{!!guild.voiceService && (
+									<span className="font-normal leading-snug text-muted-foreground">
+										Last Updated: {guild.voiceService.updatedAt}
+									</span>
+								)}
+							</Label>
+							<Input
+								name="eleven-labs-voice"
+								placeholder="1a2b3c4d5d6e"
+								defaultValue={guild?.voiceService?.voiceKey || ''}
+								autoComplete="off"
+							/>
+							{data?.errors?.['eleven-labs-voice'] && (
+								<p className="text-red-200 text-sm leading-tight">{data?.errors?.['eleven-labs-voice']}</p>
 							)}
-						</Label>
-						<Input
-							name="eleven-labs-voice"
-							placeholder="1a2b3c4d5d6e"
-							defaultValue={guild?.voiceService?.voiceKey || ''}
-							autoComplete="off"
-						/>
-						{data?.errors?.['eleven-labs-voice'] && (
-							<p className="text-red-200 text-sm leading-tight">{data?.errors?.['eleven-labs-voice']}</p>
-						)}
-					</div>
+						</div>
+					)}
 				</CardContent>
 				<CardFooter className="justify-between space-x-2">
 					<Button variant="ghost" type="button" onClick={() => navigate('/dashboard/servers')} disabled={loading}>

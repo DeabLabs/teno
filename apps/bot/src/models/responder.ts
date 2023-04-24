@@ -1,9 +1,13 @@
 import type { Client } from 'discord.js';
-import type { PrismaClientType } from 'database';
+import type { PrismaClientType, VoiceService } from 'database';
 import { usageQueries } from 'database';
+import type { AudioPlayer } from '@discordjs/voice';
+import { createAudioPlayer } from '@discordjs/voice';
 
 import type { RedisClient } from '@/bot.js';
+import type { TTSParams } from '@/services/textToSpeech.js';
 import { playArrayBuffer, getArrayBufferFromText } from '@/services/textToSpeech.js';
+import { ACTIVATION_COMMAND } from '@/services/langchain.js';
 import { checkLinesForVoiceActivation, chimeInOnTranscript } from '@/services/langchain.js';
 
 import type { Meeting } from './meeting.js';
@@ -16,6 +20,9 @@ export class Responder {
 	private prismaClient: PrismaClientType;
 	private speaking = false;
 	private thinking = false;
+	private sentenceQueue: SentenceQueue | null = null;
+	private audioPlayer: AudioPlayer = createAudioPlayer();
+	private vConfig: VoiceService | null = null;
 
 	constructor({
 		teno,
@@ -54,13 +61,31 @@ export class Responder {
 		return this.teno;
 	}
 
+	public getAudioPlayer() {
+		return this.audioPlayer;
+	}
+
+	public getCachedVoiceConfig() {
+		return this.vConfig as Omit<VoiceService, 'service'> & { service: 'azure' | 'elevenlabs' };
+	}
+
+	public stopResponding() {
+		this.stopSpeaking();
+		this.stopThinking();
+		this.sentenceQueue?.destroy();
+		this.sentenceQueue = null;
+		this.audioPlayer.stop();
+	}
+
 	public async respondToTranscript(meeting: Meeting): Promise<void> {
 		this.startSpeaking();
 		this.startThinking();
-		const sentenceQueue = new SentenceQueue(this, meeting);
+		this.sentenceQueue = new SentenceQueue(this, meeting);
 
 		const onNewToken = (token: string) => {
-			sentenceQueue.handleNewToken(token);
+			if (this.sentenceQueue) {
+				this.sentenceQueue.handleNewToken(token);
+			}
 		};
 
 		const onEnd = () => {
@@ -79,17 +104,20 @@ export class Responder {
 		}
 	}
 
-	public async isBotResponseExpected(meeting: Meeting): Promise<boolean> {
+	public async isBotResponseExpected(meeting: Meeting): Promise<ACTIVATION_COMMAND> {
 		const numCheckLines = 10; // Set this value to modulate how many lines you want to check
 
 		const vConfig = await this.teno.getVoiceService();
+		this.vConfig = vConfig || null;
 		const transcriptLines = await meeting.getTranscript().getCleanedTranscript();
+
 		if (vConfig && transcriptLines) {
 			const checkLines = transcriptLines.slice(-numCheckLines);
 			console.log('checkLines', checkLines);
 			return await checkLinesForVoiceActivation(checkLines);
 		}
-		return false;
+
+		return ACTIVATION_COMMAND.PASS;
 	}
 
 	private createAIUsageEvent(languageModel: string, promptTokens: number, completionTokens: number) {
@@ -121,6 +149,11 @@ class SentenceQueue {
 
 	constructor(private responder: Responder, private meeting: Meeting) {}
 
+	public destroy() {
+		this.queue = [];
+		this.currentSentence = '';
+	}
+
 	public async handleNewToken(token: string): Promise<void> {
 		const splitTokens = ['.', '?', '!', ';', '...'];
 		this.currentSentence = `${this.currentSentence}${token}`;
@@ -139,9 +172,10 @@ class SentenceQueue {
 	private async playNextSentence(): Promise<void> {
 		if (this.queue.length > 0) {
 			const sentenceAudio = this.queue[0];
-			if (sentenceAudio && sentenceAudio.audioBuffer) {
+			const vConfig = this.responder.getCachedVoiceConfig();
+			if (sentenceAudio && sentenceAudio.audioBuffer && vConfig !== null) {
 				console.log('Playing sentence: ' + sentenceAudio.sentence);
-				await this.playAudioBuffer(sentenceAudio.audioBuffer);
+				await this.playAudioBuffer(this.responder.getAudioPlayer(), sentenceAudio.audioBuffer, vConfig.service);
 				this.queue.shift();
 				this.playNextSentence();
 			}
@@ -159,14 +193,26 @@ class SentenceQueue {
 
 	private async createAudioBufferFromSentence(sentence: string): Promise<ArrayBuffer | null> {
 		const vConfig = await this.responder.getTeno().getVoiceService();
+		const service = vConfig?.service;
 		if (vConfig) {
 			try {
-				const audioBuffer = await getArrayBufferFromText({
-					service: 'azure',
-					apiKey: vConfig.apiKey,
-					text: sentence,
-				});
-				return audioBuffer;
+				switch (service) {
+					case 'azure':
+						return await getArrayBufferFromText({
+							service,
+							apiKey: vConfig.apiKey,
+							text: sentence,
+						});
+					case 'elevenlabs':
+						return await getArrayBufferFromText({
+							service,
+							apiKey: vConfig.apiKey,
+							text: sentence,
+							voiceId: vConfig.voiceKey,
+						});
+					default:
+						throw new Error('Invalid voice service');
+				}
 			} catch (error) {
 				console.error('Error converting text to speech:', error);
 			}
@@ -174,11 +220,15 @@ class SentenceQueue {
 		return null;
 	}
 
-	private async playAudioBuffer(audioBuffer: ArrayBuffer): Promise<void> {
+	private async playAudioBuffer(
+		audioPlayer: AudioPlayer,
+		audioBuffer: ArrayBuffer,
+		service: TTSParams['service'],
+	): Promise<void> {
 		const vConfig = await this.responder.getTeno().getVoiceService();
 		if (vConfig) {
 			try {
-				await playArrayBuffer(audioBuffer, this.meeting.getConnection());
+				await playArrayBuffer(audioPlayer, audioBuffer, this.meeting.getConnection(), service);
 			} catch (error) {
 				console.error('Error playing audio:', error);
 			}

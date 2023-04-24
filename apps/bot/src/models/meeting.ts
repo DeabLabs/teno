@@ -7,7 +7,7 @@ import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { generateMeetingName } from '@/services/langchain.js';
+import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -111,6 +111,9 @@ export class Meeting {
 				}),
 			});
 			invariant(transcript);
+
+			args.teno.setActiveMeeting(_meeting.id);
+			await args.teno.fetchSpeechOn();
 
 			return new Meeting({
 				id: _meeting.id,
@@ -226,10 +229,19 @@ export class Meeting {
 			// Respond to the transcript if the bot is expected to respond
 			console.log(utterance.textContent);
 			if (utterance.textContent && utterance.textContent.length > 0) {
-				const responder = this.teno.getResponder();
-				if (await responder.isBotResponseExpected(this)) {
-					if (!responder.isSpeaking()) {
-						responder.respondToTranscript(this);
+				const speechOn = this.teno.getSpeechOn();
+				console.log('speechOn', speechOn);
+				if (speechOn) {
+					const responder = this.teno.getResponder();
+					// should the bot respond or should it stop talking?
+					const botAnalysis = await responder.isBotResponseExpected(this);
+
+					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
+						if (!responder.isSpeaking()) {
+							responder.respondToTranscript(this);
+						}
+					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
+						responder.stopResponding();
 					}
 				}
 			}
@@ -497,6 +509,8 @@ export class Meeting {
 		this.clearSpeaking();
 		this.teno.getResponder().stopSpeaking();
 		this.teno.getResponder().stopThinking();
+		await this.teno.syncSpeechOn();
+		this.teno.setActiveMeeting(null);
 	}
 
 	private async handleVoiceStateUpdate(prevState: VoiceState) {
