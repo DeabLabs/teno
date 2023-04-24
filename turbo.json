@@ -5,11 +5,12 @@
 	"pipeline": {
 		"start": {
 			"persistent": true,
-			"dependsOn": ["build"]
+			"dependsOn": ["^build", "build"]
 		},
 		"build": {
 			"dependsOn": ["^build", "db:generate"],
-			"outputs": ["dist/**", "build/**", "public/build/**"]
+			"outputs": ["dist/**", "build/**", "public/build/**"],
+			"cache": false
 		},
 		"db:generate": {
 			"cache": false
@@ -40,6 +41,10 @@
 		},
 		"lint": {
 			"cache": false
+		},
+		"ci": {
+			"cache": false,
+			"dependsOn": ["^build"]
 		},
 		"format": {
 			"cache": false

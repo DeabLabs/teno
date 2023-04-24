@@ -5,7 +5,6 @@ dotenv.config();
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
 const envKeys = [
-	'TOKEN',
 	'DATABASE_URL',
 	'DASHBOARD_URL',
 	'DASHBOARD_PORT',

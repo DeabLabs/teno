@@ -1,20 +1,57 @@
-// import { LLMChain } from 'langchain/chains';
 import { ChatOpenAI } from 'langchain/chat_models';
 import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
+import type { LLMResult } from 'langchain/schema';
+import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
+import { CallbackManager } from 'langchain/callbacks';
 
-// import { HumanChatMessage, SystemChatMessage } from 'langchain/schema';
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
+
+class TenoCallbackHandler extends CallbackManager {
+	private tokenHandler: (token: string) => Promise<void>;
+	private endHandler: (output: LLMResult) => void;
+
+	constructor(tokenHandler: (token: string) => Promise<void>, endHandler: (output: LLMResult) => void) {
+		super();
+		this.tokenHandler = tokenHandler;
+		this.endHandler = endHandler;
+	}
+
+	override async handleLLMNewToken(token: string): Promise<void> {
+		return await this.tokenHandler(token);
+	}
+
+	override handleLLMEnd(output: LLMResult): Promise<void> {
+		return new Promise((resolve) => {
+			resolve(this.endHandler(output));
+		});
+	}
+}
 
 const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
+	streaming: true,
 });
+
+const gptTurbo = new ChatOpenAI({
+	temperature: 0.9,
+	modelName: 'gpt-3.5-turbo',
+	openAIApiKey: Config.OPENAI_API_KEY,
+	streaming: true,
+});
+
+const models = {
+	'gpt-4': gptFour,
+	'gpt-3.5-turbo': gptTurbo,
+} as const;
+
+export type SupportedModels = keyof typeof models;
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful bot named Teno (might be transcribed ten o, tanno, tunnel, ect.), and you will be given a rough transcript of a voice call.
+		`You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
 The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
@@ -23,22 +60,46 @@ In your responses, DO NOT include phrases like "based on the transcript" or "acc
 Limit all unnecessary prose.
 Here is the transcript, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
-Here is the user's username and request, surrounded by \`\`\`:
-\`\`\`{question}\`\`\``,
+Below is your conversation with the users, their messages will include their usernames. Your responses do not need to include usernames.`,
 	),
 ]);
 
 const chimeInTemplate = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful bot named Teno (might be transcribed ten o, tanno, tunnel, ect.), and you will be given a rough transcript of a voice call.
+		`You are a helpful, knowledgable, interesting and casual discord bot named Teno, and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
-The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
-You will read the transcript, then chime in on the conversation based on the most recent portion of the transcript. If there is an open
-question being discussed, or a question directed specifically at you, you will answer the question. If there is no open question, you will chime in on the most recent topic of discussion.
-In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context. Do not include the username or timestamp in your response, that will be added automatically.
-Here is the transcript, surrounded by \`\`\`:
-\`\`\`{transcript}\`\`\``,
+The transcript may include transcription errors, like mispelled words and broken sentences.
+If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
+You will read the transcript, then contribute to the conversation. Your response will be sent through a text to speech model and played to the users.
+If the last few lines of the transcript contain an open question, or a question directed specifically at you, answer the question.
+If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
+Do NOT include phrases like "based on the transcript" or "according to the transcript" in your response.
+Do NOT include phrases like "enjoy your conversation", or "enjoy the..." or "I hope that helps your discussion" in your response.
+Do NOT include the username "Teno" or any timestamp (xx:xx) in your response.
+Do NOT summarize the transcript or rephrase the question in your response.
+Do NOT include superfluous phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", or "If you'd like more information or have any other questions, feel free to ask." in your response.
+Try to keep your first sentence as short as possible, within reason. The sentence length of the rest of your response is up to you.
+Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
+\`\`\`{transcript}\`\`\`
+Teno (xx:xx):`,
+	),
+]);
+
+const voiceActivationTemplate = ChatPromptTemplate.fromPromptMessages([
+	HumanMessagePromptTemplate.fromTemplate(
+		`You are a socially intelligent conversation analyst responsible for evaluating a set of lines from a roughly transcribed transcript to determine if the users are expecting a response from a bot called {botName}.
+
+You will be provided with several lines from a voice call transcript. Your task is to decide if the most recent line is asking {botName} to chime in, answer a question, continue the conversation, or if the user is asking {botName} to stop talking.
+
+Respond with "yes" if the most recent line is asking {botName} to contribute, or if it is clear from the context that the speaker of the most recent line is expecting {botName} to continue the conversation. If the conversation seems to be between {botName} and another user, you can assume that the user wants {botName} to respond.
+
+Respond with "stop" if the most recent line is asking {botName} to stop talking, stop contributing, be quiet, or any other similar request for the bot to cease its input in the conversation. This includes lines like "no, stop".
+
+Respond with "no" if the speaker of the most recent line does not appear to expect a response from {botName}. This could be because they are talking to someone else, or they are ending the conversation.
+
+Use the content of the previous lines for context, but your evaluation is about the most recent line. Your reponse should contain nothing but "yes", "stop", or "no". Remember that the transcription is rough, and you may have to infer what the user actually said based on context, especially if their text seems random or unrelated. If you aren't sure what to respond with, respond with "no":
+{lines}`,
 	),
 ]);
 
@@ -48,7 +109,7 @@ const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
 	),
 ]);
 
-type AnswerOutput =
+export type AnswerOutput =
 	| {
 			status: 'error';
 			error: string;
@@ -62,8 +123,7 @@ type AnswerOutput =
 	  };
 
 export async function answerQuestionOnTranscript(
-	question: string,
-	username: string,
+	conversationHistory: string | string[],
 	transcriptLines: string[],
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
@@ -71,18 +131,26 @@ export async function answerQuestionOnTranscript(
 		return { status: 'error', error: 'No transcript found' };
 	}
 
-	console.log(`${username}:`, question);
+	// If the conversation history is a string, convert it to an array
+	if (typeof conversationHistory === 'string') {
+		conversationHistory = [conversationHistory];
+	}
+
+	const conversationMessages = createChatPromptTemplateFromHistory(conversationHistory);
+	console.log('Conversation history: ', conversationMessages);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
-	console.log('Transcript text: ', shortenedTranscript);
+	const secretaryFormat = await secretary.formatPromptValue({
+		transcript: shortenedTranscript,
+	});
 
-	const answer = await gptFour.generatePrompt([
-		await secretary.formatPromptValue({
-			question: question,
-			transcript: shortenedTranscript,
-		}),
-	]);
+	const secretaryMessages = secretaryFormat.toChatMessages();
+
+	// Append the conversation history messages to the secretary messages
+	const fullPrompt = secretaryMessages.concat(conversationMessages);
+
+	const answer = await gptFour.generate([fullPrompt]);
 
 	return {
 		status: 'success',
@@ -93,28 +161,76 @@ export async function answerQuestionOnTranscript(
 	};
 }
 
-export async function chimeInOnTranscript(transcriptLines: string[]): Promise<AnswerOutput> {
+export enum ACTIVATION_COMMAND {
+	SPEAK,
+	STOP,
+	PASS,
+}
+
+export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACTIVATION_COMMAND> {
+	const joinedLines = lines.join('\n');
+	const answer = await gptTurbo.generatePrompt([
+		await voiceActivationTemplate.formatPromptValue({
+			botName: `Teno`,
+			lines: joinedLines,
+		}),
+	]);
+
+	const a = answer.generations[0]?.[0]?.text?.trim()?.toLocaleLowerCase();
+
+	console.log(a);
+
+	if (a?.includes('yes')) {
+		return ACTIVATION_COMMAND.SPEAK;
+	}
+
+	if (a?.includes('stop')) {
+		return ACTIVATION_COMMAND.STOP;
+	}
+
+	return ACTIVATION_COMMAND.PASS;
+}
+
+export async function chimeInOnTranscript(
+	transcriptLines: string[],
+	model: SupportedModels,
+	onNewToken?: (token: string) => Promise<void>,
+	onEnd?: () => void,
+): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
-	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
+	const llm = models[model];
+	const originalCallbackManager = llm.callbackManager;
 
-	console.log('Transcript text: ', shortenedTranscript);
+	if (onNewToken && onEnd) {
+		llm.callbackManager = new TenoCallbackHandler(onNewToken, onEnd);
+	}
 
-	const answer = await gptFour.generatePrompt([
+	const shortenedTranscript = constrainLinesToTokenLimit(
+		transcriptLines,
+		chimeInTemplate.promptMessages.join(''),
+		llm.maxTokens,
+		500,
+	).join('\n');
+
+	const answer = await llm.generatePrompt([
 		await chimeInTemplate.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
 	]);
+
+	// Restore the original callback manager
+	llm.callbackManager = originalCallbackManager;
 
 	return {
 		status: 'success',
 		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
 		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
 		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
-		languageModel: gptFour.modelName,
+		languageModel: gptTurbo.modelName,
 	};
 }
 
@@ -126,8 +242,6 @@ export async function generateMeetingName(transcriptLines: string[]): Promise<An
 		transcriptLines,
 		meetingNamePrompt.promptMessages.join(''),
 	).join('\n');
-
-	console.log('Transcript text: ', transcriptLines);
 
 	const response = await gptFour.generatePrompt([
 		await meetingNamePrompt.formatPromptValue({
@@ -142,4 +256,18 @@ export async function generateMeetingName(transcriptLines: string[]): Promise<An
 		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
 		languageModel: gptFour.modelName,
 	};
+}
+
+function createChatPromptTemplateFromHistory(conversationHistory: string[]) {
+	const promptMessages = conversationHistory.map((message, index) => {
+		if (index % 2 === 0) {
+			// User message
+			return new HumanChatMessage(`${message}`);
+		} else {
+			// Teno's message
+			return new AIChatMessage(`${message}`);
+		}
+	});
+
+	return promptMessages;
 }

@@ -11,13 +11,29 @@ datasource db {
 }
 
 model Guild {
-  id           Int          @id @default(autoincrement())
-  guildId      String       @unique
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  adminEnabled Boolean      @default(false)
+  id           Int           @id @default(autoincrement())
+  guildId      String        @unique
+  name         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  adminEnabled Boolean       @default(false)
   admins       User[]
   usageEvents  UsageEvent[]
+  voiceService VoiceService?
+  speechOn     Boolean       @default(true)
+}
+
+model VoiceService {
+  id        Int      @id @default(autoincrement())
+  guildId   Int      @unique
+  guild     Guild    @relation(fields: [guildId], references: [id])
+  // api key for voice service, elevenlabs right now
+  apiKey    String
+  // voice key that determines which voice to use
+  voiceKey  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  service   String   @default("azure")
 }
 
 // using guildId: we can track how many tokens are used per guild across all users
@@ -30,8 +46,8 @@ model UsageEvent {
   guild                    Guild    @relation(fields: [guildId], references: [id])
   userId                   Int?
   user                     User?    @relation(fields: [userId], references: [id])
-  meeting                  Meeting  @relation(fields: [meetingId], references: [id])
-  meetingId                Int
+  meeting                  Meeting? @relation(fields: [meetingId], references: [id])
+  meetingId                Int?
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   // these fields may or may not be filled out depending on the event we send

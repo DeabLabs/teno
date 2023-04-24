@@ -50,7 +50,11 @@ async function autojoinOff(interaction: CommandInteraction, teno: Teno) {
 
 		invariant(guild);
 
-		const user = await userQueries.createOrGetUser(teno.getPrismaClient(), { discordId: userId });
+		const user = await userQueries.createOrGetUser(teno.getPrismaClient(), {
+			discordId: userId,
+			name: interaction.user.username,
+			discriminator: interaction.user.discriminator,
+		});
 		invariant(user);
 		try {
 			await teno.getPrismaClient().user.update({

@@ -1,14 +1,19 @@
 import type { VoiceReceiver } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { bold } from 'discord.js';
+import { time } from 'discord.js';
+import { channelMention } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { generateMeetingName } from '@/services/langchain.js';
+import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
 
+import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
 
@@ -18,14 +23,17 @@ type MeetingArgs = {
 	voiceChannelId: string;
 	guildId: string;
 	prismaClient: PrismaClientType;
+	teno: Teno;
 	startTime: number;
 	transcript: Transcript;
 	client: Client;
 	active: boolean;
 	name: string;
+	authorName: string;
+	authorDiscordId: string;
 };
 
-type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active'> & {
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active' | 'authorName'> & {
 	id?: number;
 	active?: boolean;
 	userDiscordId: string;
@@ -41,11 +49,16 @@ export class Meeting {
 	private startTime: number;
 	private attendees: Set<string>;
 	private id: number;
+	private authorName: string;
+	private authorDiscordId: string;
 	private transcript: Transcript;
 	private meetingMessageId: string;
 	private client: Client;
 	private active = false;
 	private name: string;
+	private teno: Teno;
+	private meetingTimeout: NodeJS.Timeout | null = null;
+	private sentenceQueue: string[] = [];
 
 	private constructor({
 		guildId,
@@ -57,7 +70,10 @@ export class Meeting {
 		voiceChannelId,
 		client,
 		active,
+		authorName,
+		authorDiscordId,
 		name,
+		teno,
 	}: MeetingArgs) {
 		this.id = id;
 		this.meetingMessageId = meetingMessageId;
@@ -71,14 +87,23 @@ export class Meeting {
 		this.ignore = new Set<string>();
 		this.transcript = transcript;
 		this.active = active;
+		this.authorName = authorName;
+		this.authorDiscordId = authorDiscordId;
 		this.name = name;
+		this.teno = teno;
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
+		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
+
+		this.renderMeetingMessage();
 	}
 
 	static async load(args: MeetingLoadArgs) {
 		try {
-			const user = await userQueries.createOrGetUser(args.prismaClient, { discordId: args.userDiscordId });
+			const user = await userQueries.getUser(args.prismaClient, {
+				discordId: args.userDiscordId,
+			});
+			invariant(user, 'User not found');
 			const _meeting = await args.prismaClient.meeting.upsert({
 				where: { id: args?.id ?? -1 },
 				create: {
@@ -90,6 +115,15 @@ export class Meeting {
 					meetingMessageId: args.meetingMessageId,
 				},
 				update: {},
+				include: {
+					author: {
+						select: {
+							name: true,
+							id: true,
+							discordId: true,
+						},
+					},
+				},
 			});
 			const transcript = await Transcript.load({
 				redisClient: args.redisClient,
@@ -103,6 +137,9 @@ export class Meeting {
 			});
 			invariant(transcript);
 
+			await args.teno.setActiveMeeting(_meeting.id);
+			await args.teno.fetchSpeechOn();
+
 			return new Meeting({
 				id: _meeting.id,
 				guildId: args.guildId,
@@ -114,10 +151,82 @@ export class Meeting {
 				transcript,
 				active: _meeting.active,
 				name: _meeting.name,
+				teno: args.teno,
+				authorName: _meeting.author.name ?? 'Someone',
+				authorDiscordId: _meeting.author.discordId,
 			});
 		} catch (e) {
 			console.error('Error loading/creating meeting: ', e);
 			return null;
+		}
+	}
+
+	/**
+	 * Iterate through all channels in the client cache, then for each channel, attempt to fetch the meeting message by meeting mesage id in the channel,
+	 * if the meeting message ID is found, return the channel and the message object
+	 */
+	public async findMeetingMessage() {
+		for (const channel of this.client.channels.cache.values()) {
+			if (channel.isTextBased()) {
+				try {
+					const message = await channel.messages.fetch(this.meetingMessageId);
+					if (message) {
+						return { channel, message };
+					}
+				} catch (e) {
+					// ignore
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * - Get the text channel for the meeting message
+	 * - Update the meeting message with current meeting state
+	 */
+	private async renderMeetingMessage() {
+		const done = !(await this.getActive());
+		const result = await this.findMeetingMessage();
+
+		if (result) {
+			const { message } = result;
+
+			const seconds = Math.floor(this.startTime / 1000);
+
+			const embed = new EmbedBuilder()
+				.setColor('Green')
+				.setTitle(`Meeting ${done ? '' : 'started'} by ${this.authorName}`)
+				.setDescription(!done ? bold('📝 Teno is listening...') : bold(`✅ ${this.getName()}`))
+				.addFields(
+					{
+						name: 'Channel',
+						value: channelMention(this.voiceChannelId),
+						inline: true,
+					},
+					{
+						name: 'Attendees',
+						value: String(this.attendees.size),
+						inline: true,
+					},
+					{
+						name: 'Started At',
+						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
+					},
+				);
+			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
+
+			if (authorAvatarUrl) {
+				embed.setThumbnail(authorAvatarUrl);
+			}
+
+			await message.edit({ embeds: [embed], content: '' });
+		}
+
+		if (!done) {
+			this.meetingTimeout = setTimeout(() => {
+				this.renderMeetingMessage();
+			}, 5000);
 		}
 	}
 
@@ -143,9 +252,13 @@ export class Meeting {
 		textChannel: TextChannel;
 	}) {
 		try {
-			const meetingMessage = await textChannel.send(
-				`Teno is listening to a meeting in ${voiceChannel.name}. Reply to this message, or use /ask to ask Teno about it! If the meeting is locked or you are not an attendee, Teno will not respond.`,
-			);
+			const meetingMessage = await textChannel.send({
+				embeds: [
+					new EmbedBuilder()
+						.setTitle('Starting meeting...')
+						.setDescription(`A meeting is starting in ${channelMention(voiceChannel.id)}`),
+				],
+			});
 
 			return meetingMessage;
 		} catch {
@@ -210,18 +323,43 @@ export class Meeting {
 	 * Called when an utterance has been transcribed
 	 * @param utterance The utterance that has been transcribed
 	 */
-	private onTranscriptionComplete(utterance: Utterance): void {
+	private async onTranscriptionComplete(utterance: Utterance) {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
-			if (utterance.duration) {
-				usageQueries.createUsageEvent(this.prismaClient, {
-					discordGuildId: this.guildId,
-					discordUserId: utterance.userId,
-					meetingId: this.id,
-					utteranceDurationSeconds: utterance.duration,
-				});
+			// Respond to the transcript if the bot is expected to respond
+			// console.log(utterance.textContent);
+			if (utterance.textContent && utterance.textContent.length > 0) {
+				const speechOn = this.teno.getSpeechOn();
+				if (speechOn) {
+					console.time('onTranscriptionComplete');
+					const responder = this.teno.getResponder();
+					// should the bot respond or should it stop talking?
+					const botAnalysis = await responder.isBotResponseExpected(this);
+
+					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
+						if (!responder.isSpeaking()) {
+							responder.respondToTranscript(this);
+						}
+					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
+						responder.stopResponding();
+					}
+					console.timeEnd('onTranscriptionComplete');
+				}
 			}
 		}
+	}
+
+	public addBotLine(answer: string, botName: string) {
+		const timestamp = Date.now();
+		const transcriptLine = Utterance.createTranscriptLine(
+			`${botName}:`,
+			this.teno.id,
+			answer,
+			(timestamp - this.startTime) / 1000,
+			timestamp,
+		);
+
+		this.transcript.appendTranscript(transcriptLine, timestamp);
 	}
 
 	/**
@@ -252,8 +390,12 @@ export class Meeting {
 	 * Add a user to the attendees list, which allows them to ask Teno about the meeting
 	 * @param userId The user to add
 	 */
-	public async addMember(userId: string) {
-		const user = await userQueries.createOrGetUser(this.prismaClient, { discordId: userId });
+	public async addMember(userId: string, username: string, discriminator: string) {
+		const user = await userQueries.createOrGetUser(this.prismaClient, {
+			discordId: userId,
+			name: username,
+			discriminator,
+		});
 		invariant(user);
 		await this.prismaClient.meeting.update({
 			where: { id: this.id },
@@ -449,7 +591,10 @@ export class Meeting {
 	 */
 	public async endMeeting(): Promise<void> {
 		const active = await this.getActive();
-		if (!active) return;
+		if (!active) {
+			console.log('Meeting not active');
+			return;
+		}
 
 		console.log('Ending meeting', this.getId());
 		await this.setActive(false);
@@ -463,6 +608,10 @@ export class Meeting {
 			}
 		}
 		this.clearSpeaking();
+		this.teno.getResponder().stopSpeaking();
+		this.teno.getResponder().stopThinking();
+		await this.teno.syncSpeechOn();
+		this.teno.setActiveMeeting(null);
 	}
 
 	private async handleVoiceStateUpdate(prevState: VoiceState) {

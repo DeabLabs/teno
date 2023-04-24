@@ -2,7 +2,7 @@ import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { VoiceChannel } from 'discord.js';
 import { Events } from 'discord.js';
-import type { PrismaClientType } from 'database';
+import type { PrismaClientType, VoiceService } from 'database';
 import { getVoiceConnection } from '@discordjs/voice';
 import invariant from 'tiny-invariant';
 
@@ -11,14 +11,19 @@ import type { RedisClient } from '@/bot.js';
 import { createMeeting } from '@/utils/createMeeting.js';
 
 import type { Meeting } from './meeting.js';
+import { Responder } from './responder.js';
 
 export class Teno {
-	private id: string;
+	public id: string;
 	private client: Client;
 	private meetings: Meeting[] = [];
+	private activeMeetingId: number | null = null;
 	private guild: Guild;
 	private redisClient: RedisClient;
 	private prismaClient: PrismaClientType;
+	private responder: Responder;
+	private speechOn = true;
+	private voiceConfig: VoiceService | null = null;
 
 	constructor({
 		client,
@@ -36,6 +41,12 @@ export class Teno {
 		this.id = guild.id;
 		this.redisClient = redisClient;
 		this.prismaClient = prismaClient;
+		this.responder = new Responder({
+			teno: this,
+			client,
+			redisClient,
+			prismaClient,
+		});
 		this.initialize();
 	}
 
@@ -44,8 +55,11 @@ export class Teno {
 			where: {
 				guildId: this.id,
 			},
-			update: {},
+			update: {
+				name: this.guild.name,
+			},
 			create: {
+				name: this.guild.name,
 				guildId: this.id,
 			},
 		});
@@ -191,6 +205,84 @@ export class Teno {
 		return this.meetings.find((meeting) => meeting.getId() === id);
 	}
 
+	getVoiceService() {
+		return this.voiceConfig;
+	}
+
+	async setActiveMeeting(meetingId: number | null) {
+		await this.fetchVoiceService();
+		this.activeMeetingId = meetingId;
+	}
+
+	getActiveMeeting() {
+		if (this.activeMeetingId) {
+			return this.getMeeting(this.activeMeetingId);
+		}
+
+		return undefined;
+	}
+
+	async fetchVoiceService() {
+		const vs = await this.getPrismaClient().guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			include: { voiceService: true },
+		});
+
+		this.voiceConfig = vs?.voiceService ?? null;
+	}
+
+	async fetchSpeechOn() {
+		const g = await this.prismaClient.guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			select: {
+				speechOn: true,
+			},
+		});
+
+		if (g !== null) {
+			this.speechOn = g.speechOn;
+		}
+	}
+
+	async syncSpeechOn() {
+		await this.getPrismaClient().guild.update({
+			where: {
+				guildId: this.id,
+			},
+			data: {
+				speechOn: this.speechOn,
+			},
+		});
+	}
+
+	getSpeechOn() {
+		return this.speechOn;
+	}
+
+	async enableSpeech() {
+		this.speechOn = true;
+
+		if (this.activeMeetingId === null) {
+			await this.syncSpeechOn();
+		}
+	}
+
+	async disableSpeech() {
+		this.speechOn = false;
+
+		if (this.activeMeetingId === null) {
+			await this.syncSpeechOn();
+		}
+	}
+
+	getResponder(): Responder {
+		return this.responder;
+	}
+
 	getClient(): Client {
 		return this.client;
 	}
@@ -207,9 +299,13 @@ export class Teno {
 		return this.meetings;
 	}
 
-	async cleanup() {
-		await Promise.allSettled(this.meetings.map((meeting) => meeting.endMeeting()));
+	cleanup = async () => {
+		const p = this.meetings.map((meeting) => meeting.endMeeting());
+
+		if (p.length) {
+			await Promise.allSettled(p);
+		}
 
 		console.log(`Teno ${this.id} cleaned up`);
-	}
+	};
 }

@@ -127,9 +127,12 @@ const MeetingTable = ({ meetings, onSubmit, loading, userId }: MeetingTableProps
 											Created At
 										</th>
 										<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-left text-sm font-semibold')}>
+											Guild ID
+										</th>
+										<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-right text-sm font-semibold')}>
 											Locked
 										</th>
-										<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-left text-sm font-semibold')}>
+										<th scope="col" className={clsx(stickyHeader, 'px-3 py-3.5 text-right text-sm font-semibold')}>
 											Active
 										</th>
 									</tr>
@@ -174,8 +177,9 @@ const MeetingTable = ({ meetings, onSubmit, loading, userId }: MeetingTableProps
 											{/* display the duration of the meeting, converted from milliseconds to hours:minutes:seconds using date-fns */}
 											<td className="whitespace-nowrap px-3 py-4 text-sm">{formatMeetingDuration(meeting.duration)}</td>
 											<td className="whitespace-nowrap px-3 py-4 text-sm">{meeting.createdAt}</td>
-											<td className="whitespace-nowrap px-3 py-4 text-sm">{String(meeting.locked)}</td>
-											<td className="whitespace-nowrap px-3 py-4 text-sm">{String(meeting.active)}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm">{meeting.guildId}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm text-right">{String(meeting.locked)}</td>
+											<td className="whitespace-nowrap px-3 py-4 text-sm text-right">{String(meeting.active)}</td>
 										</tr>
 									))}
 								</tbody>

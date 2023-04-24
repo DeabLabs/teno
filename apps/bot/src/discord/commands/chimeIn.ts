@@ -7,7 +7,6 @@ import { chimeInOnTranscript } from '@/services/langchain.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Transcript } from '@/models/transcript.js';
-import { Utterance } from '@/models/utterance.js';
 
 export const chimeInCommand = createCommand({
 	commandArgs: {
@@ -17,8 +16,12 @@ export const chimeInCommand = createCommand({
 	handler: chimeIn,
 });
 
+async function sleep(timeMs: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, timeMs));
+}
+
 async function chimeIn(interaction: CommandInteraction, teno: Teno) {
-	await interaction.deferReply();
+	await interaction.deferReply({ ephemeral: true });
 
 	const guildId = interaction.guildId;
 	const member = interaction.member;
@@ -69,6 +72,7 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		}
 
 		const transcriptKey = active.transcript.redisKey;
+		await sleep(500);
 		const transcript = await Transcript.load({
 			meetingId: active.id,
 			prismaClient: teno.getPrismaClient(),
@@ -78,7 +82,7 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
 		invariant(transcript);
-		const answerOutput = await chimeInOnTranscript(transcriptLines);
+		const answerOutput = await chimeInOnTranscript(transcriptLines, 'gpt-4');
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);
@@ -93,22 +97,24 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 			completionTokens: answerOutput.completionTokens,
 		});
 
-		const answer = answerOutput.answer;
+		const meeting = teno.getActiveMeeting();
+		invariant(meeting);
 
-		const timestamp = Date.now();
+		// @TODO eventually, don't bail the whole command, responder should just respond with text
+		try {
+			invariant(await teno.getSpeechOn());
+		} catch {
+			await interaction.editReply({
+				content: `I'm not allowed to speak in this server.`,
+				components: [],
+			});
+			return;
+		}
 
-		const transcriptLine = Utterance.createTranscriptLine(
-			`Teno`,
-			tenoId,
-			answer,
-			(timestamp - active.createdAt.getTime()) / 1000,
-			timestamp,
-		);
-
-		await transcript.appendTranscript(transcriptLine, timestamp);
+		teno.getResponder().respondToTranscript(meeting);
 
 		await interaction.editReply({
-			content: `Meeting: ${active.name}\n${answer}`,
+			content: `I will chime in on the transcript in a moment.`,
 		});
 	} catch (e) {
 		await interaction.editReply({

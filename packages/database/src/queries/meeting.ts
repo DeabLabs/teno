@@ -177,5 +177,17 @@ export const deleteAuthoredMeetingsById = async (
 			},
 		});
 
+	const unlinkUsageEvents = () =>
+		client.usageEvent.updateMany({
+			where: {
+				meetingId: {
+					in: authoredMeetingIds,
+				},
+			},
+			data: {
+				meetingId: null,
+			},
+		});
+
 	return client.$transaction([deleteTranscripts(), deleteMeetings()]);
 };

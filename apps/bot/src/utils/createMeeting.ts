@@ -41,12 +41,14 @@ export async function createMeeting({
 			prismaClient: teno.getPrismaClient(),
 			userDiscordId,
 			client: teno.getClient(),
+			teno: teno,
 			active: true,
+			authorDiscordId: userDiscordId,
 		});
 		invariant(newMeeting);
 
 		for (const [, member] of voiceChannel.members) {
-			await newMeeting.addMember(member.id);
+			await newMeeting.addMember(member.id, member.user.username, member.user.discriminator);
 		}
 
 		// Add meeting to Teno
@@ -57,6 +59,7 @@ export async function createMeeting({
 
 		// Start listening
 		return startListening({
+			voiceChannel,
 			connection,
 			meeting: newMeeting,
 			onError: async () =>
@@ -68,11 +71,13 @@ export async function createMeeting({
 }
 
 async function startListening({
+	voiceChannel,
 	connection,
 	meeting,
 	onError,
 }: {
 	connection: VoiceConnection;
+	voiceChannel: VoiceBasedChannel;
 	meeting: Meeting;
 	onError?: (error: Error) => void;
 }) {
@@ -101,8 +106,10 @@ async function startListening({
 
 		receiver.speaking.on('start', async (userId) => {
 			if (!meeting.isSpeaking(userId) && !meeting.isIgnored(userId)) {
+				const user = await voiceChannel.client.users.fetch(userId);
+				if (!user) return;
 				meeting.addSpeaking(userId);
-				meeting.addMember(userId);
+				meeting.addMember(userId, user.username, user.discriminator);
 				meeting.createUtterance(receiver, userId);
 			}
 		});

@@ -17,7 +17,7 @@
 		"clean": "turbo run clean --no-daemon",
 		"format": "prettier --write \"**/*.{ts,tsx,md,css,json}\" && turbo run format --no-daemon",
 		"lint:prettier": "prettier --check .",
-		"ci": "yarn lint test:ci build",
+		"ci": "yarn lint && turbo run build --no-daemon && turbo run ci test:ci --no-daemon",
 		"fix-deps": "manypkg fix",
 		"postinstall": "manypkg check",
 		"db:push": "dotenv -- turbo run db:push --no-daemon",
@@ -40,7 +40,7 @@
 		"@manypkg/cli": "0.20.0",
 		"dotenv-cli": "^7.2.1",
 		"prettier": "2.8.4",
-		"turbo": "^1.9.0",
+		"turbo": "^1.9.3",
 		"typescript": "^5.0.3"
 	},
 	"engines": {

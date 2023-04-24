@@ -27,7 +27,11 @@ export const getActiveMeetingFromInteraction = async (
 		invariant(member instanceof GuildMember, 'Member is not a GuildMember');
 
 		// Get the user from the database
-		const user = await userQueries.createOrGetUser(prismaClient, { discordId: member.id });
+		const user = await userQueries.createOrGetUser(prismaClient, {
+			discordId: member.id,
+			name: member.user.username,
+			discriminator: member.user.discriminator,
+		});
 		invariant(user, 'User could not be created');
 
 		// Find the most recent meeting that the user is attending and is marked active

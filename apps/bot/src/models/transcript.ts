@@ -84,6 +84,19 @@ export class Transcript {
 		return cleanedTranscript;
 	}
 
+	public async getRecentTranscript(limit = 5) {
+		const result = await transcriptQueries.getRecentTranscriptArray(this.redisClient, {
+			transcriptKey: this.transcriptKey,
+			limit,
+		});
+
+		if (!result.length) {
+			console.log('No transcript found at key: ', this.transcriptKey);
+		}
+
+		return result.reverse();
+	}
+
 	public async getTranscript() {
 		const result = await this.getTranscriptRaw();
 
