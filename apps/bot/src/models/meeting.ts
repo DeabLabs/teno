@@ -12,6 +12,8 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
+import { playFilePath } from '@/services/textToSpeech.js';
+import { startTalkingBoops } from '@/services/audioResources.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -338,6 +340,8 @@ export class Meeting {
 
 					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
 						if (!responder.isSpeaking()) {
+							playFilePath(responder.getAudioPlayer(), startTalkingBoops(), this.getConnection());
+
 							responder.respondToTranscript(this);
 						}
 					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {

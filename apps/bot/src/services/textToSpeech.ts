@@ -1,6 +1,6 @@
 import { Readable } from 'stream';
 
-import type { VoiceConnection, AudioPlayer } from '@discordjs/voice';
+import type { VoiceConnection, AudioPlayer, AudioResource } from '@discordjs/voice';
 import { AudioPlayerStatus, createAudioResource } from '@discordjs/voice';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 import invariant from 'tiny-invariant';
@@ -190,7 +190,7 @@ export async function playArrayBuffer(
 
 	let b = arrayBuffer;
 	if (service === 'azure') {
-		const trimDuration = 0.04; // Set this value to the desired amount of silence to trim, in seconds
+		const trimDuration = 0.03; // Set this value to the desired amount of silence to trim, in seconds
 		const trimBytes = Math.floor(trimDuration * 48000 * 2 * 2); // Assuming 48kHz, 16-bit audio, and 2 channels
 		b = arrayBuffer.slice(0, -trimBytes);
 	}
@@ -200,6 +200,30 @@ export async function playArrayBuffer(
 
 	audioPlayer.play(audioResource);
 	console.timeEnd('respondToTranscript');
+	const sub = connection.subscribe(audioPlayer);
+
+	return new Promise((resolve, reject) => {
+		audioPlayer.on(AudioPlayerStatus.Idle, () => {
+			audioPlayer.removeAllListeners();
+			sub?.unsubscribe();
+			resolve();
+		});
+
+		audioPlayer.on('error', (error) => {
+			console.error('Error while playing audio:', error);
+			reject(error);
+		});
+	});
+}
+
+export async function playFilePath(
+	audioPlayer: AudioPlayer,
+	audioResource: AudioResource<null>,
+	connection: VoiceConnection | undefined,
+): Promise<void> {
+	invariant(connection, 'No voice connection found');
+
+	audioPlayer.play(audioResource);
 	const sub = connection.subscribe(audioPlayer);
 
 	return new Promise((resolve, reject) => {
