@@ -101,15 +101,15 @@ async function chimeIn(interaction: CommandInteraction, teno: Teno) {
 		invariant(meeting);
 
 		// @TODO eventually, don't bail the whole command, responder should just respond with text
-		try {
-			invariant(await teno.getSpeechOn());
-		} catch {
-			await interaction.editReply({
-				content: `I'm not allowed to speak in this server.`,
-				components: [],
-			});
-			return;
-		}
+		// try {
+		// 	invariant(await teno.getSpeechOn());
+		// } catch {
+		// 	await interaction.editReply({
+		// 		content: `I'm not allowed to speak in this server.`,
+		// 		components: [],
+		// 	});
+		// 	return;
+		// }
 
 		teno.getResponder().respondToTranscript(meeting);
 
