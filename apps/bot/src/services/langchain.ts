@@ -169,7 +169,7 @@ export enum ACTIVATION_COMMAND {
 
 export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACTIVATION_COMMAND> {
 	const joinedLines = lines.join('\n');
-	const answer = await gptTurbo.generatePrompt([
+	const answer = await gptFour.generatePrompt([
 		await voiceActivationTemplate.formatPromptValue({
 			botName: `Teno`,
 			lines: joinedLines,
