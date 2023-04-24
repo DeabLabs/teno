@@ -54,7 +54,7 @@ export class Utterance {
 		const opusStream = receiver.subscribe(this.userId, {
 			end: {
 				behavior: EndBehaviorType.AfterSilence,
-				duration: 1000,
+				duration: 500,
 			},
 		});
 

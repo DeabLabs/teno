@@ -158,7 +158,7 @@ async function getAzureTTS(params: AzureParams): Promise<TTSResult> {
 	azureSpeechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus;
 
 	// Set voice
-	azureSpeechConfig.speechSynthesisVoiceName = 'en-ZA-LukeNeural';
+	azureSpeechConfig.speechSynthesisVoiceName = 'en-US-BrandonNeural';
 
 	const speechSynthesizer = new sdk.SpeechSynthesizer(azureSpeechConfig);
 
@@ -199,6 +199,7 @@ export async function playArrayBuffer(
 	const audioResource = createAudioResource(bufferStream);
 
 	audioPlayer.play(audioResource);
+	console.timeEnd('respondToTranscript');
 	const sub = connection.subscribe(audioPlayer);
 
 	return new Promise((resolve, reject) => {

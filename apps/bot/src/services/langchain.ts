@@ -8,23 +8,23 @@ import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
 class TenoCallbackHandler extends CallbackManager {
-	private tokenHandler: (token: string) => void;
+	private tokenHandler: (token: string) => Promise<void>;
 	private endHandler: (output: LLMResult) => void;
 
-	constructor(tokenHandler: (token: string) => void, endHandler: (output: LLMResult) => void) {
+	constructor(tokenHandler: (token: string) => Promise<void>, endHandler: (output: LLMResult) => void) {
 		super();
 		this.tokenHandler = tokenHandler;
 		this.endHandler = endHandler;
 	}
 
-	override handleLLMNewToken(token: string): Promise<void> {
-		this.tokenHandler(token);
-		return Promise.resolve();
+	override async handleLLMNewToken(token: string): Promise<void> {
+		return await this.tokenHandler(token);
 	}
 
 	override handleLLMEnd(output: LLMResult): Promise<void> {
-		this.endHandler(output);
-		return Promise.resolve();
+		return new Promise((resolve) => {
+			resolve(this.endHandler(output));
+		});
 	}
 }
 
@@ -66,7 +66,7 @@ Below is your conversation with the users, their messages will include their use
 
 const chimeInTemplate = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a helpful, knowledgable, interesting and casual discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
+		`You are a helpful, knowledgable, interesting and casual discord bot named Teno, and you will be given a rough transcript of a voice call.
 The transcript contains one or many users, with each user's speaking turns separated by a newline.
 Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
 The transcript may include transcription errors, like mispelled words and broken sentences.
@@ -75,7 +75,7 @@ You will read the transcript, then contribute to the conversation. Your response
 If the last few lines of the transcript contain an open question, or a question directed specifically at you, answer the question.
 If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
 Do NOT include phrases like "based on the transcript" or "according to the transcript" in your response.
-Do NOT include phrases like "enjoy your conversation" or "I hope that helps your discussion" in your response.
+Do NOT include phrases like "enjoy your conversation", or "enjoy the..." or "I hope that helps your discussion" in your response.
 Do NOT include the username "Teno" or any timestamp (xx:xx) in your response.
 Do NOT summarize the transcript or rephrase the question in your response.
 Do NOT include superfluous phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", or "If you'd like more information or have any other questions, feel free to ask." in your response.
@@ -88,17 +88,17 @@ Teno (xx:xx):`,
 
 const voiceActivationTemplate = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		`You are a socially intelligent conversation analyst responsible for evaluating a set of lines from a roughly transcribed transcript to determine if the users are expecting a response from a bot called {botName}. Due to transcription mistakes, it may also be transcribed as {botNameVariations}.
+		`You are a socially intelligent conversation analyst responsible for evaluating a set of lines from a roughly transcribed transcript to determine if the users are expecting a response from a bot called {botName}.
 
 You will be provided with several lines from a voice call transcript. Your task is to decide if the most recent line is asking {botName} to chime in, answer a question, continue the conversation, or if the user is asking {botName} to stop talking.
 
-Respond with "yes" if the most recent line is directly asking {botName} to contribute, or if it is clear from the context that the user is expecting a response from {botName}, even if the bot's name is not explicitly mentioned. If the conversation seems to be between {botName} and a single other user, you can ganerally assume that the user wants {botName} to respond, unless someone else is explicitly mentioned.
+Respond with "yes" if the most recent line is asking {botName} to contribute, or if it is clear from the context that the speaker of the most recent line is expecting {botName} to continue the conversation. If the conversation seems to be between {botName} and another user, you can assume that the user wants {botName} to respond.
 
-Respond with "stop" if the most recent line is asking {botName} to stop talking, stop contributing, be quiet, or any other similar request for the bot to cease its input in the conversation.
+Respond with "stop" if the most recent line is asking {botName} to stop talking, stop contributing, be quiet, or any other similar request for the bot to cease its input in the conversation. This includes lines like "no, stop".
 
-Respond with "no" if the line is a statement without an implicit request for {botName}'s input, or if {botName} was the last speaker.
+Respond with "no" if the speaker of the most recent line does not appear to expect a response from {botName}. This could be because they are talking to someone else, or they are ending the conversation.
 
-Use the content of the previous lines for context, but only look in the most recent line when deciding if the user is expecting a response. Your reponse should contain nothing but "yes", "stop", or "no". Remember that the transcription is rough, and you may have to infer what the user actually said based on context, especially if their text seems random or unrelated. If you aren't sure what to respond with, respond with "no":
+Use the content of the previous lines for context, but your evaluation is about the most recent line. Your reponse should contain nothing but "yes", "stop", or "no". Remember that the transcription is rough, and you may have to infer what the user actually said based on context, especially if their text seems random or unrelated. If you aren't sure what to respond with, respond with "no":
 {lines}`,
 	),
 ]);
@@ -172,7 +172,6 @@ export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACT
 	const answer = await gptTurbo.generatePrompt([
 		await voiceActivationTemplate.formatPromptValue({
 			botName: `Teno`,
-			botNameVariations: `Ten oh, ten o, tanno, tunnel, Tano, Tina, Loteno, To know, Tiana, Deno, Know, Denno, Lenno`,
 			lines: joinedLines,
 		}),
 	]);
@@ -195,7 +194,7 @@ export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACT
 export async function chimeInOnTranscript(
 	transcriptLines: string[],
 	model: SupportedModels,
-	onNewToken?: (token: string) => void,
+	onNewToken?: (token: string) => Promise<void>,
 	onEnd?: () => void,
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string

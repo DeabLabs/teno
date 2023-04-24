@@ -66,3 +66,15 @@ export const batchDeleteTranscripts = async (client: RedisClientType, args: { tr
 
 	return true;
 };
+
+export const getRecentTranscriptArray = async (
+	client: RedisClientType,
+	args: { transcriptKey: string; limit: number },
+) => {
+	// get the last LIMIT number of utterances from the transcript, not by score, but by index
+	const result = await client.zrevrange(args.transcriptKey, 0, args.limit);
+
+	if (!result) throw new Error('Could not get recent transcript array');
+
+	return result;
+};

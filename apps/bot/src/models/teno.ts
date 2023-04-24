@@ -2,7 +2,7 @@ import type { Client, Guild, Interaction, Message } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { VoiceChannel } from 'discord.js';
 import { Events } from 'discord.js';
-import type { PrismaClientType } from 'database';
+import type { PrismaClientType, VoiceService } from 'database';
 import { getVoiceConnection } from '@discordjs/voice';
 import invariant from 'tiny-invariant';
 
@@ -23,6 +23,7 @@ export class Teno {
 	private prismaClient: PrismaClientType;
 	private responder: Responder;
 	private speechOn = true;
+	private voiceConfig: VoiceService | null = null;
 
 	constructor({
 		client,
@@ -204,18 +205,12 @@ export class Teno {
 		return this.meetings.find((meeting) => meeting.getId() === id);
 	}
 
-	async getVoiceService() {
-		const vs = await this.getPrismaClient().guild.findUnique({
-			where: {
-				guildId: this.id,
-			},
-			include: { voiceService: true },
-		});
-
-		return vs?.voiceService ?? undefined;
+	getVoiceService() {
+		return this.voiceConfig;
 	}
 
-	setActiveMeeting(meetingId: number | null) {
+	async setActiveMeeting(meetingId: number | null) {
+		await this.fetchVoiceService();
 		this.activeMeetingId = meetingId;
 	}
 
@@ -225,6 +220,17 @@ export class Teno {
 		}
 
 		return undefined;
+	}
+
+	async fetchVoiceService() {
+		const vs = await this.getPrismaClient().guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			include: { voiceService: true },
+		});
+
+		this.voiceConfig = vs?.voiceService ?? null;
 	}
 
 	async fetchSpeechOn() {

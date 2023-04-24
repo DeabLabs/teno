@@ -137,7 +137,7 @@ export class Meeting {
 			});
 			invariant(transcript);
 
-			args.teno.setActiveMeeting(_meeting.id);
+			await args.teno.setActiveMeeting(_meeting.id);
 			await args.teno.fetchSpeechOn();
 
 			return new Meeting({
@@ -327,11 +327,11 @@ export class Meeting {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
 			// Respond to the transcript if the bot is expected to respond
-			console.log(utterance.textContent);
+			// console.log(utterance.textContent);
 			if (utterance.textContent && utterance.textContent.length > 0) {
 				const speechOn = this.teno.getSpeechOn();
-				console.log('speechOn', speechOn);
 				if (speechOn) {
+					console.time('onTranscriptionComplete');
 					const responder = this.teno.getResponder();
 					// should the bot respond or should it stop talking?
 					const botAnalysis = await responder.isBotResponseExpected(this);
@@ -343,6 +343,7 @@ export class Meeting {
 					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
 						responder.stopResponding();
 					}
+					console.timeEnd('onTranscriptionComplete');
 				}
 			}
 		}

@@ -25,7 +25,7 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 	try {
 		const response = await deepgram.transcription.preRecorded(
 			{ buffer: audioBuffer, mimetype },
-			{ punctuate: true, model: 'general', language: 'en-US', tier: 'nova' },
+			{ punctuate: true, model: 'general', language: 'en-US', tier: 'nova', keywords: ['Teno', 'stop'] },
 		);
 		// Return transcription as continuous string
 		const resultText = response.results?.channels[0]?.alternatives[0]?.transcript;

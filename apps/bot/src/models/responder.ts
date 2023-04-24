@@ -22,7 +22,6 @@ export class Responder {
 	private thinking = false;
 	private sentenceQueue: SentenceQueue | null = null;
 	private audioPlayer: AudioPlayer = createAudioPlayer();
-	private vConfig: VoiceService | null = null;
 
 	constructor({
 		teno,
@@ -66,7 +65,7 @@ export class Responder {
 	}
 
 	public getCachedVoiceConfig() {
-		return this.vConfig as Omit<VoiceService, 'service'> & { service: 'azure' | 'elevenlabs' };
+		return this.teno.getVoiceService() as Omit<VoiceService, 'service'> & { service: 'azure' | 'elevenlabs' };
 	}
 
 	public stopResponding() {
@@ -82,9 +81,9 @@ export class Responder {
 		this.startThinking();
 		this.sentenceQueue = new SentenceQueue(this, meeting);
 
-		const onNewToken = (token: string) => {
+		const onNewToken = async (token: string) => {
 			if (this.sentenceQueue) {
-				this.sentenceQueue.handleNewToken(token);
+				await this.sentenceQueue.handleNewToken(token);
 			}
 		};
 
@@ -94,7 +93,7 @@ export class Responder {
 
 		const answerOutput = await chimeInOnTranscript(
 			await meeting.getTranscript().getCleanedTranscript(),
-			'gpt-4',
+			'gpt-3.5-turbo',
 			onNewToken,
 			onEnd,
 		);
@@ -107,13 +106,11 @@ export class Responder {
 	public async isBotResponseExpected(meeting: Meeting): Promise<ACTIVATION_COMMAND> {
 		const numCheckLines = 10; // Set this value to modulate how many lines you want to check
 
-		const vConfig = await this.teno.getVoiceService();
-		this.vConfig = vConfig || null;
-		const transcriptLines = await meeting.getTranscript().getCleanedTranscript();
+		const vConfig = this.getCachedVoiceConfig();
+		const checkLines = await meeting.getTranscript().getRecentTranscript(numCheckLines);
 
-		if (vConfig && transcriptLines) {
-			const checkLines = transcriptLines.slice(-numCheckLines);
-			console.log('checkLines', checkLines);
+		if (vConfig && checkLines.length) {
+			// console.log('checkLines', checkLines);
 			return await checkLinesForVoiceActivation(checkLines);
 		}
 
@@ -140,7 +137,7 @@ export class Responder {
 
 type SentenceAudio = {
 	sentence: string;
-	audioBuffer: ArrayBuffer | null;
+	audioBuffer: Promise<ArrayBuffer | null>;
 };
 
 class SentenceQueue {
@@ -155,13 +152,13 @@ class SentenceQueue {
 	}
 
 	public async handleNewToken(token: string): Promise<void> {
-		const splitTokens = ['.', '?', '!', ';', '...'];
+		const splitTokens = ['.', '?', '!', ':', ';'];
 		this.currentSentence = `${this.currentSentence}${token}`;
 
 		if (splitTokens.some((splitToken) => token.includes(splitToken))) {
 			const tempSentence = this.currentSentence;
 			this.currentSentence = '';
-			await this.enqueueSentence(tempSentence.trim());
+			this.enqueueSentence(tempSentence.trim());
 
 			if (this.queue.length === 1) {
 				this.playNextSentence();
@@ -171,13 +168,17 @@ class SentenceQueue {
 
 	private async playNextSentence(): Promise<void> {
 		if (this.queue.length > 0) {
+			console.time('respondToTranscript');
 			const sentenceAudio = this.queue[0];
 			const vConfig = this.responder.getCachedVoiceConfig();
 			if (sentenceAudio && sentenceAudio.audioBuffer && vConfig !== null) {
-				console.log('Playing sentence: ' + sentenceAudio.sentence);
-				await this.playAudioBuffer(this.responder.getAudioPlayer(), sentenceAudio.audioBuffer, vConfig.service);
+				// console.log('Playing sentence: ' + sentenceAudio.sentence);
+				const buffer = await sentenceAudio.audioBuffer;
+				if (buffer) {
+					await this.playAudioBuffer(this.responder.getAudioPlayer(), buffer, vConfig.service);
+				}
 				this.queue.shift();
-				this.playNextSentence();
+				await this.playNextSentence();
 			}
 		}
 
@@ -186,13 +187,14 @@ class SentenceQueue {
 		}
 	}
 
-	private async enqueueSentence(sentence: string): Promise<void> {
-		const audioBuffer = await this.createAudioBufferFromSentence(sentence);
+	private enqueueSentence(sentence: string): void {
+		const audioBuffer = this.createAudioBufferFromSentence(sentence);
 		this.queue.push({ sentence, audioBuffer });
+		console.log('Queue length: ' + this.queue.length);
 	}
 
 	private async createAudioBufferFromSentence(sentence: string): Promise<ArrayBuffer | null> {
-		const vConfig = await this.responder.getTeno().getVoiceService();
+		const vConfig = this.responder.getTeno().getVoiceService();
 		const service = vConfig?.service;
 		if (vConfig) {
 			try {
@@ -225,7 +227,7 @@ class SentenceQueue {
 		audioBuffer: ArrayBuffer,
 		service: TTSParams['service'],
 	): Promise<void> {
-		const vConfig = await this.responder.getTeno().getVoiceService();
+		const vConfig = this.responder.getCachedVoiceConfig();
 		if (vConfig) {
 			try {
 				await playArrayBuffer(audioPlayer, audioBuffer, this.meeting.getConnection(), service);
