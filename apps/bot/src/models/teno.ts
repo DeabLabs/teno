@@ -17,10 +17,12 @@ export class Teno {
 	public id: string;
 	private client: Client;
 	private meetings: Meeting[] = [];
+	private activeMeetingId: number | null = null;
 	private guild: Guild;
 	private redisClient: RedisClient;
 	private prismaClient: PrismaClientType;
 	private responder: Responder;
+	private speechOn = true;
 
 	constructor({
 		client,
@@ -211,6 +213,64 @@ export class Teno {
 		});
 
 		return vs?.voiceService ?? undefined;
+	}
+
+	setActiveMeeting(meetingId: number | null) {
+		this.activeMeetingId = meetingId;
+	}
+
+	getActiveMeeting() {
+		if (this.activeMeetingId) {
+			return this.getMeeting(this.activeMeetingId);
+		}
+
+		return undefined;
+	}
+
+	async fetchSpeechOn() {
+		const g = await this.prismaClient.guild.findUnique({
+			where: {
+				guildId: this.id,
+			},
+			select: {
+				speechOn: true,
+			},
+		});
+
+		if (g !== null) {
+			this.speechOn = g.speechOn;
+		}
+	}
+
+	async syncSpeechOn() {
+		await this.getPrismaClient().guild.update({
+			where: {
+				guildId: this.id,
+			},
+			data: {
+				speechOn: this.speechOn,
+			},
+		});
+	}
+
+	getSpeechOn() {
+		return this.speechOn;
+	}
+
+	async enableSpeech() {
+		this.speechOn = true;
+
+		if (this.activeMeetingId === null) {
+			await this.syncSpeechOn();
+		}
+	}
+
+	async disableSpeech() {
+		this.speechOn = false;
+
+		if (this.activeMeetingId === null) {
+			await this.syncSpeechOn();
+		}
 	}
 
 	getResponder(): Responder {

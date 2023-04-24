@@ -20,6 +20,7 @@ model Guild {
   admins       User[]
   usageEvents  UsageEvent[]
   voiceService VoiceService?
+  speechOn     Boolean       @default(true)
 }
 
 model VoiceService {
@@ -32,6 +33,7 @@ model VoiceService {
   voiceKey  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  service   String   @default("azure")
 }
 
 // using guildId: we can track how many tokens are used per guild across all users
