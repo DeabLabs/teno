@@ -188,7 +188,6 @@ class SentenceQueue {
 		if (!this.responder.isThinking() && this.queue.length === 0) {
 			this.responder.stopSpeaking();
 
-			console.log('Should play end audio');
 			await playFilePath(this.responder.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
 		}
 	}
@@ -196,7 +195,6 @@ class SentenceQueue {
 	private enqueueSentence(sentence: string): void {
 		const audioBuffer = this.createAudioBufferFromSentence(sentence);
 		this.queue.push({ sentence, audioBuffer });
-		console.log('Queue length: ' + this.queue.length);
 	}
 
 	private async createAudioBufferFromSentence(sentence: string): Promise<ArrayBuffer | null> {
