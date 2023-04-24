@@ -6,13 +6,14 @@ import { createAudioPlayer } from '@discordjs/voice';
 
 import type { RedisClient } from '@/bot.js';
 import type { TTSParams } from '@/services/textToSpeech.js';
+import { playFilePath } from '@/services/textToSpeech.js';
 import { playArrayBuffer, getArrayBufferFromText } from '@/services/textToSpeech.js';
 import { ACTIVATION_COMMAND } from '@/services/langchain.js';
 import { checkLinesForVoiceActivation, chimeInOnTranscript } from '@/services/langchain.js';
+import { endTalkingBoops } from '@/services/audioResources.js';
 
 import type { Meeting } from './meeting.js';
 import type { Teno } from './teno.js';
-
 export class Responder {
 	private teno: Teno;
 	private client: Client;
@@ -61,6 +62,8 @@ export class Responder {
 	}
 
 	public getAudioPlayer() {
+		this.audioPlayer = createAudioPlayer();
+
 		return this.audioPlayer;
 	}
 
@@ -178,12 +181,15 @@ class SentenceQueue {
 					await this.playAudioBuffer(this.responder.getAudioPlayer(), buffer, vConfig.service);
 				}
 				this.queue.shift();
-				await this.playNextSentence();
+				return await this.playNextSentence();
 			}
 		}
 
 		if (!this.responder.isThinking() && this.queue.length === 0) {
 			this.responder.stopSpeaking();
+
+			console.log('Should play end audio');
+			await playFilePath(this.responder.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
 		}
 	}
 
