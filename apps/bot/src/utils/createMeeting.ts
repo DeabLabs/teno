@@ -43,6 +43,7 @@ export async function createMeeting({
 			client: teno.getClient(),
 			teno: teno,
 			active: true,
+			authorDiscordId: userDiscordId,
 		});
 		invariant(newMeeting);
 

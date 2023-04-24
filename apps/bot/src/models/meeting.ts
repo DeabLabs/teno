@@ -33,7 +33,7 @@ type MeetingArgs = {
 	authorDiscordId: string;
 };
 
-type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active'> & {
+type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'name' | 'active' | 'authorName'> & {
 	id?: number;
 	active?: boolean;
 	userDiscordId: string;
