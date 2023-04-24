@@ -27,14 +27,15 @@ FROM node:18-slim as runner
 ARG DATABASE_URL
 ARG REDIS_URL
 ARG OPENAI_API_KEY
-ARG ELEVENLABS_API_KEY
 ARG DEEPGRAM
 ARG TOKEN
+ARG AZURE_SPEECH_REGION
 
 RUN apt-get update
 RUN apt-get install -y ffmpeg
 
 WORKDIR /app
+COPY --from=installer /app/apps/bot/assets/ /assets/
 COPY --from=installer /app/apps/bot/dist/* .
 COPY --from=installer /app/apps/bot/package.json .
 COPY --from=installer /app/node_modules/ /app/node_modules/

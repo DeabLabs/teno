@@ -11,9 +11,9 @@ services:
       DEEPGRAM: ${DEEPGRAM}
       TOKEN: ${TOKEN}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
       REDIS_URL: ${REDIS_URL}
       DATABASE_URL: ${DATABASE_URL}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION}
     env_file:
       - .env
   teno-dashboard:
