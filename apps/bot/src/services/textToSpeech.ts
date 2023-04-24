@@ -73,16 +73,7 @@ async function getElevenLabsTTS(params: ElevenLabsParams): Promise<TTSResult> {
 	};
 }
 
-const azureSpeechKey = Config.AZURE_SPEECH_KEY;
 const azureSpeechRegion = Config.AZURE_SPEECH_REGION;
-
-const azureSpeechConfig = sdk.SpeechConfig.fromSubscription(azureSpeechKey, azureSpeechRegion);
-
-// Set the output format
-azureSpeechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus;
-
-// Set voice
-azureSpeechConfig.speechSynthesisVoiceName = 'en-ZA-LukeNeural';
 
 // English (Australia)	en-AU-AnnetteNeural (Female)
 // en-AU-CarlyNeural (Female)
@@ -160,9 +151,17 @@ azureSpeechConfig.speechSynthesisVoiceName = 'en-ZA-LukeNeural';
 // en-ZA	English (South Africa)	en-ZA-LeahNeural (Female)
 // en-ZA-LukeNeural (Male)
 
-const speechSynthesizer = new sdk.SpeechSynthesizer(azureSpeechConfig);
-
 async function getAzureTTS(params: AzureParams): Promise<TTSResult> {
+	const azureSpeechConfig = sdk.SpeechConfig.fromSubscription(params.apiKey, azureSpeechRegion);
+
+	// Set the output format
+	azureSpeechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Ogg48Khz16BitMonoOpus;
+
+	// Set voice
+	azureSpeechConfig.speechSynthesisVoiceName = 'en-ZA-LukeNeural';
+
+	const speechSynthesizer = new sdk.SpeechSynthesizer(azureSpeechConfig);
+
 	return new Promise<TTSResult>((resolve, reject) => {
 		speechSynthesizer.speakTextAsync(
 			params.text,

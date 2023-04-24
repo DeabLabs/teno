@@ -17,7 +17,7 @@ async function speechOff(interaction: CommandInteraction, teno: Teno) {
 	try {
 		teno.disableSpeech();
 		await interaction.editReply({
-			content: `Teno will no longer with text-to-speech.`,
+			content: `Teno will no longer respond with text-to-speech.`,
 			components: [],
 		});
 	} catch (e) {
