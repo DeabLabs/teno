@@ -11,8 +11,6 @@ import { formatTime } from '@/utils/transcriptUtils.js';
 // Utterance class
 export class Utterance {
 	private receiver: VoiceReceiver;
-	private onRecordingComplete: (utterance: Utterance) => void;
-	private onTranscriptionComplete: (utterance: Utterance) => void;
 	public isTranscribed = false;
 	public userId: string;
 	public username: string;
@@ -22,20 +20,11 @@ export class Utterance {
 	public timestamp: number;
 	public duration: number | undefined;
 
-	constructor(
-		receiver: VoiceReceiver,
-		userId: string,
-		username: string,
-		secondsSinceStart: number,
-		onRecordingComplete: (utterance: Utterance) => void,
-		onTranscriptionComplete: (utterance: Utterance) => void,
-	) {
+	constructor(receiver: VoiceReceiver, userId: string, username: string, secondsSinceStart: number) {
 		this.receiver = receiver;
 		this.userId = userId;
 		this.username = username;
 		this.secondsSinceStart = secondsSinceStart;
-		this.onRecordingComplete = onRecordingComplete;
-		this.onTranscriptionComplete = onTranscriptionComplete;
 
 		this.timestamp = Date.now();
 	}
@@ -44,9 +33,10 @@ export class Utterance {
 		try {
 			const [opusStream, oggStream] = await this.createListeningStream(this.receiver);
 			await this.downloadRecording(opusStream, oggStream);
-			await this.startTranscribing();
+			return await this.startTranscribing();
 		} catch (err) {
 			console.error(err);
+			return null;
 		}
 	}
 
@@ -85,7 +75,6 @@ export class Utterance {
 					reject(err);
 				} else {
 					this.audioContent = Buffer.concat(chunks);
-					this.onRecordingComplete(this);
 					resolve(undefined);
 				}
 			});
@@ -95,14 +84,23 @@ export class Utterance {
 	async startTranscribing() {
 		if (this.audioContent) {
 			const result = await deepgramPrerecordedTranscribe(this.audioContent);
+
+			if (!result) {
+				return null;
+			}
+
+			if (result === 'STOP') {
+				return 'STOP';
+			}
+
 			this.textContent = result?.text;
 			this.duration = result?.durationS;
-			this.onTranscriptionComplete(this);
 			this.isTranscribed = true;
-			return true;
+
+			return this;
 		} else {
 			console.log('No audio content to transcribe');
-			return false;
+			return null;
 		}
 	}
 

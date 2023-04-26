@@ -1,6 +1,6 @@
-import type { VoiceConnection } from '@discordjs/voice';
-import { joinVoiceChannel, entersState, VoiceConnectionStatus } from '@discordjs/voice';
-import type { VoiceBasedChannel, TextChannel } from 'discord.js';
+import type { VoiceConnection, VoiceReceiver } from '@discordjs/voice';
+import { entersState, VoiceConnectionStatus } from '@discordjs/voice';
+import type { VoiceBasedChannel, TextChannel, User } from 'discord.js';
 import invariant from 'tiny-invariant';
 
 import { Meeting } from '@/models/meeting.js';
@@ -19,14 +19,6 @@ export async function createMeeting({
 	textChannel: TextChannel;
 	userDiscordId: string;
 }) {
-	const connection = joinVoiceChannel({
-		channelId: voiceChannel.id,
-		guildId: guildId,
-		selfDeaf: false,
-		selfMute: false,
-		adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-	});
-
 	const newMeetingMessage = await Meeting.sendMeetingMessage({ voiceChannel, textChannel });
 	if (!newMeetingMessage) {
 		throw new Error('I am having trouble starting a meeting. Please try again in a little bit!');
@@ -53,33 +45,21 @@ export async function createMeeting({
 
 		// Add meeting to Teno
 		teno.addMeeting(newMeeting);
-
-		// Play a sound to indicate that the bot has joined the channel
-		// await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
-
-		// Start listening
-		return startListening({
-			voiceChannel,
-			connection,
-			meeting: newMeeting,
-			onError: async () =>
-				await textChannel.send('Failed to join voice channel within 20 seconds, please try again later!'),
-		});
 	} catch (e) {
 		console.error(e);
 	}
 }
 
-async function startListening({
+export async function startListening({
 	voiceChannel,
 	connection,
-	meeting,
 	onError,
+	onVoiceReceiver,
 }: {
 	connection: VoiceConnection;
 	voiceChannel: VoiceBasedChannel;
-	meeting: Meeting;
 	onError?: (error: Error) => void;
+	onVoiceReceiver: (payload: { user: User; receiver: VoiceReceiver }) => void;
 }) {
 	try {
 		await entersState(connection, VoiceConnectionStatus.Ready, 20e3);
@@ -105,13 +85,8 @@ async function startListening({
 		const receiver = connection.receiver;
 
 		receiver.speaking.on('start', async (userId) => {
-			if (!meeting.isSpeaking(userId) && !meeting.isIgnored(userId)) {
-				const user = await voiceChannel.client.users.fetch(userId);
-				if (!user) return;
-				meeting.addSpeaking(userId);
-				meeting.addMember(userId, user.username, user.discriminator);
-				meeting.createUtterance(receiver, userId);
-			}
+			const user = await voiceChannel.client.users.fetch(userId);
+			onVoiceReceiver?.({ user, receiver });
 		});
 	} catch (error) {
 		onError?.(error as Error);

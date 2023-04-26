@@ -1,7 +1,8 @@
+import type { AudioPlayer } from '@discordjs/voice';
 import { createAudioPlayer } from '@discordjs/voice';
 import type { VoiceService } from 'database';
 import { Subject } from 'rxjs';
-import { filter, map, buffer, concatMap, mergeMap } from 'rxjs/operators';
+import { filter, map, buffer, concatMap, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { getArrayBufferFromText, playArrayBuffer, playFilePath } from '@/services/textToSpeech.js';
 import type { TTSParams } from '@/services/textToSpeech.js';
@@ -15,6 +16,8 @@ export class VoicePipeline {
 	private teno: Teno;
 	private meeting: Meeting;
 	private onEnd: () => void;
+	private audioPlayer: AudioPlayer = createAudioPlayer();
+	private stopped$ = new Subject<boolean>();
 
 	constructor({ teno, meeting, onEnd }: { teno: Teno; meeting: Meeting; onEnd: () => void }) {
 		this.teno = teno;
@@ -28,7 +31,9 @@ export class VoicePipeline {
 	}
 
 	public getAudioPlayer() {
-		return createAudioPlayer();
+		this.audioPlayer = createAudioPlayer();
+
+		return this.audioPlayer;
 	}
 
 	private createSentencesStream() {
@@ -60,7 +65,7 @@ export class VoicePipeline {
 				return createAudioBufferFromSentence(sentence);
 			}),
 
-			// TODO: add a step to inteject and trash buffers if Teno should stop speaking
+			takeUntil(this.stopped$),
 
 			// play the audio buffers, one at a time
 			concatMap(async (audioBuffer) => {
@@ -75,12 +80,14 @@ export class VoicePipeline {
 		const sub = sentences$.subscribe({
 			error: (err) => console.error(`Error completing voice pipeline: ${err}`),
 			complete: () => {
+				console.log('COMPLETING STREAM');
+				sub.unsubscribe();
+
+				// play ending bloops
+				playFilePath(createAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
+
 				// let responder speak again
 				this.onEnd();
-				// play ending bloops
-				playFilePath(this.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
-
-				sub.unsubscribe();
 				console.log('voice pipeline complete');
 			},
 		});
@@ -141,4 +148,11 @@ export class VoicePipeline {
 	public getCachedVoiceConfig() {
 		return this.teno.getVoiceService() as Omit<VoiceService, 'service'> & { service: 'azure' | 'elevenlabs' };
 	}
+
+	stopAudio = () => {
+		console.log('STOPPING AUDIO');
+		this.audioPlayer.stop();
+		this.stopped$.next(true);
+		this.complete();
+	};
 }

@@ -186,7 +186,12 @@ export async function playArrayBuffer(
 	connection: VoiceConnection | undefined,
 	service: TTSParams['service'],
 ): Promise<void> {
-	invariant(connection, 'No voice connection found');
+	try {
+		invariant(connection, 'No voice connection found');
+	} catch {
+		console.error('No voice connection found');
+		return;
+	}
 
 	let b = arrayBuffer;
 	if (service === 'azure') {

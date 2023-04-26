@@ -1,6 +1,7 @@
 import type { VoiceReceiver } from '@discordjs/voice';
+import { joinVoiceChannel } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
-import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import type { Client, TextChannel, VoiceBasedChannel, VoiceChannel, VoiceState } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
 import { channelMention } from 'discord.js';
@@ -11,8 +12,9 @@ import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
+import { generateMeetingName } from '@/services/langchain.js';
 
+import { TranscriptionPipeline } from './transcriptionPipeline.js';
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
@@ -58,6 +60,7 @@ export class Meeting {
 	private name: string;
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
+	private transcriptionPipeline: TranscriptionPipeline | undefined;
 
 	private constructor({
 		guildId,
@@ -95,7 +98,26 @@ export class Meeting {
 		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
 
 		this.renderMeetingMessage();
+		this.setupConnection();
 	}
+
+	setupConnection = () => {
+		const voiceChannel = this.getVoiceChannel();
+		if (voiceChannel) {
+			joinVoiceChannel({
+				channelId: this.voiceChannelId,
+				guildId: this.guildId,
+				selfDeaf: false,
+				selfMute: false,
+				adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+			});
+
+			this.transcriptionPipeline = new TranscriptionPipeline({
+				meeting: this,
+				teno: this.teno,
+			});
+		}
+	};
 
 	static async load(args: MeetingLoadArgs) {
 		try {
@@ -275,18 +297,12 @@ export class Meeting {
 		const user = this.client.users.cache.get(userId);
 		if (!user) {
 			console.error('User not found.');
-			return;
+			return Promise.resolve(null);
 		}
 
-		const utterance = new Utterance(
-			receiver,
-			userId,
-			user.username,
-			this.secondsSinceStart(),
-			this.onRecordingEnd.bind(this),
-			this.onTranscriptionComplete.bind(this),
-		);
-		utterance.process();
+		const utterance = new Utterance(receiver, userId, user.username, this.secondsSinceStart());
+
+		return utterance.process();
 	}
 
 	/**
@@ -301,7 +317,7 @@ export class Meeting {
 	 * Called when an utterance has finished recording
 	 * @param utterance The utterance that has finished recording
 	 */
-	private onRecordingEnd(utterance: Utterance): void {
+	public onRecordingEnd(utterance: Utterance): void {
 		this.stoppedSpeaking(utterance.userId);
 	}
 
@@ -310,7 +326,7 @@ export class Meeting {
 	 * @param utterance The utterance to write to the meeting's transcript
 	 * @returns A promise that resolves when the utterance has been written to the transcript
 	 */
-	private async writeToTranscript(utterance: Utterance): Promise<void> {
+	public async writeToTranscript(utterance: Utterance): Promise<void> {
 		if (utterance.textContent) {
 			await this.transcript.addUtterance(utterance);
 		} else {
@@ -322,13 +338,13 @@ export class Meeting {
 	 * Called when an utterance has been transcribed
 	 * @param utterance The utterance that has been transcribed
 	 */
-	private async onTranscriptionComplete(utterance: Utterance) {
-		if (!this.isIgnored(utterance.userId)) {
-			this.writeToTranscript(utterance);
-			// Respond to the transcript if the bot is expected to respond
-			this.teno.getResponder().respondOnUtteranceIfAble(utterance, this);
-		}
-	}
+	// private async onTranscriptionComplete(utterance: Utterance) {
+	// 	if (!this.isIgnored(utterance.userId)) {
+	// 		this.writeToTranscript(utterance);
+	// 		// Respond to the transcript if the bot is expected to respond
+	// 		this.teno.getResponder().respondOnUtteranceIfAble(utterance, this);
+	// 	}
+	// }
 
 	public addBotLine(answer: string, botName: string) {
 		const timestamp = Date.now();
@@ -341,6 +357,10 @@ export class Meeting {
 		);
 
 		this.transcript.appendTranscript(transcriptLine, timestamp);
+	}
+
+	public getVoiceChannel() {
+		return this.client.channels.cache.get(this.voiceChannelId) as VoiceChannel | undefined;
 	}
 
 	/**
@@ -591,6 +611,7 @@ export class Meeting {
 		this.clearSpeaking();
 		this.teno.getResponder().stopSpeaking();
 		this.teno.getResponder().stopThinking();
+		this.transcriptionPipeline?.complete();
 		await this.teno.syncSpeechOn();
 		this.teno.setActiveMeeting(null);
 	}

@@ -16,6 +16,7 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 			text: string;
 			durationS: number;
 	  }
+	| 'STOP'
 	| undefined
 > {
 	if (!audioBuffer.length) {
@@ -25,8 +26,26 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 	try {
 		const response = await deepgram.transcription.preRecorded(
 			{ buffer: audioBuffer, mimetype },
-			{ punctuate: true, model: 'general', language: 'en-US', tier: 'nova', keywords: ['Teno', 'stop'] },
+			{
+				punctuate: true,
+				model: 'general',
+				language: 'en-US',
+				tier: 'nova',
+				keywords: ['Teno', 'stop'],
+				search: ['stop'],
+			},
 		);
+
+		const stopText = response.results?.channels[0]?.search?.find(({ query }) => query === 'stop');
+		if (stopText) {
+			const confidence = (stopText?.hits?.[0]?.confidence ?? 0) * 100 > 70;
+			console.log('Confidence', confidence, stopText?.hits?.[0]?.confidence ?? 0, stopText?.hits?.[0]?.snippet);
+
+			if (confidence) {
+				return 'STOP';
+			}
+		}
+
 		// Return transcription as continuous string
 		const resultText = response.results?.channels[0]?.alternatives[0]?.transcript;
 		if (resultText) {

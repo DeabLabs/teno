@@ -1,7 +1,6 @@
 import type { Client } from 'discord.js';
 import type { PrismaClientType, VoiceService } from 'database';
 import { usageQueries } from 'database';
-import type { AudioPlayer } from '@discordjs/voice';
 import { createAudioPlayer } from '@discordjs/voice';
 
 import type { RedisClient } from '@/bot.js';
@@ -21,7 +20,7 @@ export class Responder {
 	private prismaClient: PrismaClientType;
 	private speaking = false;
 	private thinking = false;
-	private audioPlayer: AudioPlayer = createAudioPlayer();
+	private voicePipeline: VoicePipeline | undefined;
 
 	constructor({
 		teno,
@@ -67,7 +66,7 @@ export class Responder {
 	stopResponding = () => {
 		this.stopSpeaking();
 		this.stopThinking();
-		this.audioPlayer.stop();
+		this.voicePipeline?.stopAudio();
 	};
 
 	respondOnUtteranceIfAble = async (utterance: Utterance, meeting: Meeting) => {
@@ -79,7 +78,7 @@ export class Responder {
 
 				if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
 					if (!this.isSpeaking()) {
-						this.respondToTranscript(meeting);
+						await this.respondToTranscript(meeting);
 					}
 				} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
 					this.stopResponding();
@@ -100,13 +99,13 @@ export class Responder {
 		// play starting boops
 		playFilePath(createAudioPlayer(), startTalkingBoops(), meeting.getConnection());
 
-		const voicePipeline = new VoicePipeline({ teno: this.teno, meeting, onEnd });
+		this.voicePipeline = new VoicePipeline({ teno: this.teno, meeting, onEnd });
 
 		const answerOutput = await chimeInOnTranscript(
 			await meeting.getTranscript().getCleanedTranscript(),
 			'gpt-3.5-turbo',
-			voicePipeline.onNewToken,
-			voicePipeline.complete,
+			this.voicePipeline.onNewToken,
+			this.voicePipeline.complete,
 		);
 
 		if (answerOutput.status === 'success') {
