@@ -10,6 +10,7 @@ import { checkLinesForVoiceActivation, chimeInOnTranscript } from '@/services/la
 import { playFilePath } from '@/services/textToSpeech.js';
 import { startTalkingBoops } from '@/services/audioResources.js';
 
+import type { Utterance } from './utterance.js';
 import type { Meeting } from './meeting.js';
 import type { Teno } from './teno.js';
 import { VoicePipeline } from './voicePipeline.js';
@@ -69,6 +70,24 @@ export class Responder {
 		this.audioPlayer.stop();
 	};
 
+	respondOnUtteranceIfAble = async (utterance: Utterance, meeting: Meeting) => {
+		if (utterance.textContent && utterance.textContent.length > 0) {
+			const speechOn = this.teno.getSpeechOn();
+			if (speechOn) {
+				// should the bot respond or should it stop talking?
+				const botAnalysis = await this.isBotResponseExpected(meeting);
+
+				if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
+					if (!this.isSpeaking()) {
+						this.respondToTranscript(meeting);
+					}
+				} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
+					this.stopResponding();
+				}
+			}
+		}
+	};
+
 	public async respondToTranscript(meeting: Meeting): Promise<void> {
 		this.startSpeaking();
 		this.startThinking();
@@ -81,10 +100,8 @@ export class Responder {
 		// play starting boops
 		playFilePath(createAudioPlayer(), startTalkingBoops(), meeting.getConnection());
 
-		console.log('making voice pipeline');
 		const voicePipeline = new VoicePipeline({ teno: this.teno, meeting, onEnd });
 
-		console.log('starting openai stream');
 		const answerOutput = await chimeInOnTranscript(
 			await meeting.getTranscript().getCleanedTranscript(),
 			'gpt-3.5-turbo',
@@ -92,15 +109,13 @@ export class Responder {
 			voicePipeline.complete,
 		);
 
-		console.log('closed openai stream');
-
 		if (answerOutput.status === 'success') {
 			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
 			meeting.addBotLine(answerOutput.answer, 'Teno');
 		}
 	}
 
-	public async isBotResponseExpected(meeting: Meeting): Promise<ACTIVATION_COMMAND> {
+	private async isBotResponseExpected(meeting: Meeting): Promise<ACTIVATION_COMMAND> {
 		const numCheckLines = 10; // Set this value to modulate how many lines you want to check
 
 		const vConfig = this.getCachedVoiceConfig();

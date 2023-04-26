@@ -326,25 +326,7 @@ export class Meeting {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
 			// Respond to the transcript if the bot is expected to respond
-			if (utterance.textContent && utterance.textContent.length > 0) {
-				const speechOn = this.teno.getSpeechOn();
-				if (speechOn) {
-					const responder = this.teno.getResponder();
-					// should the bot respond or should it stop talking?
-					const botAnalysis = await responder.isBotResponseExpected(this);
-
-					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
-						console.log('should speak');
-						if (!responder.isSpeaking()) {
-							console.log('will speak');
-
-							responder.respondToTranscript(this);
-						}
-					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
-						responder.stopResponding();
-					}
-				}
-			}
+			this.teno.getResponder().respondOnUtteranceIfAble(utterance, this);
 		}
 	}
 
