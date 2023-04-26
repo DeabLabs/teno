@@ -1,21 +1,7 @@
-import { AudioPlayer, createAudioPlayer } from '@discordjs/voice';
+import { createAudioPlayer } from '@discordjs/voice';
 import type { VoiceService } from 'database';
-import type { Observable } from 'rxjs';
-import { from } from 'rxjs';
 import { Subject } from 'rxjs';
-import {
-	scan,
-	switchScan,
-	filter,
-	map,
-	mergeMap,
-	toArray,
-	mergeAll,
-	tap,
-	buffer,
-	flatMap,
-	switchMap,
-} from 'rxjs/operators';
+import { filter, map, buffer, concatMap } from 'rxjs/operators';
 
 import { getArrayBufferFromText, playArrayBuffer, playFilePath } from '@/services/textToSpeech.js';
 import type { TTSParams } from '@/services/textToSpeech.js';
@@ -23,12 +9,6 @@ import { endTalkingBoops } from '@/services/audioResources.js';
 
 import type { Teno } from './teno.js';
 import type { Meeting } from './meeting.js';
-
-interface Accumulator {
-	sentences: string[];
-	current: string;
-	bufferedToken: string | null;
-}
 
 export class VoicePipeline {
 	private tokens$ = new Subject<string>();
@@ -45,7 +25,6 @@ export class VoicePipeline {
 		this.createAudioBufferFromSentence = this.createAudioBufferFromSentence.bind(this);
 
 		this.createSentencesStream();
-		// this.processAndPlaySentences(sentences$);
 	}
 
 	public getAudioPlayer() {
@@ -70,27 +49,33 @@ export class VoicePipeline {
 			map((sentence) => {
 				return sentence.join('');
 			}),
+
+			// filter out empty sentences
 			filter((s) => !!s),
-			switchMap(async (sentence) => {
-				console.log('Playing sentence', sentence);
+
+			// Convert sentences to audio buffers, then play them
+			concatMap(async (sentence) => {
 				const audioBuffer = await createAudioBufferFromSentence(sentence);
 				if (audioBuffer) {
-					return await playAudioBuffer(audioBuffer, 'azure'); // Replace 'azure' with the appropriate service
+					const res = await playAudioBuffer(audioBuffer, this.getCachedVoiceConfig().service); // Replace 'azure' with the appropriate service
+
+					return res;
 				}
 			}),
 		);
-		return sentences$.subscribe({
-			error: (err) => console.error(`Error: ${err}`),
+
+		const sub = sentences$.subscribe({
+			error: (err) => console.error(`Error completing voice pipeline: ${err}`),
 			complete: () => {
+				// let responder speak again
 				this.onEnd();
+				// play ending bloops
 				playFilePath(this.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
-				console.log('complete');
+
+				sub.unsubscribe();
+				console.log('voice pipeline complete');
 			},
 		});
-	}
-
-	private processAndPlaySentences(sentences$: Observable<string>) {
-		const subscription = sentences$;
 	}
 
 	// Function to convert sentences to audio buffers

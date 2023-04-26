@@ -1,6 +1,5 @@
 import { ChatOpenAI } from 'langchain/chat_models';
 import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
-import type { LLMResult } from 'langchain/schema';
 import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
 import { CallbackManager } from 'langchain/callbacks';
 
@@ -9,9 +8,9 @@ import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
 class TenoCallbackHandler extends CallbackManager {
 	private tokenHandler: (token: string) => void;
-	private endHandler: (output: LLMResult) => void;
+	private endHandler: () => void;
 
-	constructor(tokenHandler: (token: string) => void, endHandler: (output: LLMResult) => void) {
+	constructor(tokenHandler: (token: string) => void, endHandler: () => void) {
 		super();
 		this.tokenHandler = tokenHandler;
 		this.endHandler = endHandler;
@@ -24,15 +23,15 @@ class TenoCallbackHandler extends CallbackManager {
 		});
 	}
 
-	override handleLLMEnd(output: LLMResult) {
-		this.endHandler(output);
+	override handleLLMEnd() {
+		this.endHandler();
 		return new Promise<void>((resolve) => {
 			resolve();
 		});
 	}
 
-	override handleLLMError(err: any, verbose?: boolean | undefined): Promise<void> {
-		this.endHandler(err);
+	override handleLLMError(): Promise<void> {
+		this.endHandler();
 		return new Promise((resolve) => resolve());
 	}
 }
@@ -81,14 +80,15 @@ Each line also contains the user's name, how many seconds into the call they spo
 The transcript may include transcription errors, like mispelled words and broken sentences.
 If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
 You will read the transcript, then contribute to the conversation. Your response will be sent through a text to speech model and played to the users.
-If the last few lines of the transcript contain an open question, or a question directed specifically at you, answer the question.
-If there is no obvious question to answer, provide advice and/or analysis about the current topic of conversation as you see fit.
+If the transcript contains an open question directed specifically at you, answer the question.
+If there is no obvious question to answer, provide advice and/or analysis relvant to the current topic of conversation.
 Do NOT include phrases like "based on the transcript" or "according to the transcript" in your response.
 Do NOT include phrases like "enjoy your conversation", or "enjoy the..." or "I hope that helps your discussion" in your response.
 Do NOT include the username "Teno" or any timestamp (xx:xx) in your response.
 Do NOT summarize the transcript or rephrase the question in your response.
 Do NOT include superfluous phrases like "let me know if you have any other questions" or "feel free to ask me for anything else", or "ill do my best to assist you", or "If you'd like more information or have any other questions, feel free to ask." in your response.
 Try to keep your first sentence as short as possible, within reason. The sentence length of the rest of your response is up to you.
+Do not guess followup responses from other users in your response.
 Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
 Teno (xx:xx):`,

@@ -1,5 +1,4 @@
 import type { VoiceReceiver } from '@discordjs/voice';
-import { createAudioPlayer } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
 import { bold } from 'discord.js';
@@ -13,13 +12,10 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
-import { playFilePath } from '@/services/textToSpeech.js';
-import { startTalkingBoops } from '@/services/audioResources.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
-import { VoicePipeline } from './voicePipeline.js';
 
 type MeetingArgs = {
 	id: number;
@@ -62,8 +58,6 @@ export class Meeting {
 	private name: string;
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
-	private sentenceQueue: string[] = [];
-	private voicePipeline: VoicePipeline;
 
 	private constructor({
 		guildId,
@@ -96,7 +90,6 @@ export class Meeting {
 		this.authorDiscordId = authorDiscordId;
 		this.name = name;
 		this.teno = teno;
-		this.voicePipeline = new VoicePipeline(this.teno, this);
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
@@ -333,7 +326,6 @@ export class Meeting {
 		if (!this.isIgnored(utterance.userId)) {
 			this.writeToTranscript(utterance);
 			// Respond to the transcript if the bot is expected to respond
-			// console.log(utterance.textContent);
 			if (utterance.textContent && utterance.textContent.length > 0) {
 				const speechOn = this.teno.getSpeechOn();
 				if (speechOn) {
@@ -345,7 +337,6 @@ export class Meeting {
 						console.log('should speak');
 						if (!responder.isSpeaking()) {
 							console.log('will speak');
-							playFilePath(createAudioPlayer(), startTalkingBoops(), this.getConnection());
 
 							responder.respondToTranscript(this);
 						}

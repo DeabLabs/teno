@@ -5,12 +5,10 @@ import type { AudioPlayer } from '@discordjs/voice';
 import { createAudioPlayer } from '@discordjs/voice';
 
 import type { RedisClient } from '@/bot.js';
-import type { TTSParams } from '@/services/textToSpeech.js';
-import { playFilePath } from '@/services/textToSpeech.js';
-import { playArrayBuffer, getArrayBufferFromText } from '@/services/textToSpeech.js';
 import { ACTIVATION_COMMAND } from '@/services/langchain.js';
 import { checkLinesForVoiceActivation, chimeInOnTranscript } from '@/services/langchain.js';
-import { endTalkingBoops } from '@/services/audioResources.js';
+import { playFilePath } from '@/services/textToSpeech.js';
+import { startTalkingBoops } from '@/services/audioResources.js';
 
 import type { Meeting } from './meeting.js';
 import type { Teno } from './teno.js';
@@ -22,7 +20,6 @@ export class Responder {
 	private prismaClient: PrismaClientType;
 	private speaking = false;
 	private thinking = false;
-	// private sentenceQueue: SentenceQueue | null = null;
 	private audioPlayer: AudioPlayer = createAudioPlayer();
 
 	constructor({
@@ -69,30 +66,25 @@ export class Responder {
 	stopResponding = () => {
 		this.stopSpeaking();
 		this.stopThinking();
-		// this.sentenceQueue?.destroy();
-		// this.sentenceQueue = null;
 		this.audioPlayer.stop();
 	};
 
 	public async respondToTranscript(meeting: Meeting): Promise<void> {
 		this.startSpeaking();
 		this.startThinking();
-		// this.sentenceQueue = new SentenceQueue(this, meeting);
 
 		const onEnd = () => {
 			this.stopThinking();
 			this.stopSpeaking();
 		};
 
+		// play starting boops
+		playFilePath(createAudioPlayer(), startTalkingBoops(), meeting.getConnection());
+
 		console.log('making voice pipeline');
 		const voicePipeline = new VoicePipeline({ teno: this.teno, meeting, onEnd });
 
-		// const onNewToken = async (token: string) => {
-		// 	if (this.sentenceQueue) {
-		// 		await this.sentenceQueue.handleNewToken(token);
-		// 	}
-		// };
-
+		console.log('starting openai stream');
 		const answerOutput = await chimeInOnTranscript(
 			await meeting.getTranscript().getCleanedTranscript(),
 			'gpt-3.5-turbo',
@@ -100,7 +92,7 @@ export class Responder {
 			voicePipeline.complete,
 		);
 
-		console.log('created openai stream');
+		console.log('closed openai stream');
 
 		if (answerOutput.status === 'success') {
 			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
@@ -139,108 +131,3 @@ export class Responder {
 		return this.thinking;
 	}
 }
-
-type SentenceAudio = {
-	sentence: string;
-	audioBuffer: Promise<ArrayBuffer | null>;
-};
-
-// class SentenceQueue {
-// 	private queue: SentenceAudio[] = [];
-// 	private currentSentence = '';
-
-// 	constructor(private responder: Responder, private meeting: Meeting) {}
-
-// 	public destroy() {
-// 		this.queue = [];
-// 		this.currentSentence = '';
-// 	}
-
-// 	public async handleNewToken(token: string): Promise<void> {
-// 		const splitTokens = ['.', '?', '!', ':', ';'];
-// 		this.currentSentence = `${this.currentSentence}${token}`;
-
-// 		if (splitTokens.some((splitToken) => token.includes(splitToken))) {
-// 			const tempSentence = this.currentSentence;
-// 			this.currentSentence = '';
-// 			this.enqueueSentence(tempSentence.trim());
-
-// 			if (this.queue.length === 1) {
-// 				this.playNextSentence();
-// 			}
-// 		}
-// 	}
-
-// 	private async playNextSentence(): Promise<void> {
-// 		if (this.queue.length > 0) {
-// 			console.time('respondToTranscript');
-// 			const sentenceAudio = this.queue[0];
-// 			const vConfig = this.responder.getCachedVoiceConfig();
-// 			if (sentenceAudio && sentenceAudio.audioBuffer && vConfig !== null) {
-// 				// console.log('Playing sentence: ' + sentenceAudio.sentence);
-// 				const buffer = await sentenceAudio.audioBuffer;
-// 				if (buffer) {
-// 					await this.playAudioBuffer(this.responder.getAudioPlayer(), buffer, vConfig.service);
-// 				}
-// 				this.queue.shift();
-// 				return await this.playNextSentence();
-// 			}
-// 		}
-
-// 		if (!this.responder.isThinking() && this.queue.length === 0) {
-// 			this.responder.stopSpeaking();
-
-// 			await playFilePath(this.responder.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
-// 		}
-// 	}
-
-// 	private enqueueSentence(sentence: string): void {
-// 		const audioBuffer = this.createAudioBufferFromSentence(sentence);
-// 		this.queue.push({ sentence, audioBuffer });
-// 	}
-
-// 	private async createAudioBufferFromSentence(sentence: string): Promise<ArrayBuffer | null> {
-// 		const vConfig = this.responder.getTeno().getVoiceService();
-// 		const service = vConfig?.service;
-// 		if (vConfig) {
-// 			try {
-// 				switch (service) {
-// 					case 'azure':
-// 						return await getArrayBufferFromText({
-// 							service,
-// 							apiKey: vConfig.apiKey,
-// 							text: sentence,
-// 						});
-// 					case 'elevenlabs':
-// 						return await getArrayBufferFromText({
-// 							service,
-// 							apiKey: vConfig.apiKey,
-// 							text: sentence,
-// 							voiceId: vConfig.voiceKey,
-// 						});
-// 					default:
-// 						throw new Error('Invalid voice service');
-// 				}
-// 			} catch (error) {
-// 				console.error('Error converting text to speech:', error);
-// 			}
-// 		}
-// 		return null;
-// 	}
-
-// 	private async playAudioBuffer(
-// 		audioPlayer: AudioPlayer,
-// 		audioBuffer: ArrayBuffer,
-// 		service: TTSParams['service'],
-// 	): Promise<void> {
-// 		const vConfig = this.responder.getCachedVoiceConfig();
-// 		if (vConfig) {
-// 			try {
-// 				await playArrayBuffer(audioPlayer, audioBuffer, this.meeting.getConnection(), service);
-// 			} catch (error) {
-// 				console.error('Error playing audio:', error);
-// 			}
-// 		}
-// 		return;
-// 	}
-// }
