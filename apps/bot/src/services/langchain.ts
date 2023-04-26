@@ -8,23 +8,32 @@ import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
 
 class TenoCallbackHandler extends CallbackManager {
-	private tokenHandler: (token: string) => Promise<void>;
+	private tokenHandler: (token: string) => void;
 	private endHandler: (output: LLMResult) => void;
 
-	constructor(tokenHandler: (token: string) => Promise<void>, endHandler: (output: LLMResult) => void) {
+	constructor(tokenHandler: (token: string) => void, endHandler: (output: LLMResult) => void) {
 		super();
 		this.tokenHandler = tokenHandler;
 		this.endHandler = endHandler;
 	}
 
-	override async handleLLMNewToken(token: string): Promise<void> {
-		return await this.tokenHandler(token);
+	override handleLLMNewToken(token: string) {
+		this.tokenHandler(token);
+		return new Promise<void>((resolve) => {
+			resolve();
+		});
 	}
 
-	override handleLLMEnd(output: LLMResult): Promise<void> {
-		return new Promise((resolve) => {
-			resolve(this.endHandler(output));
+	override handleLLMEnd(output: LLMResult) {
+		this.endHandler(output);
+		return new Promise<void>((resolve) => {
+			resolve();
 		});
+	}
+
+	override handleLLMError(err: any, verbose?: boolean | undefined): Promise<void> {
+		this.endHandler(err);
+		return new Promise((resolve) => resolve());
 	}
 }
 
@@ -194,7 +203,7 @@ export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACT
 export async function chimeInOnTranscript(
 	transcriptLines: string[],
 	model: SupportedModels,
-	onNewToken?: (token: string) => Promise<void>,
+	onNewToken?: (token: string) => void,
 	onEnd?: () => void,
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string

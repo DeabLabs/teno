@@ -199,7 +199,7 @@ export async function playArrayBuffer(
 	const audioResource = createAudioResource(bufferStream);
 
 	audioPlayer.play(audioResource);
-	console.timeEnd('respondToTranscript');
+
 	const sub = connection.subscribe(audioPlayer);
 
 	return new Promise((resolve, reject) => {

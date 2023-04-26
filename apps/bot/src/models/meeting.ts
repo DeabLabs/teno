@@ -1,4 +1,5 @@
 import type { VoiceReceiver } from '@discordjs/voice';
+import { createAudioPlayer } from '@discordjs/voice';
 import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
 import { bold } from 'discord.js';
@@ -18,6 +19,7 @@ import { startTalkingBoops } from '@/services/audioResources.js';
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
 import { Utterance } from './utterance.js';
+import { VoicePipeline } from './voicePipeline.js';
 
 type MeetingArgs = {
 	id: number;
@@ -61,6 +63,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private sentenceQueue: string[] = [];
+	private voicePipeline: VoicePipeline;
 
 	private constructor({
 		guildId,
@@ -93,6 +96,7 @@ export class Meeting {
 		this.authorDiscordId = authorDiscordId;
 		this.name = name;
 		this.teno = teno;
+		this.voicePipeline = new VoicePipeline(this.teno, this);
 
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
@@ -333,21 +337,21 @@ export class Meeting {
 			if (utterance.textContent && utterance.textContent.length > 0) {
 				const speechOn = this.teno.getSpeechOn();
 				if (speechOn) {
-					console.time('onTranscriptionComplete');
 					const responder = this.teno.getResponder();
 					// should the bot respond or should it stop talking?
 					const botAnalysis = await responder.isBotResponseExpected(this);
 
 					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
+						console.log('should speak');
 						if (!responder.isSpeaking()) {
-							playFilePath(responder.getAudioPlayer(), startTalkingBoops(), this.getConnection());
+							console.log('will speak');
+							playFilePath(createAudioPlayer(), startTalkingBoops(), this.getConnection());
 
 							responder.respondToTranscript(this);
 						}
 					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
 						responder.stopResponding();
 					}
-					console.timeEnd('onTranscriptionComplete');
 				}
 			}
 		}
