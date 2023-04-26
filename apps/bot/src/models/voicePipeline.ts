@@ -1,7 +1,7 @@
 import { createAudioPlayer } from '@discordjs/voice';
 import type { VoiceService } from 'database';
 import { Subject } from 'rxjs';
-import { filter, map, buffer, concatMap } from 'rxjs/operators';
+import { filter, map, buffer, concatMap, mergeMap } from 'rxjs/operators';
 
 import { getArrayBufferFromText, playArrayBuffer, playFilePath } from '@/services/textToSpeech.js';
 import type { TTSParams } from '@/services/textToSpeech.js';
@@ -37,6 +37,8 @@ export class VoicePipeline {
 		const splitTokens = ['.', '?', '!', ':', ';'];
 		const sentences$ = this.tokens$.pipe(
 			// Accumulate tokens until an end character is found
+			// this will create multiple sentences, releasing one at a time as they are completed
+			// TODO: buffer until we hit an end character then a newline or space OR buffer until there are no more tokens
 			buffer(
 				this.tokens$.pipe(
 					filter((token: string) => {
@@ -45,7 +47,7 @@ export class VoicePipeline {
 				),
 			),
 
-			// Process the tokens and emit the sentences
+			// Process the tokens into a sentence
 			map((sentence) => {
 				return sentence.join('');
 			}),
@@ -53,11 +55,17 @@ export class VoicePipeline {
 			// filter out empty sentences
 			filter((s) => !!s),
 
-			// Convert sentences to audio buffers, then play them
-			concatMap(async (sentence) => {
-				const audioBuffer = await createAudioBufferFromSentence(sentence);
+			// Convert sentences to audio buffers, concurrently
+			mergeMap((sentence) => {
+				return createAudioBufferFromSentence(sentence);
+			}),
+
+			// TODO: add a step to inteject and trash buffers if Teno should stop speaking
+
+			// play the audio buffers, one at a time
+			concatMap(async (audioBuffer) => {
 				if (audioBuffer) {
-					const res = await playAudioBuffer(audioBuffer, this.getCachedVoiceConfig().service); // Replace 'azure' with the appropriate service
+					const res = await playAudioBuffer(audioBuffer, this.getCachedVoiceConfig().service);
 
 					return res;
 				}
