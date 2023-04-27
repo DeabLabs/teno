@@ -42,6 +42,11 @@ type MeetingLoadArgs = Omit<MeetingArgs, 'id' | 'transcript' | 'startTime' | 'na
 	redisClient: RedisClient;
 };
 
+export type Persona = {
+	name: string;
+	description: string;
+};
+
 export class Meeting {
 	private prismaClient: PrismaClientType;
 	private guildId: string;
@@ -60,7 +65,7 @@ export class Meeting {
 	private name: string;
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
-	private sentenceQueue: string[] = [];
+	private persona: Persona | null = null;
 
 	private constructor({
 		guildId,
@@ -288,6 +293,7 @@ export class Meeting {
 			this.secondsSinceStart(),
 			this.onRecordingEnd.bind(this),
 			this.onTranscriptionComplete.bind(this),
+			this,
 		);
 		utterance.process();
 	}
@@ -339,6 +345,7 @@ export class Meeting {
 					const botAnalysis = await responder.isBotResponseExpected(this);
 
 					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
+						console.log('isSpeaking:' + responder.isSpeaking());
 						if (!responder.isSpeaking()) {
 							playFilePath(responder.getAudioPlayer(), startTalkingBoops(), this.getConnection());
 
@@ -644,7 +651,7 @@ export class Meeting {
 		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
 
-		const resolved = await generateMeetingName(transcript);
+		const resolved = await generateMeetingName(transcript, 'gpt-4');
 
 		if (resolved.status === 'success') {
 			usageQueries.createUsageEvent(this.prismaClient, {
@@ -656,5 +663,20 @@ export class Meeting {
 			});
 		}
 		return resolved;
+	}
+
+	public setPersona(persona: Persona) {
+		this.persona = persona;
+	}
+
+	public turnPersonaOff() {
+		this.persona = null;
+	}
+
+	public getPersona(): Persona | null {
+		if (this.persona) {
+			return this.persona;
+		}
+		return null;
 	}
 }

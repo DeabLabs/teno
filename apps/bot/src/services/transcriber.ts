@@ -11,7 +11,12 @@ const mimetype = 'audio/ogg';
 const deepgramToken = Config.DEEPGRAM;
 const deepgram = new Deepgram(deepgramToken);
 
-export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promise<
+const defaultKeywords = ['stop', 'quiet'];
+
+export async function deepgramPrerecordedTranscribe(
+	audioBuffer: Buffer,
+	keywords: string[] = [],
+): Promise<
 	| {
 			text: string;
 			durationS: number;
@@ -25,7 +30,13 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 	try {
 		const response = await deepgram.transcription.preRecorded(
 			{ buffer: audioBuffer, mimetype },
-			{ punctuate: true, model: 'general', language: 'en-US', tier: 'nova', keywords: ['Teno', 'stop'] },
+			{
+				punctuate: true,
+				model: 'general',
+				language: 'en-US',
+				tier: 'nova',
+				keywords: [...defaultKeywords, ...keywords],
+			},
 		);
 		// Return transcription as continuous string
 		const resultText = response.results?.channels[0]?.alternatives[0]?.transcript;

@@ -216,7 +216,7 @@ async function handleAskMeetingModal(interaction: ModalSubmitInteraction, teno: 
 		const transcriptLines = await transcript?.getCleanedTranscript();
 		invariant(transcriptLines);
 		const questionWithUsername = `${interaction.user.username}: ${question}`;
-		const answerOutput = await answerQuestionOnTranscript(questionWithUsername, transcriptLines);
+		const answerOutput = await answerQuestionOnTranscript(questionWithUsername, transcriptLines, 'gpt-4');
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);

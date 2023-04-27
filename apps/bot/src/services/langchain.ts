@@ -1,32 +1,11 @@
-import { ChatOpenAI } from 'langchain/chat_models';
+import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatPromptTemplate, HumanMessagePromptTemplate } from 'langchain/prompts';
 import type { LLMResult } from 'langchain/schema';
 import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
-import { CallbackManager } from 'langchain/callbacks';
+import { BaseCallbackHandler } from 'langchain/callbacks';
 
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
-
-class TenoCallbackHandler extends CallbackManager {
-	private tokenHandler: (token: string) => Promise<void>;
-	private endHandler: (output: LLMResult) => void;
-
-	constructor(tokenHandler: (token: string) => Promise<void>, endHandler: (output: LLMResult) => void) {
-		super();
-		this.tokenHandler = tokenHandler;
-		this.endHandler = endHandler;
-	}
-
-	override async handleLLMNewToken(token: string): Promise<void> {
-		return await this.tokenHandler(token);
-	}
-
-	override handleLLMEnd(output: LLMResult): Promise<void> {
-		return new Promise((resolve) => {
-			resolve(this.endHandler(output));
-		});
-	}
-}
 
 const gptFour = new ChatOpenAI({
 	temperature: 0.9,
@@ -47,7 +26,30 @@ const models = {
 	'gpt-3.5-turbo': gptTurbo,
 } as const;
 
+const modelTokenLimits = {
+	'gpt-4': 8000,
+	'gpt-3.5-turbo': 4000,
+} as const;
+
 export type SupportedModels = keyof typeof models;
+
+const attachStreamingTokenHandler = (
+	llm: ChatOpenAI,
+	onNewToken?: (token: string) => Promise<void>,
+	onEnd?: () => void,
+) => {
+	if (onNewToken && onEnd) {
+		const handler = BaseCallbackHandler.fromMethods({
+			handleLLMNewToken(token: string) {
+				onNewToken(token);
+			},
+			handleLLMEnd() {
+				onEnd();
+			},
+		});
+		llm.callbacks = [handler];
+	}
+};
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
@@ -83,6 +85,23 @@ Try to keep your first sentence as short as possible, within reason. The sentenc
 Here is the transcript up to the moment the user asked you to chime in, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
 Teno (xx:xx):`,
+	),
+]);
+
+const personaChimeInTemplate = ChatPromptTemplate.fromPromptMessages([
+	HumanMessagePromptTemplate.fromTemplate(
+		`You are an experienced and committed actor, and you will be given a description of the character you will play. Then, you will be given a rough transcript of a voice call.
+The transcript contains one or many speakers, with each speaker's speaking turns separated by a newline.
+Each line also contains the speaker's name, how many seconds into the call they spoke, and the text they spoke.
+The transcript may include transcription errors, like mispelled words and broken sentences. You can infer the speaker's intent from the context of the conversation.
+You will read the transcript, then write your response based on the most recent part of the conversation.
+Your response will be sent through a text to speech model and played to the other speakers.
+The character you will be playing today is {personaName}.
+This is a descrition of {personaName}, which may include some of their personality traits, their interests, their background, and samples of their speech patterns:
+{personaDescription}
+Write a response to the most recent part of the transcript below, surrounded by \`\`\`:
+\`\`\`{transcript}\`\`\`
+{personaName} (xx:xx):`,
 	),
 ]);
 
@@ -125,7 +144,10 @@ export type AnswerOutput =
 export async function answerQuestionOnTranscript(
 	conversationHistory: string | string[],
 	transcriptLines: string[],
+	model: SupportedModels,
 ): Promise<AnswerOutput> {
+	const llm = models[model];
+
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
@@ -150,14 +172,14 @@ export async function answerQuestionOnTranscript(
 	// Append the conversation history messages to the secretary messages
 	const fullPrompt = secretaryMessages.concat(conversationMessages);
 
-	const answer = await gptFour.generate([fullPrompt]);
+	const answer = await llm.generate([fullPrompt]);
 
 	return {
 		status: 'success',
 		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
 		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
 		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
-		languageModel: gptFour.modelName,
+		languageModel: llm.modelName,
 	};
 }
 
@@ -167,11 +189,16 @@ export enum ACTIVATION_COMMAND {
 	PASS,
 }
 
-export async function checkLinesForVoiceActivation(lines: string[]): Promise<ACTIVATION_COMMAND> {
+export async function checkLinesForVoiceActivation(
+	lines: string[],
+	model: SupportedModels,
+	botName: string,
+): Promise<ACTIVATION_COMMAND> {
+	const llm = models[model];
 	const joinedLines = lines.join('\n');
-	const answer = await gptFour.generatePrompt([
+	const answer = await llm.generatePrompt([
 		await voiceActivationTemplate.formatPromptValue({
-			botName: `Teno`,
+			botName: botName,
 			lines: joinedLines,
 		}),
 	]);
@@ -203,16 +230,12 @@ export async function chimeInOnTranscript(
 	}
 
 	const llm = models[model];
-	const originalCallbackManager = llm.callbackManager;
-
-	if (onNewToken && onEnd) {
-		llm.callbackManager = new TenoCallbackHandler(onNewToken, onEnd);
-	}
+	attachStreamingTokenHandler(llm, onNewToken, onEnd);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
 		chimeInTemplate.promptMessages.join(''),
-		llm.maxTokens,
+		modelTokenLimits[model],
 		500,
 	).join('\n');
 
@@ -223,27 +246,74 @@ export async function chimeInOnTranscript(
 	]);
 
 	// Restore the original callback manager
-	llm.callbackManager = originalCallbackManager;
+	// llm.callbacks = [];
 
 	return {
 		status: 'success',
 		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
 		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
 		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
-		languageModel: gptTurbo.modelName,
+		languageModel: llm.modelName,
 	};
 }
 
-export async function generateMeetingName(transcriptLines: string[]): Promise<AnswerOutput> {
+export async function personaChimeInOnTranscript(
+	transcriptLines: string[],
+	personaName: string,
+	personaDescription: string,
+	model: SupportedModels,
+	onNewToken?: (token: string) => Promise<void>,
+	onEnd?: () => void,
+): Promise<AnswerOutput> {
+	// Return the contents of the file at the given filepath as a string
+	if (!transcriptLines || transcriptLines.length === 0) {
+		return { status: 'error', error: 'No transcript found' };
+	}
+
+	const llm = models[model];
+	attachStreamingTokenHandler(llm, onNewToken, onEnd);
+
+	console.log(modelTokenLimits[model]);
+
+	const shortenedTranscript = constrainLinesToTokenLimit(
+		transcriptLines,
+		chimeInTemplate.promptMessages.join(''),
+		llm.maxTokens,
+		500,
+	).join('\n');
+
+	const answer = await llm.generatePrompt([
+		await personaChimeInTemplate.formatPromptValue({
+			transcript: shortenedTranscript,
+			personaName: personaName,
+			personaDescription: personaDescription,
+		}),
+	]);
+
+	// Restore the original callback manager
+	llm.callbacks = [];
+
+	return {
+		status: 'success',
+		answer: answer.generations[0]?.[0]?.text.trim() ?? 'No answer found',
+		promptTokens: answer.llmOutput?.tokenUsage.promptTokens,
+		completionTokens: answer.llmOutput?.tokenUsage.completionTokens,
+		languageModel: llm.modelName,
+	};
+}
+
+export async function generateMeetingName(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
+	const llm = models[model];
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
 		meetingNamePrompt.promptMessages.join(''),
+		modelTokenLimits[model],
 	).join('\n');
 
-	const response = await gptFour.generatePrompt([
+	const response = await llm.generatePrompt([
 		await meetingNamePrompt.formatPromptValue({
 			transcript: shortenedTranscript,
 		}),
@@ -254,7 +324,7 @@ export async function generateMeetingName(transcriptLines: string[]): Promise<An
 		answer: response.generations[0]?.[0]?.text.trim() ?? 'No answer found',
 		promptTokens: response.llmOutput?.tokenUsage.promptTokens,
 		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
-		languageModel: gptFour.modelName,
+		languageModel: llm.modelName,
 	};
 }
 
