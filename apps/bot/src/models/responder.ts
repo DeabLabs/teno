@@ -23,6 +23,7 @@ export class Responder {
 	private thinking = false;
 	private sentenceQueue: SentenceQueue | null = null;
 	private audioPlayer: AudioPlayer = createAudioPlayer();
+	public playEndBoops = true;
 
 	constructor({
 		teno,
@@ -72,6 +73,7 @@ export class Responder {
 	}
 
 	public stopResponding() {
+		this.playEndBoops = false;
 		this.stopSpeaking();
 		this.stopThinking();
 		this.sentenceQueue?.destroy();
@@ -100,9 +102,9 @@ export class Responder {
 			onNewToken,
 			onEnd,
 		);
+
 		if (answerOutput.status === 'success') {
 			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
-			meeting.addBotLine(answerOutput.answer, 'Teno');
 		}
 	}
 
@@ -144,6 +146,7 @@ type SentenceAudio = {
 };
 
 class SentenceQueue {
+	private destroyed = false;
 	private queue: SentenceAudio[] = [];
 	private currentSentence = '';
 
@@ -152,6 +155,7 @@ class SentenceQueue {
 	public destroy() {
 		this.queue = [];
 		this.currentSentence = '';
+		this.destroyed = true;
 	}
 
 	public async handleNewToken(token: string): Promise<void> {
@@ -177,7 +181,8 @@ class SentenceQueue {
 			if (sentenceAudio && sentenceAudio.audioBuffer && vConfig !== null) {
 				// console.log('Playing sentence: ' + sentenceAudio.sentence);
 				const buffer = await sentenceAudio.audioBuffer;
-				if (buffer) {
+				if (buffer && !this.destroyed) {
+					this.meeting.addBotLine(sentenceAudio.sentence, 'Teno');
 					await this.playAudioBuffer(this.responder.getAudioPlayer(), buffer, vConfig.service);
 				}
 				this.queue.shift();
@@ -188,7 +193,11 @@ class SentenceQueue {
 		if (!this.responder.isThinking() && this.queue.length === 0) {
 			this.responder.stopSpeaking();
 
-			await playFilePath(this.responder.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
+			if (this.responder.playEndBoops) {
+				await playFilePath(this.responder.getAudioPlayer(), endTalkingBoops(), this.meeting.getConnection());
+			}
+
+			this.responder.playEndBoops = true;
 		}
 	}
 

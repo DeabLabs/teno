@@ -61,6 +61,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private sentenceQueue: string[] = [];
+	private activeUtterances = new Map<string, Utterance>();
 
 	private constructor({
 		guildId,
@@ -99,6 +100,10 @@ export class Meeting {
 
 		this.renderMeetingMessage();
 	}
+
+	getTeno = () => {
+		return this.teno;
+	};
 
 	static async load(args: MeetingLoadArgs) {
 		try {
@@ -286,9 +291,11 @@ export class Meeting {
 			userId,
 			user.username,
 			this.secondsSinceStart(),
+			this,
 			this.onRecordingEnd.bind(this),
 			this.onTranscriptionComplete.bind(this),
 		);
+		this.activeUtterances.set(userId, utterance);
 		utterance.process();
 	}
 
@@ -305,6 +312,7 @@ export class Meeting {
 	 * @param utterance The utterance that has finished recording
 	 */
 	private onRecordingEnd(utterance: Utterance): void {
+		this.activeUtterances.delete(utterance.userId);
 		this.stoppedSpeaking(utterance.userId);
 	}
 
@@ -339,9 +347,8 @@ export class Meeting {
 					const botAnalysis = await responder.isBotResponseExpected(this);
 
 					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
-						if (!responder.isSpeaking()) {
+						if (!responder.isSpeaking() && !Array.from(this.activeUtterances.values()).some((u) => u.long)) {
 							playFilePath(responder.getAudioPlayer(), startTalkingBoops(), this.getConnection());
-
 							responder.respondToTranscript(this);
 						}
 					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {

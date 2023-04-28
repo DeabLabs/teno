@@ -8,11 +8,14 @@ import * as prism from 'prism-media';
 import { deepgramPrerecordedTranscribe } from '@/services/transcriber.js';
 import { formatTime } from '@/utils/transcriptUtils.js';
 
+import type { Meeting } from './meeting.js';
+
 // Utterance class
 export class Utterance {
 	private receiver: VoiceReceiver;
 	private onRecordingComplete: (utterance: Utterance) => void;
 	private onTranscriptionComplete: (utterance: Utterance) => void;
+	private meeting: Meeting;
 	public isTranscribed = false;
 	public userId: string;
 	public username: string;
@@ -21,18 +24,22 @@ export class Utterance {
 	public secondsSinceStart: number;
 	public timestamp: number;
 	public duration: number | undefined;
+	public long = false;
+	public stopped = false;
 
 	constructor(
 		receiver: VoiceReceiver,
 		userId: string,
 		username: string,
 		secondsSinceStart: number,
+		meeting: Meeting,
 		onRecordingComplete: (utterance: Utterance) => void,
 		onTranscriptionComplete: (utterance: Utterance) => void,
 	) {
 		this.receiver = receiver;
 		this.userId = userId;
 		this.username = username;
+		this.meeting = meeting;
 		this.secondsSinceStart = secondsSinceStart;
 		this.onRecordingComplete = onRecordingComplete;
 		this.onTranscriptionComplete = onTranscriptionComplete;
@@ -72,6 +79,13 @@ export class Utterance {
 
 	private async downloadRecording(opusStream: AudioReceiveStream, oggStream: prism.opus.OggLogicalBitstream) {
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				if (this.meeting.getTeno().getResponder().isThinking()) {
+					this.long = true;
+					this.meeting.getTeno().getResponder().stopResponding();
+				}
+			}, 1500);
+
 			const chunks: Buffer[] = [];
 			const passThrough = new PassThrough();
 
@@ -84,6 +98,7 @@ export class Utterance {
 					console.warn(`❌ Error recording - ${err.message}`);
 					reject(err);
 				} else {
+					clearTimeout(timeout);
 					this.audioContent = Buffer.concat(chunks);
 					this.onRecordingComplete(this);
 					resolve(undefined);
@@ -95,6 +110,13 @@ export class Utterance {
 	async startTranscribing() {
 		if (this.audioContent) {
 			const result = await deepgramPrerecordedTranscribe(this.audioContent);
+
+			if (result?.meta === 'STOP') {
+				console.log('Transcription stopped');
+				this.meeting.getTeno().getResponder().stopResponding();
+				this.stopped = true;
+			}
+
 			this.textContent = result?.text;
 			this.duration = result?.durationS;
 			this.onTranscriptionComplete(this);
@@ -112,8 +134,12 @@ export class Utterance {
 		content: string,
 		secondsSinceStart: number,
 		timestamp: number,
+		stopLine?: boolean,
+		speakingOver?: boolean,
 	): string {
-		return `<${userId}>${username} (${formatTime(secondsSinceStart)}): ${content}<${timestamp}>\n`;
+		return `<${userId}>${username} (${formatTime(secondsSinceStart)}): ${content}<${timestamp}>${
+			stopLine ? '<in this line the user told teno to stop speaking>' : ''
+		}${speakingOver ? '<in this line the user spoke over top of teno to cancel its speech>' : ''}\n`;
 	}
 
 	public formatForTranscript() {
@@ -127,6 +153,8 @@ export class Utterance {
 			this.textContent,
 			this.secondsSinceStart,
 			this.timestamp,
+			this.stopped,
+			this.long,
 		);
 	}
 }
