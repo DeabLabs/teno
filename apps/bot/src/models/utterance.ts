@@ -32,9 +32,9 @@ export class Utterance {
 		userId: string,
 		username: string,
 		secondsSinceStart: number,
-		meeting: Meeting,
 		onRecordingComplete: (utterance: Utterance) => void,
 		onTranscriptionComplete: (utterance: Utterance) => void,
+		meeting: Meeting,
 	) {
 		this.receiver = receiver;
 		this.userId = userId;
@@ -43,7 +43,7 @@ export class Utterance {
 		this.secondsSinceStart = secondsSinceStart;
 		this.onRecordingComplete = onRecordingComplete;
 		this.onTranscriptionComplete = onTranscriptionComplete;
-
+		this.meeting = meeting;
 		this.timestamp = Date.now();
 	}
 
@@ -109,7 +109,12 @@ export class Utterance {
 
 	async startTranscribing() {
 		if (this.audioContent) {
-			const result = await deepgramPrerecordedTranscribe(this.audioContent);
+			const keywords = [];
+			const persona = this.meeting.getPersona();
+			if (persona) {
+				keywords.push(persona.name);
+			}
+			const result = await deepgramPrerecordedTranscribe(this.audioContent, keywords);
 
 			if (result?.meta === 'STOP') {
 				console.log('Transcription stopped');

@@ -11,7 +11,12 @@ const mimetype = 'audio/ogg';
 const deepgramToken = Config.DEEPGRAM;
 const deepgram = new Deepgram(deepgramToken);
 
-export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promise<
+const defaultKeywords = ['stop', 'quiet'];
+
+export async function deepgramPrerecordedTranscribe(
+	audioBuffer: Buffer,
+	keywords: string[] = [],
+): Promise<
 	| {
 			text: string;
 			durationS: number;
@@ -32,7 +37,7 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 				model: 'general',
 				language: 'en-US',
 				tier: 'nova',
-				keywords: ['Teno', 'stop'],
+				keywords: [...defaultKeywords, ...keywords],
 				search: ['stop'],
 			},
 		);
@@ -40,7 +45,7 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 		const stopText = response.results?.channels[0]?.search?.find(({ query }) => query === 'stop');
 		if (stopText) {
 			const confidence = (stopText?.hits?.[0]?.confidence ?? 0) * 100 > 70;
-			console.log('Confidence', confidence, stopText?.hits?.[0]?.confidence ?? 0, stopText?.hits?.[0]?.snippet);
+			// console.log('Confidence', confidence, stopText?.hits?.[0]?.confidence ?? 0, stopText?.hits?.[0]?.snippet);
 
 			if (confidence) {
 				out.meta = 'STOP';
