@@ -40,7 +40,7 @@ export async function deepgramPrerecordedTranscribe(audioBuffer: Buffer): Promis
 		const stopText = response.results?.channels[0]?.search?.find(({ query }) => query === 'stop');
 		if (stopText) {
 			const confidence = (stopText?.hits?.[0]?.confidence ?? 0) * 100 > 70;
-			console.log('Confidence', confidence, stopText?.hits?.[0]?.confidence ?? 0, stopText?.hits?.[0]?.snippet);
+			// console.log('Confidence', confidence, stopText?.hits?.[0]?.confidence ?? 0, stopText?.hits?.[0]?.snippet);
 
 			if (confidence) {
 				out.meta = 'STOP';

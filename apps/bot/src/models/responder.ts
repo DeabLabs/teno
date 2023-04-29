@@ -85,11 +85,10 @@ export class Responder {
 		this.startSpeaking();
 		this.startThinking();
 		this.sentenceQueue = new SentenceQueue(this, meeting);
+		const handleNewToken = this.sentenceQueue.handleNewToken.bind(this.sentenceQueue);
 
 		const onNewToken = async (token: string) => {
-			if (this.sentenceQueue) {
-				await this.sentenceQueue.handleNewToken(token);
-			}
+			handleNewToken?.(token);
 		};
 
 		const onEnd = () => {
@@ -98,7 +97,7 @@ export class Responder {
 
 		const answerOutput = await chimeInOnTranscript(
 			await meeting.getTranscript().getCleanedTranscript(),
-			'gpt-3.5-turbo',
+			'gpt-4',
 			onNewToken,
 			onEnd,
 		);

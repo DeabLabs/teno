@@ -341,7 +341,7 @@ export class Meeting {
 			if (utterance.textContent && utterance.textContent.length > 0) {
 				const speechOn = this.teno.getSpeechOn();
 				if (speechOn) {
-					console.time('onTranscriptionComplete');
+					// console.time('onTranscriptionComplete');
 					const responder = this.teno.getResponder();
 					// should the bot respond or should it stop talking?
 					const botAnalysis = await responder.isBotResponseExpected(this);
@@ -354,7 +354,7 @@ export class Meeting {
 					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
 						responder.stopResponding();
 					}
-					console.timeEnd('onTranscriptionComplete');
+					// console.timeEnd('onTranscriptionComplete');
 				}
 			}
 		}

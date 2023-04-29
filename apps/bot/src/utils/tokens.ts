@@ -51,7 +51,6 @@ export const constrainLinesToTokenLimit = (
 
 	// token length is fine, return everything
 	if (tokens <= max) {
-		console.log('Transcript fits');
 		console.log('Tokens used: ', tokens, '/ ', max);
 
 		return lines;
