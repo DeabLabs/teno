@@ -8,7 +8,8 @@ import type { RedisClient } from '@/bot.js';
 import type { TTSParams } from '@/services/textToSpeech.js';
 import { playFilePath } from '@/services/textToSpeech.js';
 import { playArrayBuffer, getArrayBufferFromText } from '@/services/textToSpeech.js';
-import { ACTIVATION_COMMAND } from '@/services/langchain.js';
+import type { AnswerOutput } from '@/services/langchain.js';
+import { ACTIVATION_COMMAND, personaChimeInOnTranscript } from '@/services/langchain.js';
 import { checkLinesForVoiceActivation, chimeInOnTranscript } from '@/services/langchain.js';
 import { endTalkingBoops } from '@/services/audioResources.js';
 
@@ -95,15 +96,35 @@ export class Responder {
 			this.stopThinking();
 		};
 
-		const answerOutput = await chimeInOnTranscript(
-			await meeting.getTranscript().getCleanedTranscript(),
-			'gpt-4',
-			onNewToken,
-			onEnd,
-		);
+		const persona = meeting.getPersona();
+
+		let answerOutput: AnswerOutput;
+
+		if (!persona) {
+			answerOutput = await chimeInOnTranscript(
+				await meeting.getTranscript().getCleanedTranscript(),
+				'gpt-4',
+				onNewToken,
+				onEnd,
+			);
+		} else {
+			answerOutput = await personaChimeInOnTranscript(
+				await meeting.getTranscript().getCleanedTranscript(),
+				persona.name,
+				persona.description,
+				'gpt-4',
+				onNewToken,
+				onEnd,
+			);
+		}
 
 		if (answerOutput.status === 'success') {
 			this.createAIUsageEvent(answerOutput.languageModel, answerOutput.promptTokens, answerOutput.completionTokens);
+			if (!persona) {
+				meeting.addBotLine(answerOutput.answer, 'Teno');
+			} else {
+				meeting.addBotLine(answerOutput.answer, persona.name);
+			}
 		}
 	}
 
@@ -115,7 +136,12 @@ export class Responder {
 
 		if (vConfig && checkLines.length) {
 			// console.log('checkLines', checkLines);
-			return await checkLinesForVoiceActivation(checkLines);
+			const persona = meeting.getPersona();
+			if (!persona) {
+				return await checkLinesForVoiceActivation(checkLines, 'gpt-3.5-turbo', 'Teno');
+			} else {
+				return await checkLinesForVoiceActivation(checkLines, 'gpt-3.5-turbo', persona.name);
+			}
 		}
 
 		return ACTIVATION_COMMAND.PASS;

@@ -102,7 +102,11 @@ async function replyToMeetingMessage(message: Message, teno: Teno) {
 
 		console.log('Conversation history:', conversationHistoryContent);
 
-		const answerOutput = await answerQuestionOnTranscript(conversationHistoryContent.slice(1), transcriptLines);
+		const answerOutput = await answerQuestionOnTranscript(
+			conversationHistoryContent.slice(1),
+			transcriptLines,
+			'gpt-4',
+		);
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);

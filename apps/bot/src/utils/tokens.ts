@@ -36,7 +36,7 @@ export const sumMessageTokens = (messages: string[]) =>
 export const constrainLinesToTokenLimit = (
 	lines: string[],
 	prompt: string,
-	maxTokens = 7600,
+	maxTokens = 4000,
 	responseTokens = 1024,
 ) => {
 	if (maxTokens < responseTokens) {
