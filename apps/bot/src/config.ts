@@ -12,6 +12,7 @@ const envKeys = [
 	'DATABASE_URL',
 	'AZURE_SPEECH_REGION',
 	'VOICE_RELAY_AUTH_KEY',
+	'VOICE_RELAY_URL',
 ] as const;
 
 // Create a zod schema from the envKeys array

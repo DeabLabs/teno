@@ -64,8 +64,6 @@ export async function createMeeting({
 	textChannel: TextChannel;
 	userDiscordId: string;
 }) {
-	joinCall(voiceChannel.id, guildId);
-
 	const newMeetingMessage = await Meeting.sendMeetingMessage({ voiceChannel, textChannel });
 	if (!newMeetingMessage) {
 		throw new Error('I am having trouble starting a meeting. Please try again in a little bit!');
@@ -90,6 +88,15 @@ export async function createMeeting({
 			await newMeeting.addMember(member.id, member.user.username, member.user.discriminator);
 		}
 
+		const transcriptKey = newMeeting.getTranscript().getTranscriptKey();
+
+		// Send join request to voice relay
+		try {
+			await joinCall(guildId, voiceChannel.id, transcriptKey);
+		} catch (e) {
+			console.error(e);
+		}
+
 		// Add meeting to Teno
 		teno.addMeeting(newMeeting);
 
@@ -100,14 +107,18 @@ export async function createMeeting({
 	}
 }
 
-async function joinCall(guildId: string, channelId: string): Promise<void> {
-	const url = 'https://voice-relay-staging.up.railway.app/join';
+async function joinCall(guildId: string, channelId: string, transcriptKey: string): Promise<void> {
+	const url = `${Config.VOICE_RELAY_URL}/join`;
 	const authToken = Config.VOICE_RELAY_AUTH_KEY;
 
 	const body = {
 		GuildID: guildId,
 		ChannelID: channelId,
+		RedisTranscriptKey: transcriptKey,
 	};
+
+	console.log('Voice channel id: ' + channelId);
+	console.log('Guild id: ' + guildId);
 
 	const response = await fetch(url, {
 		method: 'POST',
@@ -117,6 +128,7 @@ async function joinCall(guildId: string, channelId: string): Promise<void> {
 		},
 		body: JSON.stringify(body),
 	});
+	console.log(await response.text());
 
 	if (!response.ok) {
 		throw new Error(`Error joining voice channel: ${response.statusText}`);

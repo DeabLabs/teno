@@ -3,6 +3,7 @@ import type { CommandInteraction } from 'discord.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { getActiveMeetingFromInteraction } from '@/queries/meeting.js';
+import { Config } from '@/config.js';
 
 export const leaveCommand = createCommand({
 	commandArgs: {
@@ -27,8 +28,8 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 }
 
 async function leaveCall(guildId: string): Promise<void> {
-	const url = 'https://voice-relay-staging.up.railway.app/leave';
-	const authToken = process.env.VOICE_RELAY_AUTH_KEY;
+	const url = `${Config.VOICE_RELAY_URL}/leave`;
+	const authToken = Config.VOICE_RELAY_AUTH_KEY;
 
 	const body = {
 		GuildID: guildId,

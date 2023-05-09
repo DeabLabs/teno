@@ -137,4 +137,8 @@ export class Transcript {
 
 		return await this.redisClient.zrem(this.transcriptKey, ...linesToRemove);
 	}
+
+	public getTranscriptKey() {
+		return this.transcriptKey;
+	}
 }
