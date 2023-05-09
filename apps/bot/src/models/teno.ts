@@ -8,7 +8,7 @@ import invariant from 'tiny-invariant';
 
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
-import { createMeeting } from '@/utils/createMeeting.js';
+import { createMeeting } from '@/discord/commands/join.js';
 
 import type { Meeting } from './meeting.js';
 import { Responder } from './responder.js';

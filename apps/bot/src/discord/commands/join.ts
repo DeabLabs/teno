@@ -1,11 +1,11 @@
-import { getVoiceConnection } from '@discordjs/voice';
-import type { CommandInteraction, TextChannel } from 'discord.js';
+import type { CommandInteraction, TextChannel, VoiceBasedChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
-import { createMeeting } from '@/utils/createMeeting.js';
+import { Meeting } from '@/models/meeting.js';
+import { Config } from '@/config.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
@@ -25,9 +25,6 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 	}
 
 	try {
-		const connection = getVoiceConnection(guildId);
-
-		invariant(!connection, 'I am already in a voice channel!');
 		invariant(member.voice.channel, 'Join a voice channel and then try that again!');
 
 		try {
@@ -51,5 +48,77 @@ async function join(interaction: CommandInteraction, teno: Teno) {
 		} else {
 			await interaction.followUp({ content: 'Error joining voice channel' });
 		}
+	}
+}
+
+export async function createMeeting({
+	voiceChannel,
+	guildId,
+	textChannel,
+	teno,
+	userDiscordId,
+}: {
+	teno: Teno;
+	guildId: string;
+	voiceChannel: VoiceBasedChannel;
+	textChannel: TextChannel;
+	userDiscordId: string;
+}) {
+	joinCall(voiceChannel.id, guildId);
+
+	const newMeetingMessage = await Meeting.sendMeetingMessage({ voiceChannel, textChannel });
+	if (!newMeetingMessage) {
+		throw new Error('I am having trouble starting a meeting. Please try again in a little bit!');
+	}
+
+	try {
+		const newMeeting = await Meeting.load({
+			meetingMessageId: newMeetingMessage.id,
+			voiceChannelId: voiceChannel.id,
+			guildId: guildId,
+			redisClient: teno.getRedisClient(),
+			prismaClient: teno.getPrismaClient(),
+			userDiscordId,
+			client: teno.getClient(),
+			teno: teno,
+			active: true,
+			authorDiscordId: userDiscordId,
+		});
+		invariant(newMeeting);
+
+		for (const [, member] of voiceChannel.members) {
+			await newMeeting.addMember(member.id, member.user.username, member.user.discriminator);
+		}
+
+		// Add meeting to Teno
+		teno.addMeeting(newMeeting);
+
+		// Play a sound to indicate that the bot has joined the channel
+		// await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
+	} catch (e) {
+		console.error(e);
+	}
+}
+
+async function joinCall(guildId: string, channelId: string): Promise<void> {
+	const url = 'https://voice-relay-staging.up.railway.app/join';
+	const authToken = Config.VOICE_RELAY_AUTH_KEY;
+
+	const body = {
+		GuildID: guildId,
+		ChannelID: channelId,
+	};
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${authToken}`,
+		},
+		body: JSON.stringify(body),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Error joining voice channel: ${response.statusText}`);
 	}
 }
