@@ -104,7 +104,7 @@ export async function createMeeting({
 
 		const config: RelayResponderConfig = {
 			BotName: 'Teno',
-			SleepMode: 1, // 0 = AlwaysSleep, 1 = AutoSleep, 2 = NeverSleep
+			SleepMode: 2, // 0 = Unspecified, 1 = AlwaysSleep, 2 = AutoSleep, 3 = NeverSleep
 			LinesBeforeSleep: 4,
 			BotNameConfidenceThreshold: 0.7,
 			LLMService: 'openai',
