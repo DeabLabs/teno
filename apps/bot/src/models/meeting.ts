@@ -332,7 +332,12 @@ export class Meeting {
 		) {
 			this.endMeeting();
 
-			leaveCall(this.guildId);
+			// Send join request to voice relay
+			try {
+				await leaveCall(this.guildId);
+			} catch (e) {
+				console.error(e);
+			}
 			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
 		}
 	}

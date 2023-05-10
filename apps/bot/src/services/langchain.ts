@@ -10,14 +10,12 @@ const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
-	streaming: true,
 });
 
 const gptTurbo = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-3.5-turbo',
 	openAIApiKey: Config.OPENAI_API_KEY,
-	streaming: true,
 });
 
 const models = {
@@ -225,19 +223,13 @@ export async function checkLinesForVoiceActivation(
 	return ACTIVATION_COMMAND.PASS;
 }
 
-export async function chimeInOnTranscript(
-	transcriptLines: string[],
-	model: SupportedModels,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
-): Promise<AnswerOutput> {
+export async function chimeInOnTranscript(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
 	const llm = models[model];
-	attachStreamingTokenHandler(llm, onNewToken, onEnd);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
@@ -251,9 +243,6 @@ export async function chimeInOnTranscript(
 			transcript: shortenedTranscript,
 		}),
 	]);
-
-	// Restore the original callback manager
-	// llm.callbacks = [];
 
 	return {
 		status: 'success',
@@ -269,8 +258,6 @@ export async function personaChimeInOnTranscript(
 	personaName: string,
 	personaDescription: string,
 	model: SupportedModels,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
@@ -278,7 +265,6 @@ export async function personaChimeInOnTranscript(
 	}
 
 	const llm = models[model];
-	attachStreamingTokenHandler(llm, onNewToken, onEnd);
 
 	console.log(modelTokenLimits[model]);
 
@@ -296,9 +282,6 @@ export async function personaChimeInOnTranscript(
 			personaDescription: personaDescription,
 		}),
 	]);
-
-	// Restore the original callback manager
-	llm.callbacks = [];
 
 	return {
 		status: 'success',

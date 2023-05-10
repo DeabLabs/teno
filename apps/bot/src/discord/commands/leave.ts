@@ -19,7 +19,13 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 		await interaction.reply({ ephemeral: true, content: 'Error getting guild id' });
 		return;
 	}
-	leaveCall(guildId);
+
+	// Send leave request to voice relay
+	try {
+		await leaveCall(guildId);
+	} catch (e) {
+		console.error(e);
+	}
 
 	const activeMeetingDb = await getActiveMeetingFromInteraction(interaction, teno.getPrismaClient());
 	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
