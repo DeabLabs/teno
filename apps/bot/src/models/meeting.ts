@@ -1,4 +1,4 @@
-import type { Client, TextChannel, VoiceBasedChannel } from 'discord.js';
+import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
 import { channelMention } from 'discord.js';
@@ -10,6 +10,7 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName } from '@/services/langchain.js';
+import { leaveCall } from '@/discord/commands/leave.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -95,6 +96,7 @@ export class Meeting {
 		this.teno = teno;
 
 		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
+		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 
 		this.renderMeetingMessage();
 	}
@@ -309,6 +311,30 @@ export class Meeting {
 			},
 		});
 		this.attendees.add(userId);
+	}
+
+	private async handleVoiceStateUpdate(prevState: VoiceState) {
+		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
+		console.log('voice state update');
+		const tenoUser = this.client?.user?.id;
+		const vc = this.client.channels.cache.get(this.voiceChannelId);
+		const active = await this.getActive();
+		if (
+			prevState?.channel?.id === this.voiceChannelId &&
+			active &&
+			tenoUser &&
+			vc &&
+			vc.isVoiceBased() &&
+			// only end the meeting if the vc being updated is the meeting vc
+			vc.id === this.getVoiceChannelId() &&
+			vc.members.size === 1 &&
+			vc.members.has(tenoUser)
+		) {
+			this.endMeeting();
+
+			leaveCall(this.guildId);
+			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
+		}
 	}
 
 	/**

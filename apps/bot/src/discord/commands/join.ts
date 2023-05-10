@@ -111,10 +111,21 @@ async function joinCall(guildId: string, channelId: string, transcriptKey: strin
 	const url = `${Config.VOICE_RELAY_URL}/join`;
 	const authToken = Config.VOICE_RELAY_AUTH_KEY;
 
+	const config = {
+		BotName: 'Teno',
+		SleepMode: 1, // 0 = AlwaysSleep, 1 = AutoSleep, 2 = NeverSleep
+		LinesBeforeSleep: 4,
+		BotNameConfidenceThreshold: 0.7,
+		LLMService: 'openai',
+		LLMModel: 'gpt-3.5-turbo',
+		TranscriptContextSize: 20,
+	};
+
 	const body = {
 		GuildID: guildId,
 		ChannelID: channelId,
 		RedisTranscriptKey: transcriptKey,
+		ResponderConfig: config,
 	};
 
 	console.log('Voice channel id: ' + channelId);

@@ -27,7 +27,9 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 	await interaction.reply({ ephemeral: true, content: 'Left the channel!' });
 }
 
-async function leaveCall(guildId: string): Promise<void> {
+export async function leaveCall(guildId: string): Promise<void> {
+	console.log('Leaving voice channel: ', guildId);
+
 	const url = `${Config.VOICE_RELAY_URL}/leave`;
 	const authToken = Config.VOICE_RELAY_AUTH_KEY;
 
