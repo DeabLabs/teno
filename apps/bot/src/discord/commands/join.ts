@@ -12,6 +12,18 @@ export const joinCommand = createCommand({
 	handler: join,
 });
 
+export type RelayResponderConfig = {
+	BotName?: string;
+	SleepMode?: number;
+	LinesBeforeSleep?: number;
+	BotNameConfidenceThreshold?: number;
+	LLMService?: string;
+	LLMModel?: string;
+	TranscriptContextSize?: number;
+	IgnoreUser?: string;
+	IncludeUser?: string;
+};
+
 async function join(interaction: CommandInteraction, teno: Teno) {
 	const guildId = interaction.guildId;
 	const member = interaction.member;
@@ -90,9 +102,19 @@ export async function createMeeting({
 
 		const transcriptKey = newMeeting.getTranscript().getTranscriptKey();
 
+		const config: RelayResponderConfig = {
+			BotName: 'Teno',
+			SleepMode: 1, // 0 = AlwaysSleep, 1 = AutoSleep, 2 = NeverSleep
+			LinesBeforeSleep: 4,
+			BotNameConfidenceThreshold: 0.7,
+			LLMService: 'openai',
+			LLMModel: 'gpt-3.5-turbo',
+			TranscriptContextSize: 20,
+		};
+
 		// Send join request to voice relay
 		try {
-			await joinCall(guildId, voiceChannel.id, transcriptKey);
+			await joinCall(guildId, voiceChannel.id, transcriptKey, config);
 		} catch (e) {
 			console.error(e);
 		}
@@ -107,19 +129,14 @@ export async function createMeeting({
 	}
 }
 
-async function joinCall(guildId: string, channelId: string, transcriptKey: string): Promise<void> {
+async function joinCall(
+	guildId: string,
+	channelId: string,
+	transcriptKey: string,
+	config: RelayResponderConfig,
+): Promise<void> {
 	const url = `${Config.VOICE_RELAY_URL}/join`;
 	const authToken = Config.VOICE_RELAY_AUTH_KEY;
-
-	const config = {
-		BotName: 'Teno',
-		SleepMode: 1, // 0 = AlwaysSleep, 1 = AutoSleep, 2 = NeverSleep
-		LinesBeforeSleep: 4,
-		BotNameConfidenceThreshold: 0.7,
-		LLMService: 'openai',
-		LLMModel: 'gpt-3.5-turbo',
-		TranscriptContextSize: 20,
-	};
 
 	const body = {
 		GuildID: guildId,
