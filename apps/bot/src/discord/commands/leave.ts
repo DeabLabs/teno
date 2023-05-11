@@ -3,7 +3,7 @@ import type { CommandInteraction } from 'discord.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { getActiveMeetingFromInteraction } from '@/queries/meeting.js';
-import { Config } from '@/config.js';
+import { leaveCall } from '@/services/relay.js';
 
 export const leaveCommand = createCommand({
 	commandArgs: {
@@ -31,28 +31,4 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
 	activeMeeting?.endMeeting();
 	await interaction.reply({ ephemeral: true, content: 'Left the channel!' });
-}
-
-export async function leaveCall(guildId: string): Promise<void> {
-	console.log('Leaving voice channel: ', guildId);
-
-	const url = `${Config.VOICE_RELAY_URL}/leave`;
-	const authToken = Config.VOICE_RELAY_AUTH_KEY;
-
-	const body = {
-		GuildID: guildId,
-	};
-
-	const response = await fetch(url, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(body),
-	});
-
-	if (!response.ok) {
-		throw new Error(`Error leaving voice channel: ${response.statusText}`);
-	}
 }

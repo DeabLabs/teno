@@ -10,7 +10,7 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName } from '@/services/langchain.js';
-import { leaveCall } from '@/discord/commands/leave.js';
+import { leaveCall } from '@/services/relay.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';

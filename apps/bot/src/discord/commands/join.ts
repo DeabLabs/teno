@@ -5,24 +5,13 @@ import invariant from 'tiny-invariant';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
-import { Config } from '@/config.js';
+import type { RelayResponderConfig } from '@/services/relay.js';
+import { joinCall } from '@/services/relay.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
 	handler: join,
 });
-
-export type RelayResponderConfig = {
-	BotName?: string;
-	SleepMode?: number;
-	LinesBeforeSleep?: number;
-	BotNameConfidenceThreshold?: number;
-	LLMService?: string;
-	LLMModel?: string;
-	TranscriptContextSize?: number;
-	IgnoreUser?: string;
-	IncludeUser?: string;
-};
 
 async function join(interaction: CommandInteraction, teno: Teno) {
 	const guildId = interaction.guildId;
@@ -104,6 +93,8 @@ export async function createMeeting({
 
 		const config: RelayResponderConfig = {
 			BotName: 'Teno',
+			Personality:
+				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
 			SleepMode: 2, // 0 = Unspecified, 1 = AlwaysSleep, 2 = AutoSleep, 3 = NeverSleep
 			LinesBeforeSleep: 4,
 			BotNameConfidenceThreshold: 0.7,
@@ -126,39 +117,5 @@ export async function createMeeting({
 		// await playTextToSpeech(connection, 'Ayyy wazzup its ya boi Teno! You need anything you let me know. Ya dig?');
 	} catch (e) {
 		console.error(e);
-	}
-}
-
-async function joinCall(
-	guildId: string,
-	channelId: string,
-	transcriptKey: string,
-	config: RelayResponderConfig,
-): Promise<void> {
-	const url = `${Config.VOICE_RELAY_URL}/join`;
-	const authToken = Config.VOICE_RELAY_AUTH_KEY;
-
-	const body = {
-		GuildID: guildId,
-		ChannelID: channelId,
-		RedisTranscriptKey: transcriptKey,
-		ResponderConfig: config,
-	};
-
-	console.log('Voice channel id: ' + channelId);
-	console.log('Guild id: ' + guildId);
-
-	const response = await fetch(url, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(body),
-	});
-	console.log(await response.text());
-
-	if (!response.ok) {
-		throw new Error(`Error joining voice channel: ${response.statusText}`);
 	}
 }

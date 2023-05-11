@@ -4,6 +4,8 @@ import invariant from 'tiny-invariant';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
+import type { RelayResponderConfig } from '@/services/relay.js';
+import { configResponder } from '@/services/relay.js';
 
 export const personaOnCommand = createCommand({
 	commandArgs: {
@@ -48,11 +50,26 @@ async function personaOn(interaction: CommandInteraction, teno: Teno) {
 		const meeting = teno.getActiveMeeting();
 		invariant(meeting);
 
-		meeting.setPersona({ name, description });
-		console.log(meeting.getPersona()?.name);
+		const config: RelayResponderConfig = {
+			BotName: name,
+			Personality: description,
+		};
+
+		try {
+			await configResponder(guildId, config);
+		} catch (e) {
+			await interaction.editReply({
+				content: `Error setting up persona.`,
+				components: [],
+			});
+			return;
+		}
+
+		// meeting.setPersona({ name, description });
+		// console.log(meeting.getPersona()?.name);
 
 		await interaction.editReply({
-			content: `Teno will now speak from the persona of ${meeting.getPersona()?.name}.`,
+			content: `Teno will now speak from the persona of ${name}.`,
 			components: [],
 		});
 		return;
