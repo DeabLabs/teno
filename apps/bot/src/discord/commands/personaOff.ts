@@ -4,8 +4,6 @@ import invariant from 'tiny-invariant';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
-import type { RelayResponderConfig } from '@/services/relay.js';
-import { configResponder } from '@/services/relay.js';
 
 export const personaOffCommand = createCommand({
 	commandArgs: {
@@ -22,7 +20,6 @@ async function personaOff(interaction: CommandInteraction, teno: Teno) {
 	const member = interaction.member;
 
 	try {
-		invariant(prompt);
 		invariant(member instanceof GuildMember);
 		invariant(typeof guildId === 'string');
 	} catch (e) {
@@ -37,17 +34,11 @@ async function personaOff(interaction: CommandInteraction, teno: Teno) {
 		const meeting = teno.getActiveMeeting();
 		invariant(meeting);
 
-		const config: RelayResponderConfig = {
-			BotName: 'Teno',
-			Personality:
-				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
-		};
-
 		try {
-			await configResponder(guildId, config);
+			await meeting.turnPersonaOff();
 		} catch (e) {
 			await interaction.editReply({
-				content: `Error setting up persona.`,
+				content: `Error turning off persona.`,
 				components: [],
 			});
 			return;

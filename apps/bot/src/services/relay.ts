@@ -10,7 +10,7 @@ export type RelayResponderConfig = {
 	LLMModel?: string;
 	TranscriptContextSize?: number;
 	IgnoreUser?: string;
-	IncludeUser?: string;
+	StopIgnoringUser?: string;
 };
 
 const authToken = Config.VOICE_RELAY_AUTH_KEY;

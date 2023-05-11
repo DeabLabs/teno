@@ -10,7 +10,8 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName } from '@/services/langchain.js';
-import { leaveCall } from '@/services/relay.js';
+import type { RelayResponderConfig } from '@/services/relay.js';
+import { configResponder, leaveCall } from '@/services/relay.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -47,8 +48,6 @@ export class Meeting {
 	private prismaClient: PrismaClientType;
 	private guildId: string;
 	private voiceChannelId: string;
-	private speaking: Set<string>;
-	private ignore: Set<string>;
 	private startTime: number;
 	private attendees: Set<string>;
 	private id: number;
@@ -85,9 +84,7 @@ export class Meeting {
 		this.startTime = startTime;
 		this.prismaClient = prismaClient;
 		this.client = client;
-		this.speaking = new Set<string>();
 		this.attendees = new Set<string>();
-		this.ignore = new Set<string>();
 		this.transcript = transcript;
 		this.active = active;
 		this.authorName = authorName;
@@ -347,7 +344,15 @@ export class Meeting {
 	 * @param userId  The user to ignore
 	 */
 	public ignoreUser(userId: string): void {
-		this.ignore.add(userId);
+		const config: RelayResponderConfig = {
+			IgnoreUser: userId,
+		};
+
+		try {
+			configResponder(this.guildId, config);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	/**
@@ -355,7 +360,15 @@ export class Meeting {
 	 * @param userId The user to stop ignoring
 	 */
 	public stopIgnoring(userId: string): void {
-		this.ignore.delete(userId);
+		const config: RelayResponderConfig = {
+			StopIgnoringUser: userId,
+		};
+
+		try {
+			configResponder(this.guildId, config);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	/**
@@ -527,11 +540,36 @@ export class Meeting {
 		return resolved;
 	}
 
-	public setPersona(persona: Persona) {
+	public async setPersona(persona: Persona) {
+		const config: RelayResponderConfig = {
+			BotName: persona.name,
+			Personality: persona.description,
+		};
+
+		try {
+			await configResponder(this.guildId, config);
+		} catch (e) {
+			console.error(e);
+			return;
+		}
+
 		this.persona = persona;
 	}
 
 	public turnPersonaOff() {
+		const config: RelayResponderConfig = {
+			BotName: 'Teno',
+			Personality:
+				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
+		};
+
+		try {
+			configResponder(this.guildId, config);
+		} catch (e) {
+			console.error(e);
+			return;
+		}
+
 		this.persona = null;
 	}
 
