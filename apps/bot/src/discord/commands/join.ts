@@ -91,11 +91,19 @@ export async function createMeeting({
 
 		const transcriptKey = newMeeting.getTranscript().getTranscriptKey();
 
+		const speakingModeBool = teno.getSpeechOn();
+		let speakingModeInt;
+		if (speakingModeBool) {
+			speakingModeInt = 3; // AutoSleep
+		} else {
+			speakingModeInt = 1; // NeverSpeak
+		}
+
 		const config: RelayResponderConfig = {
 			BotName: 'Teno',
 			Personality:
 				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
-			SleepMode: 2, // 0 = Unspecified, 1 = AlwaysSleep, 2 = AutoSleep, 3 = NeverSleep
+			SpeakingMode: speakingModeInt,
 			LinesBeforeSleep: 4,
 			BotNameConfidenceThreshold: 0.7,
 			LLMService: 'openai',

@@ -3,7 +3,7 @@ import { Config } from '@/config.js';
 export type RelayResponderConfig = {
 	BotName?: string;
 	Personality?: string;
-	SleepMode?: number;
+	SpeakingMode?: number;
 	LinesBeforeSleep?: number;
 	BotNameConfidenceThreshold?: number;
 	LLMService?: string;
