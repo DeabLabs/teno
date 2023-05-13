@@ -109,6 +109,14 @@ export async function createMeeting({
 			LLMService: 'openai',
 			LLMModel: 'gpt-3.5-turbo',
 			TranscriptContextSize: 20,
+			Tools: [
+				{
+					name: 'TextChannelMessage',
+					description: 'This tool allows you to send a message to a Discord text channel.',
+					inputGuide: "The input is a string, which is the message you'd like to send to the channel.",
+					outputGuide: 'This tool does not return any output.',
+				},
+			],
 		};
 
 		// Send join request to voice relay

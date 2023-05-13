@@ -1,5 +1,12 @@
 import { Config } from '@/config.js';
 
+export type Tool = {
+	name: string;
+	description: string;
+	inputGuide: string;
+	outputGuide: string;
+};
+
 export type RelayResponderConfig = {
 	BotName?: string;
 	Personality?: string;
@@ -11,6 +18,7 @@ export type RelayResponderConfig = {
 	TranscriptContextSize?: number;
 	IgnoreUser?: string;
 	StopIgnoringUser?: string;
+	Tools?: Tool[];
 };
 
 const authToken = Config.VOICE_RELAY_AUTH_KEY;
