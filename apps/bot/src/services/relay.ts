@@ -52,7 +52,7 @@ export async function joinCall(
 export async function leaveCall(guildId: string): Promise<void> {
 	console.log('Leaving voice channel: ', guildId);
 
-	const endpoint = `${url}/join`;
+	const endpoint = `${url}/leave`;
 
 	const body = {
 		GuildID: guildId,
@@ -73,7 +73,7 @@ export async function leaveCall(guildId: string): Promise<void> {
 }
 
 export async function configResponder(guildId: string, config: RelayResponderConfig): Promise<void> {
-	const endpoint = `${url}/config/${guildId}`;
+	const endpoint = `${url}/${guildId}/config`;
 
 	const response = await fetch(endpoint, {
 		method: 'POST',
