@@ -1,4 +1,5 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
+import { ChannelType } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { VoiceChannel } from 'discord.js';
 import { Events } from 'discord.js';
@@ -140,10 +141,23 @@ export class Teno {
 			}
 		});
 
+		// Listen for messages in threads
 		this.client.on(Events.MessageCreate, async (message: Message) => {
+			// Ignore messages from other guilds
 			if (!message.guildId || message.guildId != this.id) return;
+			// Ignore messages not in public threads
+			if (message.channel.type !== ChannelType.PublicThread) return;
+			// Ignore messages in threads without parent channels
+			const parentChannel = message.channel.parent;
+			if (!parentChannel) return;
+			// Ignore messages in threads not under bot messages
+			const parentMessage = await parentChannel.messages.fetch(message.channelId);
+			if (!parentMessage) return;
+			if (!parentMessage.author.bot) return;
+
 			for (const messageHandler of interactionMessageHandlers) {
 				const passedFilter = await messageHandler.filter(message, this);
+
 				if (passedFilter) {
 					messageHandler.handler(message, this);
 				}

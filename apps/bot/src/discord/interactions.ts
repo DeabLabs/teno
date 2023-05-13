@@ -4,7 +4,6 @@ import { listCommand } from './commands/list.js';
 import { joinCommand } from './commands/join.js';
 import { leaveCommand } from './commands/leave.js';
 import { askCommand } from './commands/ask.js';
-import { replyToMeetingMessageHandler } from './messageHandlers/replyToMeetingMessage.js';
 import type { Command } from './createCommand.js';
 import { renameCommand } from './commands/rename.js';
 import { lockCommand } from './commands/lock.js';
@@ -19,6 +18,7 @@ import { speechOnCommand } from './commands/speechOn.js';
 import { speechOffCommand } from './commands/speechOff.js';
 import { personaOnCommand } from './commands/personaOn.js';
 import { personaOffCommand } from './commands/personaOff.js';
+import { messageInMeetingThreadHandler } from './messageHandlers/messageInMeetingThread.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -50,4 +50,4 @@ commandInteractions.forEach((interaction) => {
 });
 
 // Add new message handlers here
-export const interactionMessageHandlers = [replyToMeetingMessageHandler] as const;
+export const interactionMessageHandlers = [messageInMeetingThreadHandler] as const;

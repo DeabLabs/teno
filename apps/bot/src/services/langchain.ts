@@ -57,9 +57,11 @@ The transcript may include transcription errors, like mispelled words and broken
 Your job is to help the user with their requests, using the transcript as a tool to help you fulfill their requests
 In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
 Limit all unnecessary prose.
-Here is the transcript, surrounded by \`\`\`:
+Here is the transcript so far, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
-Below is your conversation with the users, their messages will include their usernames. Your responses do not need to include usernames.`,
+Below is your conversation with the users about the meeting, respond with your next message:
+{conversationHistory}
+Teno:`,
 	),
 ]);
 
@@ -155,7 +157,8 @@ export async function answerQuestionOnTranscript(
 
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
-		return { status: 'error', error: 'No transcript found' };
+		transcriptLines = ['Empty transcript'];
+		console.error('(Empty transcript)');
 	}
 
 	// If the conversation history is a string, convert it to an array
@@ -163,21 +166,20 @@ export async function answerQuestionOnTranscript(
 		conversationHistory = [conversationHistory];
 	}
 
-	const conversationMessages = createChatPromptTemplateFromHistory(conversationHistory);
-	console.log('Conversation history: ', conversationMessages);
+	const conversationHistoryString = conversationHistory.join('\n');
 
 	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
 	const secretaryFormat = await secretary.formatPromptValue({
 		transcript: shortenedTranscript,
+		conversationHistory: conversationHistoryString,
 	});
 
 	const secretaryMessages = secretaryFormat.toChatMessages();
 
-	// Append the conversation history messages to the secretary messages
-	const fullPrompt = secretaryMessages.concat(conversationMessages);
+	console.log('Prompt', secretaryMessages);
 
-	const answer = await llm.generate([fullPrompt]);
+	const answer = await llm.generate([secretaryMessages]);
 
 	return {
 		status: 'success',

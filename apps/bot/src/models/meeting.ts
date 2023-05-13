@@ -1,4 +1,5 @@
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { ThreadAutoArchiveDuration } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
 import { channelMention } from 'discord.js';
@@ -263,6 +264,13 @@ export class Meeting {
 						.setDescription(`A meeting is starting in ${channelMention(voiceChannel.id)}`),
 				],
 			});
+
+			const thread = await meetingMessage.startThread({
+				name: 'Meeting discussion thread',
+				autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+			});
+
+			thread.send('Talk to Teno about the meeting here');
 
 			return meetingMessage;
 		} catch {
