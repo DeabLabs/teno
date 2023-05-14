@@ -6,6 +6,7 @@ import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
 import type { RelayResponderConfig } from '@/services/relay.js';
+import { subscribeToToolMessages } from '@/services/relay.js';
 import { joinCall } from '@/services/relay.js';
 
 export const joinCommand = createCommand({
@@ -122,6 +123,30 @@ export async function createMeeting({
 		// Send join request to voice relay
 		try {
 			await joinCall(guildId, voiceChannel.id, transcriptKey, config);
+		} catch (e) {
+			console.error(e);
+		}
+
+		// Subscribe to tool messages
+		try {
+			const eventSource = subscribeToToolMessages(
+				guildId,
+				(toolMessage) => {
+					console.log('Received tool message:', toolMessage);
+					// Add logic to handle tool message here
+
+					// Parse tool message json
+					const toolMessageJson = JSON.parse(toolMessage);
+					if (toolMessageJson[0].name == 'TextChannelMessage') {
+						// Send message to text channel
+						textChannel.send(toolMessageJson[0].input);
+					}
+				},
+				(error) => {
+					console.error('Error received:', error);
+					// Add logic to handle error here
+				},
+			);
 		} catch (e) {
 			console.error(e);
 		}

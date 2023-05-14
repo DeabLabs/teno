@@ -1,3 +1,5 @@
+import EventSource from 'eventsource';
+
 import { Config } from '@/config.js';
 
 export type Tool = {
@@ -96,4 +98,29 @@ export async function configResponder(guildId: string, config: RelayResponderCon
 	if (!response.ok) {
 		throw new Error(`Error configuring responder: ${response.statusText}`);
 	}
+}
+
+export function subscribeToToolMessages(
+	guildId: string,
+	onMessage: (toolMessage: string) => void,
+	onError: (error: Event) => void,
+) {
+	const endpoint = `${url}/${guildId}/tool-messages`;
+
+	const eventSource = new EventSource(endpoint, {
+		headers: {
+			Authorization: `Bearer ${authToken}`,
+		},
+	});
+
+	eventSource.onmessage = (event) => {
+		onMessage(event.data);
+	};
+
+	eventSource.onerror = (error) => {
+		console.error('EventSource failed:', error);
+		onError(error);
+	};
+
+	return eventSource;
 }
