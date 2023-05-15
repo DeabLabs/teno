@@ -8,6 +8,8 @@ import type { Teno } from '@/models/teno.js';
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import { createMessageHandler } from '@/discord/createMessageHandler.js';
 import { Transcript } from '@/models/transcript.js';
+import { pushToCache } from '@/services/relay.js';
+import type { CacheItem } from '@/services/relay.js';
 
 const findMeetingByMeetingMessage = async (discordUserId: string, messageId: string | undefined | null, teno: Teno) => {
 	try {
@@ -76,6 +78,17 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 			redisClient: teno.getRedisClient(),
 			transcriptKey: targetMeeting.transcript.redisKey,
 		});
+
+		if (targetMeeting.active) {
+			// Create a cache item for the message
+			const cacheItem: CacheItem = {
+				Type: 'TextChannelMessage',
+				Permanent: true,
+				Content: `${message.author.username}: ${message.content}`,
+			};
+
+			pushToCache(teno.id, cacheItem);
+		}
 
 		const conversationHistoryContent: string[] = [];
 

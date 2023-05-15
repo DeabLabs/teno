@@ -177,7 +177,7 @@ export async function answerQuestionOnTranscript(
 
 	const secretaryMessages = secretaryFormat.toChatMessages();
 
-	console.log('Prompt', secretaryMessages);
+	// console.log('Prompt', secretaryMessages);
 
 	const answer = await llm.generate([secretaryMessages]);
 

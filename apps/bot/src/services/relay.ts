@@ -9,6 +9,12 @@ export type Tool = {
 	outputGuide: string;
 };
 
+export type CacheItem = {
+	Type: string;
+	Permanent: boolean;
+	Content: string;
+};
+
 export type RelayResponderConfig = {
 	BotName?: string;
 	Personality?: string;
@@ -41,8 +47,8 @@ export async function joinCall(
 		ResponderConfig: config,
 	};
 
-	console.log('Voice channel id: ' + channelId);
-	console.log('Guild id: ' + guildId);
+	// console.log('Voice channel id: ' + channelId);
+	// console.log('Guild id: ' + guildId);
 
 	const response = await fetch(endpoint, {
 		method: 'POST',
@@ -60,8 +66,6 @@ export async function joinCall(
 }
 
 export async function leaveCall(guildId: string): Promise<void> {
-	console.log('Leaving voice channel: ', guildId);
-
 	const endpoint = `${url}/leave`;
 
 	const body = {
@@ -123,4 +127,22 @@ export function subscribeToToolMessages(
 	};
 
 	return eventSource;
+}
+
+export async function pushToCache(guildId: string, item: CacheItem): Promise<void> {
+	const endpoint = `${url}/${guildId}/tool-messages`;
+
+	const response = await fetch(endpoint, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${authToken}`,
+		},
+		body: JSON.stringify(item),
+	});
+	console.log(await response.text());
+
+	if (!response.ok) {
+		throw new Error(`Error pushing to cache: ${response.statusText}`);
+	}
 }

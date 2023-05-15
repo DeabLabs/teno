@@ -1,4 +1,6 @@
-import type { CommandInteraction, TextChannel, VoiceBasedChannel } from 'discord.js';
+import type { CommandInteraction, VoiceBasedChannel } from 'discord.js';
+import { ChannelType } from 'discord.js';
+import type { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
 
@@ -131,15 +133,26 @@ export async function createMeeting({
 		try {
 			const eventSource = subscribeToToolMessages(
 				guildId,
-				(toolMessage) => {
+				async (toolMessage) => {
 					console.log('Received tool message:', toolMessage);
 					// Add logic to handle tool message here
 
+					// Invariant check that tool array is not empty
+					invariant(toolMessage.length > 0);
+
 					// Parse tool message json
 					const toolMessageJson = JSON.parse(toolMessage);
+
+					// Execute the first tool message
 					if (toolMessageJson[0].name == 'TextChannelMessage') {
+						const threadChannelId = newMeetingMessage.id;
+
+						const threadChannel = await teno.getClient().channels.fetch(threadChannelId);
+
+						invariant(threadChannel?.type == ChannelType.PublicThread);
+
 						// Send message to text channel
-						textChannel.send(toolMessageJson[0].input);
+						threadChannel.send(toolMessageJson[0].input);
 					}
 				},
 				(error) => {

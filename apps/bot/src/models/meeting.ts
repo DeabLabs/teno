@@ -320,7 +320,6 @@ export class Meeting {
 
 	private async handleVoiceStateUpdate(prevState: VoiceState) {
 		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
-		console.log('voice state update');
 		const tenoUser = this.client?.user?.id;
 		const vc = this.client.channels.cache.get(this.voiceChannelId);
 		const active = await this.getActive();
