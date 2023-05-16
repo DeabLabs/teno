@@ -20,6 +20,13 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 		return;
 	}
 
+	const activeMeetingDb = await getActiveMeetingFromInteraction(interaction, teno.getPrismaClient());
+	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
+	activeMeeting?.endMeeting();
+
+	// Unsubscribe from tool messages
+	activeMeeting?.closeToolEventSource();
+
 	// Send leave request to voice relay
 	try {
 		await leaveCall(guildId);
@@ -27,8 +34,5 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 		console.error(e);
 	}
 
-	const activeMeetingDb = await getActiveMeetingFromInteraction(interaction, teno.getPrismaClient());
-	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
-	activeMeeting?.endMeeting();
 	await interaction.reply({ ephemeral: true, content: 'Left the channel!' });
 }

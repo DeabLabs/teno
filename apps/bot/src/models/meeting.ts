@@ -7,6 +7,7 @@ import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
+import type EventSource from 'eventsource';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -62,6 +63,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
+	private toolSSESource: EventSource | null = null;
 
 	private constructor({
 		guildId,
@@ -344,6 +346,22 @@ export class Meeting {
 			}
 			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
 		}
+	}
+
+	/**
+	 * Set event source for tool sse
+	 * @param eventSource The event source
+	 */
+	public setToolEventSource(eventSource: EventSource) {
+		this.toolSSESource = eventSource;
+	}
+
+	/**
+	 * Close the tool event source
+	 * @param eventSource The event source
+	 */
+	public closeToolEventSource() {
+		this.toolSSESource?.close();
 	}
 
 	/**

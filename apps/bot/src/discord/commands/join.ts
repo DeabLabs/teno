@@ -115,7 +115,8 @@ export async function createMeeting({
 			Tools: [
 				{
 					name: 'TextChannelMessage',
-					description: 'This tool allows you to send a message to a Discord text channel.',
+					description:
+						'This tool allows you to send a message to the discord thread channel associated with this meeting. There is only one text channel. Only use this tool when a user specifically asks for something to be sent by text.',
 					inputGuide: "The input is a string, which is the message you'd like to send to the channel.",
 					outputGuide: 'This tool does not return any output.',
 				},
@@ -160,6 +161,8 @@ export async function createMeeting({
 					// Add logic to handle error here
 				},
 			);
+			// Add event source to meeting
+			newMeeting.setToolEventSource(eventSource);
 		} catch (e) {
 			console.error(e);
 		}
