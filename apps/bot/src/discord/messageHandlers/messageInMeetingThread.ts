@@ -79,17 +79,6 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 			transcriptKey: targetMeeting.transcript.redisKey,
 		});
 
-		if (targetMeeting.active) {
-			// Create a cache item for the message
-			const cacheItem: CacheItem = {
-				Type: 'TextChannelMessage',
-				Permanent: true,
-				Content: `${message.author.username}: ${message.content}`,
-			};
-
-			pushToCache(teno.id, cacheItem);
-		}
-
 		const conversationHistoryContent: string[] = [];
 
 		conversationHistory.forEach((msg: Message<true> | Message<false>) => {
@@ -97,6 +86,17 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 				conversationHistoryContent.unshift(`${msg.author.username}: ${msg.content}`);
 			}
 		});
+
+		// If the meeting is active, update the cache item for the thread history
+		if (targetMeeting.active && conversationHistoryContent.length > 0) {
+			// Create a cache item for the message
+			const cacheItem: CacheItem = {
+				Name: 'MeetingDiscussionThreadHistory',
+				Content: conversationHistoryContent.join('\n'),
+			};
+
+			pushToCache(teno.id, cacheItem);
+		}
 
 		let transcriptLines = [''];
 

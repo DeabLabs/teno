@@ -10,8 +10,7 @@ export type Tool = {
 };
 
 export type CacheItem = {
-	Type: string;
-	Permanent: boolean;
+	Name: string;
 	Content: string;
 };
 
