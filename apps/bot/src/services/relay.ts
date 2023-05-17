@@ -1,6 +1,5 @@
-import EventSource from 'eventsource';
-
 import { Config } from '@/config.js';
+import { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
 
 export type Tool = {
 	name: string;
@@ -46,21 +45,22 @@ export async function joinCall(
 		ResponderConfig: config,
 	};
 
-	// console.log('Voice channel id: ' + channelId);
-	// console.log('Guild id: ' + guildId);
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify(body),
+		});
+		console.log(await response.text());
 
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(body),
-	});
-	console.log(await response.text());
-
-	if (!response.ok) {
-		throw new Error(`Error joining voice channel: ${response.statusText}`);
+		if (!response.ok) {
+			throw new Error(`Error joining voice channel: ${response.statusText}`);
+		}
+	} catch (error) {
+		console.error(error);
 	}
 }
 
@@ -71,35 +71,43 @@ export async function leaveCall(guildId: string): Promise<void> {
 		GuildID: guildId,
 	};
 
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(body),
-	});
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify(body),
+		});
 
-	if (!response.ok) {
-		throw new Error(`Error leaving voice channel: ${response.statusText}`);
+		if (!response.ok) {
+			throw new Error(`Error leaving voice channel: ${response.statusText}`);
+		}
+	} catch (error) {
+		console.error(error);
 	}
 }
 
 export async function configResponder(guildId: string, config: RelayResponderConfig): Promise<void> {
 	const endpoint = `${url}/${guildId}/config`;
 
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(config),
-	});
-	console.log(await response.text());
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify(config),
+		});
+		console.log(await response.text());
 
-	if (!response.ok) {
-		throw new Error(`Error configuring responder: ${response.statusText}`);
+		if (!response.ok) {
+			throw new Error(`Error configuring responder: ${response.statusText}`);
+		}
+	} catch (error) {
+		console.error(error);
 	}
 }
 
@@ -107,41 +115,39 @@ export function subscribeToToolMessages(
 	guildId: string,
 	onMessage: (toolMessage: string) => void,
 	onError: (error: Event) => void,
-) {
+): EventSourceWrapper {
+	const headers = { Authorization: `Bearer ${authToken}` };
 	const endpoint = `${url}/${guildId}/tool-messages`;
 
-	const eventSource = new EventSource(endpoint, {
-		headers: {
-			Authorization: `Bearer ${authToken}`,
-		},
-	});
+	try {
+		const eventSourceWrapper = new EventSourceWrapper(endpoint, headers, onMessage, onError);
+		eventSourceWrapper.connect();
 
-	eventSource.onmessage = (event) => {
-		onMessage(event.data);
-	};
-
-	eventSource.onerror = (error) => {
-		console.error('EventSource failed:', error);
-		onError(error);
-	};
-
-	return eventSource;
+		return eventSourceWrapper;
+	} catch (error) {
+		console.error(`Error subscribing to tool messages:`, error);
+		throw error;
+	}
 }
 
 export async function pushToCache(guildId: string, item: CacheItem): Promise<void> {
 	const endpoint = `${url}/${guildId}/tool-messages`;
 
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${authToken}`,
-		},
-		body: JSON.stringify(item),
-	});
-	console.log(await response.text());
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${authToken}`,
+			},
+			body: JSON.stringify(item),
+		});
+		console.log(await response.text());
 
-	if (!response.ok) {
-		throw new Error(`Error pushing to cache: ${response.statusText}`);
+		if (!response.ok) {
+			throw new Error(`Error pushing to cache: ${response.statusText}`);
+		}
+	} catch (error) {
+		console.error(error);
 	}
 }

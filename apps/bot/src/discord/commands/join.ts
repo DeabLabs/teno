@@ -132,7 +132,7 @@ export async function createMeeting({
 
 		// Subscribe to tool messages
 		try {
-			const eventSource = subscribeToToolMessages(
+			const eventSourceWrapper = subscribeToToolMessages(
 				guildId,
 				async (toolMessage) => {
 					console.log('Received tool message:', toolMessage);
@@ -162,7 +162,7 @@ export async function createMeeting({
 				},
 			);
 			// Add event source to meeting
-			newMeeting.setToolEventSource(eventSource);
+			newMeeting.setToolEventSourceWrapper(eventSourceWrapper);
 		} catch (e) {
 			console.error(e);
 		}

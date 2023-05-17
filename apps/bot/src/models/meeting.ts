@@ -7,13 +7,13 @@ import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
-import type EventSource from 'eventsource';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName } from '@/services/langchain.js';
 import type { RelayResponderConfig } from '@/services/relay.js';
 import { configResponder, leaveCall } from '@/services/relay.js';
+import type { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -63,7 +63,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
-	private toolSSESource: EventSource | null = null;
+	private toolSSESource: EventSourceWrapper | null = null;
 
 	private constructor({
 		guildId,
@@ -352,8 +352,8 @@ export class Meeting {
 	 * Set event source for tool sse
 	 * @param eventSource The event source
 	 */
-	public setToolEventSource(eventSource: EventSource) {
-		this.toolSSESource = eventSource;
+	public setToolEventSourceWrapper(eventSourceWrapper: EventSourceWrapper) {
+		this.toolSSESource = eventSourceWrapper;
 	}
 
 	/**
@@ -361,7 +361,7 @@ export class Meeting {
 	 * @param eventSource The event source
 	 */
 	public closeToolEventSource() {
-		this.toolSSESource?.close();
+		this.toolSSESource?.disconnect();
 	}
 
 	/**
