@@ -3,7 +3,6 @@ import type { CommandInteraction } from 'discord.js';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { getActiveMeetingFromInteraction } from '@/queries/meeting.js';
-import { leaveCall } from '@/services/relay.js';
 
 export const leaveCommand = createCommand({
 	commandArgs: {
@@ -24,12 +23,9 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
 	activeMeeting?.endMeeting();
 
-	// Unsubscribe from tool messages
-	activeMeeting?.closeToolEventSource();
-
 	// Send leave request to voice relay
 	try {
-		await leaveCall(guildId);
+		await teno.getRelayClient().leaveCall();
 	} catch (e) {
 		console.error(e);
 	}

@@ -11,9 +11,7 @@ import { userQueries, usageQueries } from 'database';
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
 import { generateMeetingName } from '@/services/langchain.js';
-import type { RelayResponderConfig } from '@/services/relay.js';
-import { configResponder, leaveCall } from '@/services/relay.js';
-import type { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
+import type { VoiceRelayClient } from '@/services/relaySDK.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
@@ -24,6 +22,7 @@ type MeetingArgs = {
 	voiceChannelId: string;
 	guildId: string;
 	prismaClient: PrismaClientType;
+	voiceRelayClient: VoiceRelayClient;
 	teno: Teno;
 	startTime: number;
 	transcript: Transcript;
@@ -48,6 +47,7 @@ export type Persona = {
 
 export class Meeting {
 	private prismaClient: PrismaClientType;
+	private voiceRelayClient: VoiceRelayClient;
 	private guildId: string;
 	private voiceChannelId: string;
 	private startTime: number;
@@ -63,11 +63,11 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
-	private toolSSESource: EventSourceWrapper | null = null;
 
 	private constructor({
 		guildId,
 		prismaClient,
+		voiceRelayClient,
 		startTime,
 		transcript,
 		id,
@@ -86,6 +86,7 @@ export class Meeting {
 		this.voiceChannelId = voiceChannelId;
 		this.startTime = startTime;
 		this.prismaClient = prismaClient;
+		this.voiceRelayClient = voiceRelayClient;
 		this.client = client;
 		this.attendees = new Set<string>();
 		this.transcript = transcript;
@@ -154,6 +155,7 @@ export class Meeting {
 				meetingMessageId: args.meetingMessageId,
 				startTime: _meeting.createdAt.getTime(),
 				prismaClient: args.prismaClient,
+				voiceRelayClient: args.voiceRelayClient,
 				client: args.client,
 				transcript,
 				active: _meeting.active,
@@ -340,7 +342,7 @@ export class Meeting {
 
 			// Send join request to voice relay
 			try {
-				await leaveCall(this.guildId);
+				await this.voiceRelayClient.leaveCall();
 			} catch (e) {
 				console.error(e);
 			}
@@ -349,32 +351,12 @@ export class Meeting {
 	}
 
 	/**
-	 * Set event source for tool sse
-	 * @param eventSource The event source
-	 */
-	public setToolEventSourceWrapper(eventSourceWrapper: EventSourceWrapper) {
-		this.toolSSESource = eventSourceWrapper;
-	}
-
-	/**
-	 * Close the tool event source
-	 * @param eventSource The event source
-	 */
-	public closeToolEventSource() {
-		this.toolSSESource?.disconnect();
-	}
-
-	/**
 	 *  Add a user to the ignore list, which stops Teno from transcribing their speech
 	 * @param userId  The user to ignore
 	 */
 	public ignoreUser(userId: string): void {
-		const config: RelayResponderConfig = {
-			IgnoreUser: userId,
-		};
-
 		try {
-			configResponder(this.guildId, config);
+			this.voiceRelayClient.ignoreUser(userId);
 		} catch (e) {
 			console.error(e);
 		}
@@ -385,12 +367,8 @@ export class Meeting {
 	 * @param userId The user to stop ignoring
 	 */
 	public stopIgnoring(userId: string): void {
-		const config: RelayResponderConfig = {
-			StopIgnoringUser: userId,
-		};
-
 		try {
-			configResponder(this.guildId, config);
+			this.voiceRelayClient.stopIgnoringUser(userId);
 		} catch (e) {
 			console.error(e);
 		}
@@ -566,13 +544,8 @@ export class Meeting {
 	}
 
 	public async setPersona(persona: Persona) {
-		const config: RelayResponderConfig = {
-			BotName: persona.name,
-			Personality: persona.description,
-		};
-
 		try {
-			await configResponder(this.guildId, config);
+			await this.voiceRelayClient.setPersona(persona.name, persona.description);
 		} catch (e) {
 			console.error(e);
 			return;
@@ -582,14 +555,12 @@ export class Meeting {
 	}
 
 	public turnPersonaOff() {
-		const config: RelayResponderConfig = {
-			BotName: 'Teno',
-			Personality:
-				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
-		};
+		const botName = 'Teno';
+		const personality =
+			'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.';
 
 		try {
-			configResponder(this.guildId, config);
+			this.voiceRelayClient.setPersona(botName, personality);
 		} catch (e) {
 			console.error(e);
 			return;

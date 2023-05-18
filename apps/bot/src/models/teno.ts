@@ -10,6 +10,8 @@ import invariant from 'tiny-invariant';
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
 import { createMeeting } from '@/discord/commands/join.js';
+import { VoiceRelayClient } from '@/services/relaySDK.js';
+import { Config } from '@/config.js';
 
 import type { Meeting } from './meeting.js';
 import { Responder } from './responder.js';
@@ -25,6 +27,8 @@ export class Teno {
 	private responder: Responder;
 	private speechOn = true;
 	private voiceConfig: VoiceService | null = null;
+
+	private relayClient: VoiceRelayClient;
 
 	constructor({
 		client,
@@ -48,6 +52,7 @@ export class Teno {
 			redisClient,
 			prismaClient,
 		});
+		this.relayClient = new VoiceRelayClient(Config.VOICE_RELAY_AUTH_KEY, guild.id);
 		this.initialize();
 	}
 
@@ -307,6 +312,10 @@ export class Teno {
 
 	getRedisClient(): RedisClient {
 		return this.redisClient;
+	}
+
+	getRelayClient(): VoiceRelayClient {
+		return this.relayClient;
 	}
 
 	getMeetings() {

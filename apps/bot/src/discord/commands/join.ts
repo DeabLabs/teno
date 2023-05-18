@@ -1,5 +1,4 @@
 import type { CommandInteraction, VoiceBasedChannel } from 'discord.js';
-import { ChannelType } from 'discord.js';
 import type { TextChannel } from 'discord.js';
 import { GuildMember } from 'discord.js';
 import invariant from 'tiny-invariant';
@@ -7,9 +6,8 @@ import invariant from 'tiny-invariant';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
-import type { RelayResponderConfig } from '@/services/relay.js';
-import { subscribeToToolMessages } from '@/services/relay.js';
-import { joinCall } from '@/services/relay.js';
+import type { RelayResponderConfig } from '@/services/relaySDK.js';
+import { SpeakingModeType } from '@/services/relaySDK.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
@@ -74,12 +72,15 @@ export async function createMeeting({
 	}
 
 	try {
+		const relayClient = teno.getRelayClient();
+
 		const newMeeting = await Meeting.load({
 			meetingMessageId: newMeetingMessage.id,
 			voiceChannelId: voiceChannel.id,
 			guildId: guildId,
 			redisClient: teno.getRedisClient(),
 			prismaClient: teno.getPrismaClient(),
+			voiceRelayClient: relayClient,
 			userDiscordId,
 			client: teno.getClient(),
 			teno: teno,
@@ -95,74 +96,33 @@ export async function createMeeting({
 		const transcriptKey = newMeeting.getTranscript().getTranscriptKey();
 
 		const speakingModeBool = teno.getSpeechOn();
-		let speakingModeInt;
+		let speakingMode;
 		if (speakingModeBool) {
-			speakingModeInt = 3; // AutoSleep
+			speakingMode = SpeakingModeType.AutoSleep;
 		} else {
-			speakingModeInt = 1; // NeverSpeak
+			speakingMode = SpeakingModeType.NeverSpeak;
 		}
 
 		const config: RelayResponderConfig = {
 			BotName: 'Teno',
 			Personality:
 				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
-			SpeakingMode: speakingModeInt,
+			SpeakingMode: speakingMode,
 			LinesBeforeSleep: 4,
 			BotNameConfidenceThreshold: 0.7,
 			LLMService: 'openai',
 			LLMModel: 'gpt-3.5-turbo',
 			TranscriptContextSize: 20,
-			Tools: [
-				{
-					name: 'TextChannelMessage',
-					description:
-						'This tool allows you to send a message to the discord thread channel associated with this meeting. There is only one text channel. Only use this tool when a user specifically asks for something to be sent by text.',
-					inputGuide: "The input is a string, which is the message you'd like to send to the channel.",
-					outputGuide: 'This tool does not return any output.',
-				},
-			],
 		};
+
+		const threadChannel = (await teno.getClient().channels.fetch(newMeetingMessage.id)) as TextChannel;
 
 		// Send join request to voice relay
 		try {
-			await joinCall(guildId, voiceChannel.id, transcriptKey, config);
-		} catch (e) {
-			console.error(e);
-		}
-
-		// Subscribe to tool messages
-		try {
-			const eventSourceWrapper = subscribeToToolMessages(
-				guildId,
-				async (toolMessage) => {
-					console.log('Received tool message:', toolMessage);
-					// Add logic to handle tool message here
-
-					// Invariant check that tool array is not empty
-					invariant(toolMessage.length > 0);
-
-					// Parse tool message json
-					const toolMessageJson = JSON.parse(toolMessage);
-
-					// Execute the first tool message
-					if (toolMessageJson[0].name == 'TextChannelMessage') {
-						const threadChannelId = newMeetingMessage.id;
-
-						const threadChannel = await teno.getClient().channels.fetch(threadChannelId);
-
-						invariant(threadChannel?.type == ChannelType.PublicThread);
-
-						// Send message to text channel
-						threadChannel.send(toolMessageJson[0].input);
-					}
-				},
-				(error) => {
-					console.error('Error received:', error);
-					// Add logic to handle error here
-				},
-			);
-			// Add event source to meeting
-			newMeeting.setToolEventSourceWrapper(eventSourceWrapper);
+			await relayClient.joinCall(voiceChannel.id, transcriptKey, config);
+			if (threadChannel) {
+				await relayClient.syncTextChannel(teno.getClient(), threadChannel, 'MeetingDiscussion', 10);
+			}
 		} catch (e) {
 			console.error(e);
 		}

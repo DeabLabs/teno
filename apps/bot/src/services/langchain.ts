@@ -1,7 +1,5 @@
 import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate } from 'langchain/prompts';
-import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
-import { BaseCallbackHandler } from 'langchain/callbacks';
 
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
@@ -30,23 +28,23 @@ const modelTokenLimits = {
 
 export type SupportedModels = keyof typeof models;
 
-const attachStreamingTokenHandler = (
-	llm: ChatOpenAI,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
-) => {
-	if (onNewToken && onEnd) {
-		const handler = BaseCallbackHandler.fromMethods({
-			handleLLMNewToken(token: string) {
-				onNewToken(token);
-			},
-			handleLLMEnd() {
-				onEnd();
-			},
-		});
-		llm.callbacks = [handler];
-	}
-};
+// const attachStreamingTokenHandler = (
+// 	llm: ChatOpenAI,
+// 	onNewToken?: (token: string) => Promise<void>,
+// 	onEnd?: () => void,
+// ) => {
+// 	if (onNewToken && onEnd) {
+// 		const handler = BaseCallbackHandler.fromMethods({
+// 			handleLLMNewToken(token: string) {
+// 				onNewToken(token);
+// 			},
+// 			handleLLMEnd() {
+// 				onEnd();
+// 			},
+// 		});
+// 		llm.callbacks = [handler];
+// 	}
+// };
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
@@ -318,18 +316,4 @@ export async function generateMeetingName(transcriptLines: string[], model: Supp
 		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
 		languageModel: llm.modelName,
 	};
-}
-
-function createChatPromptTemplateFromHistory(conversationHistory: string[]) {
-	const promptMessages = conversationHistory.map((message, index) => {
-		if (index % 2 === 0) {
-			// User message
-			return new HumanChatMessage(`${message}`);
-		} else {
-			// Teno's message
-			return new AIChatMessage(`${message}`);
-		}
-	});
-
-	return promptMessages;
 }

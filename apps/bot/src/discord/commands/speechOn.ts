@@ -4,8 +4,7 @@ import invariant from 'tiny-invariant';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
-import type { RelayResponderConfig } from '@/services/relay.js';
-import { configResponder } from '@/services/relay.js';
+import { SpeakingModeType } from '@/services/relaySDK.js';
 
 export const speechOnCommand = createCommand({
 	commandArgs: {
@@ -56,16 +55,13 @@ async function speechOn(interaction: CommandInteraction, teno: Teno) {
 
 	try {
 		if (activeMeeting) {
-			const config: RelayResponderConfig = {
-				SpeakingMode: 3, // AutoSleep
-			};
-			configResponder(guildId, config);
-			await interaction.editReply({
-				content: `Teno can now respond with text-to-speech.`,
-				components: [],
-			});
+			teno.getRelayClient().setSpeakingMode(SpeakingModeType.AutoSleep);
 		}
 		teno.enableSpeech();
+		await interaction.editReply({
+			content: `Teno will now respond with text-to-speech.`,
+			components: [],
+		});
 	} catch (e) {
 		await interaction.editReply({
 			content: `Error turning on text-to-speech.`,

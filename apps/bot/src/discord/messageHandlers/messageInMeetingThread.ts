@@ -8,8 +8,6 @@ import type { Teno } from '@/models/teno.js';
 import { answerQuestionOnTranscript } from '@/services/langchain.js';
 import { createMessageHandler } from '@/discord/createMessageHandler.js';
 import { Transcript } from '@/models/transcript.js';
-import { pushToCache } from '@/services/relay.js';
-import type { CacheItem } from '@/services/relay.js';
 
 const findMeetingByMeetingMessage = async (discordUserId: string, messageId: string | undefined | null, teno: Teno) => {
 	try {
@@ -86,17 +84,6 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 				conversationHistoryContent.unshift(`${msg.author.username}: ${msg.content}`);
 			}
 		});
-
-		// If the meeting is active, update the cache item for the thread history
-		if (targetMeeting.active && conversationHistoryContent.length > 0) {
-			// Create a cache item for the message
-			const cacheItem: CacheItem = {
-				Name: 'MeetingDiscussionThreadHistory',
-				Content: conversationHistoryContent.join('\n'),
-			};
-
-			pushToCache(teno.id, cacheItem);
-		}
 
 		let transcriptLines = [''];
 
