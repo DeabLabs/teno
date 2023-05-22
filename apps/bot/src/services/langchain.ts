@@ -1,7 +1,5 @@
 import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate } from 'langchain/prompts';
-import { AIChatMessage, HumanChatMessage } from 'langchain/schema';
-import { BaseCallbackHandler } from 'langchain/callbacks';
 
 import { Config } from '@/config.js';
 import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
@@ -10,14 +8,12 @@ const gptFour = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-4',
 	openAIApiKey: Config.OPENAI_API_KEY,
-	streaming: true,
 });
 
 const gptTurbo = new ChatOpenAI({
 	temperature: 0.9,
 	modelName: 'gpt-3.5-turbo',
 	openAIApiKey: Config.OPENAI_API_KEY,
-	streaming: true,
 });
 
 const models = {
@@ -32,23 +28,23 @@ const modelTokenLimits = {
 
 export type SupportedModels = keyof typeof models;
 
-const attachStreamingTokenHandler = (
-	llm: ChatOpenAI,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
-) => {
-	if (onNewToken && onEnd) {
-		const handler = BaseCallbackHandler.fromMethods({
-			handleLLMNewToken(token: string) {
-				onNewToken(token);
-			},
-			handleLLMEnd() {
-				onEnd();
-			},
-		});
-		llm.callbacks = [handler];
-	}
-};
+// const attachStreamingTokenHandler = (
+// 	llm: ChatOpenAI,
+// 	onNewToken?: (token: string) => Promise<void>,
+// 	onEnd?: () => void,
+// ) => {
+// 	if (onNewToken && onEnd) {
+// 		const handler = BaseCallbackHandler.fromMethods({
+// 			handleLLMNewToken(token: string) {
+// 				onNewToken(token);
+// 			},
+// 			handleLLMEnd() {
+// 				onEnd();
+// 			},
+// 		});
+// 		llm.callbacks = [handler];
+// 	}
+// };
 
 const secretary = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
@@ -59,9 +55,11 @@ The transcript may include transcription errors, like mispelled words and broken
 Your job is to help the user with their requests, using the transcript as a tool to help you fulfill their requests
 In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
 Limit all unnecessary prose.
-Here is the transcript, surrounded by \`\`\`:
+Here is the transcript so far, surrounded by \`\`\`:
 \`\`\`{transcript}\`\`\`
-Below is your conversation with the users, their messages will include their usernames. Your responses do not need to include usernames.`,
+Below is your conversation with the users about the meeting, respond with your next message:
+{conversationHistory}
+Teno:`,
 	),
 ]);
 
@@ -157,7 +155,8 @@ export async function answerQuestionOnTranscript(
 
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
-		return { status: 'error', error: 'No transcript found' };
+		transcriptLines = ['Empty transcript'];
+		console.error('(Empty transcript)');
 	}
 
 	// If the conversation history is a string, convert it to an array
@@ -165,21 +164,20 @@ export async function answerQuestionOnTranscript(
 		conversationHistory = [conversationHistory];
 	}
 
-	const conversationMessages = createChatPromptTemplateFromHistory(conversationHistory);
-	console.log('Conversation history: ', conversationMessages);
+	const conversationHistoryString = conversationHistory.join('\n');
 
 	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
 
 	const secretaryFormat = await secretary.formatPromptValue({
 		transcript: shortenedTranscript,
+		conversationHistory: conversationHistoryString,
 	});
 
 	const secretaryMessages = secretaryFormat.toChatMessages();
 
-	// Append the conversation history messages to the secretary messages
-	const fullPrompt = secretaryMessages.concat(conversationMessages);
+	// console.log('Prompt', secretaryMessages);
 
-	const answer = await llm.generate([fullPrompt]);
+	const answer = await llm.generate([secretaryMessages]);
 
 	return {
 		status: 'success',
@@ -225,19 +223,13 @@ export async function checkLinesForVoiceActivation(
 	return ACTIVATION_COMMAND.PASS;
 }
 
-export async function chimeInOnTranscript(
-	transcriptLines: string[],
-	model: SupportedModels,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
-): Promise<AnswerOutput> {
+export async function chimeInOnTranscript(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
 
 	const llm = models[model];
-	attachStreamingTokenHandler(llm, onNewToken, onEnd);
 
 	const shortenedTranscript = constrainLinesToTokenLimit(
 		transcriptLines,
@@ -251,9 +243,6 @@ export async function chimeInOnTranscript(
 			transcript: shortenedTranscript,
 		}),
 	]);
-
-	// Restore the original callback manager
-	// llm.callbacks = [];
 
 	return {
 		status: 'success',
@@ -269,8 +258,6 @@ export async function personaChimeInOnTranscript(
 	personaName: string,
 	personaDescription: string,
 	model: SupportedModels,
-	onNewToken?: (token: string) => Promise<void>,
-	onEnd?: () => void,
 ): Promise<AnswerOutput> {
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
@@ -278,7 +265,6 @@ export async function personaChimeInOnTranscript(
 	}
 
 	const llm = models[model];
-	attachStreamingTokenHandler(llm, onNewToken, onEnd);
 
 	console.log(modelTokenLimits[model]);
 
@@ -296,9 +282,6 @@ export async function personaChimeInOnTranscript(
 			personaDescription: personaDescription,
 		}),
 	]);
-
-	// Restore the original callback manager
-	llm.callbacks = [];
 
 	return {
 		status: 'success',
@@ -333,18 +316,4 @@ export async function generateMeetingName(transcriptLines: string[], model: Supp
 		completionTokens: response.llmOutput?.tokenUsage.completionTokens,
 		languageModel: llm.modelName,
 	};
-}
-
-function createChatPromptTemplateFromHistory(conversationHistory: string[]) {
-	const promptMessages = conversationHistory.map((message, index) => {
-		if (index % 2 === 0) {
-			// User message
-			return new HumanChatMessage(`${message}`);
-		} else {
-			// Teno's message
-			return new AIChatMessage(`${message}`);
-		}
-	});
-
-	return promptMessages;
 }

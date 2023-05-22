@@ -4,8 +4,6 @@ import { transcriptQueries } from 'kv';
 import type { RedisClient } from '@/bot.js';
 import { countMessageTokens } from '@/utils/tokens.js';
 
-import type { Utterance } from './utterance.js';
-
 type TranscriptArgs = {
 	id: number;
 	meetingId: number;
@@ -36,7 +34,6 @@ export class Transcript {
 
 		// Bind methods
 		this.appendTranscript = this.appendTranscript.bind(this);
-		this.addUtterance = this.addUtterance.bind(this);
 		this.getTranscript = this.getTranscript.bind(this);
 	}
 
@@ -130,13 +127,6 @@ export class Transcript {
 		console.log(this.tokens);
 	}
 
-	public async addUtterance(utterance: Utterance) {
-		const utteranceText = utterance.formatForTranscript();
-		if (utteranceText) {
-			await this.appendTranscript(utteranceText, utterance.timestamp);
-		}
-	}
-
 	public async removeUser(userId: string) {
 		const rawTranscript = await this.getTranscriptRaw();
 
@@ -146,5 +136,9 @@ export class Transcript {
 		});
 
 		return await this.redisClient.zrem(this.transcriptKey, ...linesToRemove);
+	}
+
+	public getTranscriptKey() {
+		return this.transcriptKey;
 	}
 }
