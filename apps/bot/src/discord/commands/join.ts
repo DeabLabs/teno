@@ -7,7 +7,6 @@ import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
 import type { RelayResponderConfig } from '@/services/relaySDK.js';
-import { SpeakingModeType } from '@/services/relaySDK.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
@@ -98,9 +97,9 @@ export async function createMeeting({
 		const speakingModeBool = teno.getSpeechOn();
 		let speakingMode;
 		if (speakingModeBool) {
-			speakingMode = SpeakingModeType.AutoSleep;
+			speakingMode = 'AutoSleep';
 		} else {
-			speakingMode = SpeakingModeType.NeverSpeak;
+			speakingMode = 'NeverSpeak';
 		}
 
 		const config: RelayResponderConfig = {

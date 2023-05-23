@@ -52,7 +52,10 @@ export class Teno {
 			redisClient,
 			prismaClient,
 		});
-		this.relayClient = new VoiceRelayClient(Config.VOICE_RELAY_AUTH_KEY, guild.id);
+		if (!this.client.user) {
+			throw new Error('Client user is null');
+		}
+		this.relayClient = new VoiceRelayClient(Config.VOICE_RELAY_AUTH_KEY, this.client.user.id, Config.TOKEN, guild.id);
 		this.initialize();
 	}
 

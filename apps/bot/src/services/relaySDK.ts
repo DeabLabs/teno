@@ -3,22 +3,91 @@ import type { Client, Message, TextChannel } from 'discord.js';
 import { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
 import { Config } from '@/config.js';
 
-export type Tool = {
+export interface JoinRequest {
+	BotID: string;
+	GuildID: string;
+	ChannelID: string;
+	Config: Config;
+	RedisTranscriptKey?: string;
+}
+
+interface Config {
+	BotName: string;
+	PromptContents: PromptContents;
+	VoiceUXConfig: VoiceUXConfig;
+	LLMConfig: LLMConfig;
+	TTSConfig: TTSConfig;
+	TranscriptConfig: TranscriptConfig;
+	TranscriberConfig: TranscriberConfig;
+}
+
+interface PromptContents {
+	Personality: string;
+	ToolList: Tool[];
+	Documents: Document[];
+	Tasks: Task[];
+}
+
+interface Tool {
 	Name: string;
 	Description: string;
 	InputGuide: string;
 	OutputGuide: string;
-};
+}
 
-export type CacheItem = {
+interface Document {
 	Name: string;
 	Content: string;
-};
+}
+
+interface Task {
+	Name: string;
+	Description: string;
+	DeliverableGuide: string;
+}
+
+interface VoiceUXConfig {
+	SpeakingMode: string;
+	LinesBeforeSleep: number;
+	BotNameConfidenceThreshold: number;
+}
+
+interface LLMConfig {
+	LLMServiceName: string;
+	LLMConfig: OpenaiConfig;
+}
+
+interface OpenaiConfig {
+	ApiKey: string;
+	Model: string;
+}
+
+interface TTSConfig {
+	TTSServiceName: string;
+	TTSConfig: AzureConfig;
+}
+
+interface AzureConfig {
+	ApiKey: string;
+	Model: string;
+	VoiceID: string;
+	Language: string;
+	Gender: string;
+}
+
+interface TranscriptConfig {
+	NumberOfTranscriptLines: number;
+}
+
+interface TranscriberConfig {
+	Keywords: string[];
+	IgnoredUsers: string[];
+}
 
 export type RelayResponderConfig = {
 	BotName?: string;
 	Personality?: string;
-	SpeakingMode?: number;
+	SpeakingMode?: string;
 	LinesBeforeSleep?: number;
 	BotNameConfidenceThreshold?: number;
 	LLMService?: string;
@@ -29,30 +98,26 @@ export type RelayResponderConfig = {
 	Tools?: Tool[];
 };
 
-export enum SpeakingModeType {
-	Unspecified = 0,
-	NeverSpeak = 1,
-	AlwaysSleep = 2,
-	AutoSleep = 3,
-	NeverSleep = 4,
-}
-
 export class VoiceRelayClient {
 	private authToken: string;
 	private url: string;
+	private botId: string;
+	private botToken: string;
 	private guildId: string;
 	private config: RelayResponderConfig;
 	private toolHandlers: Map<string, (input: string) => Promise<string | null>>;
 	private toolEventSource?: EventSourceWrapper;
 
-	constructor(authToken: string, guildId: string) {
+	constructor(authToken: string, botId: string, botToken: string, guildId: string) {
 		this.authToken = authToken;
 		this.url = Config.VOICE_RELAY_URL;
+		this.botId = botId;
+		this.botToken = botToken;
 		this.guildId = guildId;
 		this.config = {
 			BotName: '',
 			Personality: '',
-			SpeakingMode: 0,
+			SpeakingMode: '',
 			LinesBeforeSleep: 0,
 			BotNameConfidenceThreshold: 0,
 			LLMService: '',
@@ -67,10 +132,82 @@ export class VoiceRelayClient {
 		const endpoint = `${this.url}/join`;
 
 		const body = {
+			BotID: this.botId,
+			BotToken: this.botToken,
 			GuildID: this.guildId,
 			ChannelID: channelId,
 			RedisTranscriptKey: transcriptKey,
-			ResponderConfig: config,
+			Config: {
+				BotName: 'Beno',
+				PromptContents: {
+					Personality: 'snarky and sarcastic',
+					ToolList: [
+						{
+							Name: 'Send Message',
+							Description: 'Send a message to the channel',
+							InputGuide: 'Type a message to send',
+							OutputGuide: 'Nothing',
+						},
+						{
+							Name: 'Search Google',
+							Description: 'Search Google for something',
+							InputGuide: 'Type a search query',
+							OutputGuide: 'The top 5 search results',
+						},
+					],
+					Documents: [
+						{
+							Name: 'Pi',
+							Content: '3.14155',
+						},
+						{
+							Name: 'John favorite color',
+							Content: 'Green',
+						},
+					],
+					Tasks: [
+						{
+							Name: 'Go outside',
+							Description: 'Tell the user to go outside',
+							DeliverableGuide: 'Nothing',
+						},
+						{
+							Name: 'Favorite color',
+							Description: 'Ask the user what their favorite color is',
+							DeliverableGuide: "Enter the user's favorite color into the send message tool",
+						},
+					],
+				},
+				VoiceUXConfig: {
+					SpeakingMode: 'AutoSleep',
+					LinesBeforeSleep: 4,
+					BotNameConfidenceThreshold: 0.7,
+				},
+				LLMConfig: {
+					LLMServiceName: 'openai',
+					LLMConfig: {
+						ApiKey: Config.OPENAI_API_KEY,
+						Model: 'gpt-3.5-turbo',
+					},
+				},
+				TTSConfig: {
+					TTSServiceName: 'azure',
+					TTSConfig: {
+						ApiKey: Config.AZURE_SPEECH_KEY,
+						Model: 'neural',
+						VoiceID: 'en-US-BrandonNeural',
+						Language: 'en-US',
+						Gender: 'Male',
+					},
+				},
+				TranscriptConfig: {
+					NumberOfTranscriptLines: 20,
+				},
+				TranscriberConfig: {
+					Keywords: [],
+					IgnoredUsers: [],
+				},
+			},
 		};
 
 		try {
@@ -158,7 +295,7 @@ export class VoiceRelayClient {
 		this.configResponder({ BotName: botName, Personality: personality });
 	}
 
-	async setSpeakingMode(mode: SpeakingModeType): Promise<void> {
+	async setSpeakingMode(mode: string): Promise<void> {
 		this.configResponder({ SpeakingMode: mode });
 	}
 
@@ -180,7 +317,7 @@ export class VoiceRelayClient {
 		}
 	}
 
-	async pushToCache(item: CacheItem): Promise<void> {
+	async pushToCache(item: Document): Promise<void> {
 		const endpoint = `${this.url}/${this.guildId}/tool-messages`;
 
 		try {
