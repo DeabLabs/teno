@@ -4,7 +4,6 @@ import invariant from 'tiny-invariant';
 
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
-import { SpeakingModeType } from '@/services/relaySDK.js';
 
 export const speechOffCommand = createCommand({
 	commandArgs: {
@@ -55,7 +54,7 @@ async function speechOff(interaction: CommandInteraction, teno: Teno) {
 
 	try {
 		if (activeMeeting) {
-			teno.getRelayClient().setSpeakingMode(SpeakingModeType.NeverSpeak);
+			teno.getRelayClient().setSpeakingMode('NeverSpeak');
 		}
 		teno.disableSpeech();
 		await interaction.editReply({

@@ -11,6 +11,7 @@ const envKeys = [
 	'REDIS_URL',
 	'DATABASE_URL',
 	'AZURE_SPEECH_REGION',
+	'AZURE_SPEECH_KEY',
 	'VOICE_RELAY_AUTH_KEY',
 	'VOICE_RELAY_URL',
 ] as const;
