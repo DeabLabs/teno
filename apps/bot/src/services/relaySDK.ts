@@ -27,6 +27,30 @@ interface PromptContents {
 	Documents: Document[];
 	Tasks: Task[];
 }
+export interface JoinRequest {
+	BotID: string;
+	GuildID: string;
+	ChannelID: string;
+	Config: Config;
+	RedisTranscriptKey?: string;
+}
+
+interface Config {
+	BotName: string;
+	PromptContents: PromptContents;
+	VoiceUXConfig: VoiceUXConfig;
+	LLMConfig: LLMConfig;
+	TTSConfig: TTSConfig;
+	TranscriptConfig: TranscriptConfig;
+	TranscriberConfig: TranscriberConfig;
+}
+
+interface PromptContents {
+	Personality: string;
+	ToolList: Tool[];
+	Documents: Document[];
+	Tasks: Task[];
+}
 
 interface Tool {
 	Name: string;
