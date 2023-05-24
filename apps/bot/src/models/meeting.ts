@@ -545,7 +545,7 @@ export class Meeting {
 
 	public async setPersona(persona: Persona) {
 		try {
-			await this.voiceRelayClient.setPersona(persona.name, persona.description);
+			await this.voiceRelayClient.updatePersona(persona.name, persona.description);
 		} catch (e) {
 			console.error(e);
 			return;
@@ -560,7 +560,7 @@ export class Meeting {
 			'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.';
 
 		try {
-			this.voiceRelayClient.setPersona(botName, personality);
+			this.voiceRelayClient.updatePersona(botName, personality);
 		} catch (e) {
 			console.error(e);
 			return;

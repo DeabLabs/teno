@@ -6,7 +6,6 @@ import invariant from 'tiny-invariant';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
-import type { RelayResponderConfig } from '@/services/relaySDK.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
@@ -102,25 +101,13 @@ export async function createMeeting({
 			speakingMode = 'NeverSpeak';
 		}
 
-		const config: RelayResponderConfig = {
-			BotName: 'Teno',
-			Personality:
-				'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.',
-			SpeakingMode: speakingMode,
-			LinesBeforeSleep: 4,
-			BotNameConfidenceThreshold: 0.7,
-			LLMService: 'openai',
-			LLMModel: 'gpt-3.5-turbo',
-			TranscriptContextSize: 20,
-		};
-
 		const threadChannel = (await teno.getClient().channels.fetch(newMeetingMessage.id)) as TextChannel;
 
 		// Send join request to voice relay
 		try {
-			await relayClient.joinCall(voiceChannel.id, transcriptKey, config);
+			await relayClient.joinCall(voiceChannel.id, transcriptKey);
 			if (threadChannel) {
-				await relayClient.syncTextChannel(teno.getClient(), threadChannel, 'MeetingDiscussion', 10);
+				await relayClient.syncTextChannel(threadChannel, 'MeetingDiscussion', 10);
 			}
 		} catch (e) {
 			console.error(e);

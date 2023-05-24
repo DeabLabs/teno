@@ -55,7 +55,13 @@ export class Teno {
 		if (!this.client.user) {
 			throw new Error('Client user is null');
 		}
-		this.relayClient = new VoiceRelayClient(Config.VOICE_RELAY_AUTH_KEY, this.client.user.id, Config.TOKEN, guild.id);
+		this.relayClient = new VoiceRelayClient(
+			this.client,
+			Config.VOICE_RELAY_AUTH_KEY,
+			this.client.user.id,
+			Config.TOKEN,
+			guild.id,
+		);
 		this.initialize();
 	}
 

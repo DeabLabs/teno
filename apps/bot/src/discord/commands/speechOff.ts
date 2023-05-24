@@ -54,7 +54,7 @@ async function speechOff(interaction: CommandInteraction, teno: Teno) {
 
 	try {
 		if (activeMeeting) {
-			teno.getRelayClient().setSpeakingMode('NeverSpeak');
+			await teno.getRelayClient().updateSpeakingMode('NeverSpeak');
 		}
 		teno.disableSpeech();
 		await interaction.editReply({

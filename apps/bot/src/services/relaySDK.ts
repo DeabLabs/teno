@@ -50,6 +50,7 @@ interface VoiceUXConfig {
 	SpeakingMode: string;
 	LinesBeforeSleep: number;
 	BotNameConfidenceThreshold: number;
+	AutoRespondInterval: number;
 }
 
 interface LLMConfig {
@@ -84,51 +85,67 @@ interface TranscriberConfig {
 	IgnoredUsers: string[];
 }
 
-export type RelayResponderConfig = {
-	BotName?: string;
-	Personality?: string;
-	SpeakingMode?: string;
-	LinesBeforeSleep?: number;
-	BotNameConfidenceThreshold?: number;
-	LLMService?: string;
-	LLMModel?: string;
-	TranscriptContextSize?: number;
-	IgnoreUser?: string;
-	StopIgnoringUser?: string;
-	Tools?: Tool[];
-};
-
 export class VoiceRelayClient {
+	private discordClient: Client;
 	private authToken: string;
 	private url: string;
 	private botId: string;
 	private botToken: string;
 	private guildId: string;
-	private config: RelayResponderConfig;
+	private config: Config;
 	private toolHandlers: Map<string, (input: string) => Promise<string | null>>;
 	private toolEventSource?: EventSourceWrapper;
 
-	constructor(authToken: string, botId: string, botToken: string, guildId: string) {
+	constructor(discordClient: Client, authToken: string, botId: string, botToken: string, guildId: string) {
+		this.discordClient = discordClient;
 		this.authToken = authToken;
 		this.url = Config.VOICE_RELAY_URL;
 		this.botId = botId;
 		this.botToken = botToken;
 		this.guildId = guildId;
 		this.config = {
-			BotName: '',
-			Personality: '',
-			SpeakingMode: '',
-			LinesBeforeSleep: 0,
-			BotNameConfidenceThreshold: 0,
-			LLMService: '',
-			LLMModel: '',
-			TranscriptContextSize: 0,
-			Tools: [],
+			BotName: 'Bot',
+			PromptContents: {
+				Personality: 'Helpful Discord voice bot',
+				ToolList: [],
+				Documents: [],
+				Tasks: [],
+			},
+			VoiceUXConfig: {
+				SpeakingMode: 'AutoSleep',
+				LinesBeforeSleep: 4,
+				BotNameConfidenceThreshold: 0.7,
+				AutoRespondInterval: 0, // When there are pending tasks, how long to wait before responding again
+			},
+			LLMConfig: {
+				LLMServiceName: 'openai',
+				LLMConfig: {
+					ApiKey: Config.OPENAI_API_KEY,
+					Model: 'gpt-3.5-turbo',
+				},
+			},
+			TTSConfig: {
+				TTSServiceName: 'azure',
+				TTSConfig: {
+					ApiKey: Config.AZURE_SPEECH_KEY,
+					Model: 'neural',
+					VoiceID: 'en-US-BrandonNeural',
+					Language: 'en-US',
+					Gender: 'Male',
+				},
+			},
+			TranscriptConfig: {
+				NumberOfTranscriptLines: 20,
+			},
+			TranscriberConfig: {
+				Keywords: [],
+				IgnoredUsers: [],
+			},
 		};
 		this.toolHandlers = new Map();
 	}
 
-	async joinCall(channelId: string, transcriptKey: string, config: RelayResponderConfig): Promise<void> {
+	async joinCall(channelId: string, transcriptKey: string): Promise<void> {
 		const endpoint = `${this.url}/join`;
 
 		const body = {
@@ -137,77 +154,7 @@ export class VoiceRelayClient {
 			GuildID: this.guildId,
 			ChannelID: channelId,
 			RedisTranscriptKey: transcriptKey,
-			Config: {
-				BotName: 'Beno',
-				PromptContents: {
-					Personality: 'snarky and sarcastic',
-					ToolList: [
-						{
-							Name: 'Send Message',
-							Description: 'Send a message to the channel',
-							InputGuide: 'Type a message to send',
-							OutputGuide: 'Nothing',
-						},
-						{
-							Name: 'Search Google',
-							Description: 'Search Google for something',
-							InputGuide: 'Type a search query',
-							OutputGuide: 'The top 5 search results',
-						},
-					],
-					Documents: [
-						{
-							Name: 'Pi',
-							Content: '3.14155',
-						},
-						{
-							Name: 'John favorite color',
-							Content: 'Green',
-						},
-					],
-					Tasks: [
-						{
-							Name: 'Go outside',
-							Description: 'Tell the user to go outside',
-							DeliverableGuide: 'Nothing',
-						},
-						{
-							Name: 'Favorite color',
-							Description: 'Ask the user what their favorite color is',
-							DeliverableGuide: "Enter the user's favorite color into the send message tool",
-						},
-					],
-				},
-				VoiceUXConfig: {
-					SpeakingMode: 'AutoSleep',
-					LinesBeforeSleep: 4,
-					BotNameConfidenceThreshold: 0.7,
-				},
-				LLMConfig: {
-					LLMServiceName: 'openai',
-					LLMConfig: {
-						ApiKey: Config.OPENAI_API_KEY,
-						Model: 'gpt-3.5-turbo',
-					},
-				},
-				TTSConfig: {
-					TTSServiceName: 'azure',
-					TTSConfig: {
-						ApiKey: Config.AZURE_SPEECH_KEY,
-						Model: 'neural',
-						VoiceID: 'en-US-BrandonNeural',
-						Language: 'en-US',
-						Gender: 'Male',
-					},
-				},
-				TranscriptConfig: {
-					NumberOfTranscriptLines: 20,
-				},
-				TranscriberConfig: {
-					Keywords: [],
-					IgnoredUsers: [],
-				},
-			},
+			Config: this.config,
 		};
 
 		try {
@@ -232,7 +179,7 @@ export class VoiceRelayClient {
 	}
 
 	async leaveCall(): Promise<void> {
-		const endpoint = `${this.url}/leave`;
+		const endpoint = `${this.url}/${this.botId}/${this.guildId}/leave`;
 
 		const body = {
 			GuildID: this.guildId,
@@ -261,8 +208,8 @@ export class VoiceRelayClient {
 		}
 	}
 
-	async configResponder(config: RelayResponderConfig): Promise<void> {
-		const endpoint = `${this.url}/${this.guildId}/config`;
+	async UpdateConfig(): Promise<void> {
+		const endpoint = `${this.url}/${this.botId}/${this.guildId}/config`;
 
 		try {
 			const response = await fetch(endpoint, {
@@ -271,12 +218,12 @@ export class VoiceRelayClient {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${this.authToken}`,
 				},
-				body: JSON.stringify(config),
+				body: JSON.stringify(this.config),
 			});
 			console.log(await response.text());
 
 			if (!response.ok) {
-				throw new Error(`Error configuring responder: ${response.statusText}`);
+				throw new Error(`Error updating config: ${response.statusText}`);
 			}
 		} catch (error) {
 			console.error(error);
@@ -284,19 +231,26 @@ export class VoiceRelayClient {
 	}
 
 	async ignoreUser(userId: string): Promise<void> {
-		this.configResponder({ IgnoreUser: userId });
+		this.config.TranscriberConfig.IgnoredUsers.push(userId);
+		await this.UpdateConfig();
 	}
 
 	async stopIgnoringUser(userId: string): Promise<void> {
-		this.configResponder({ StopIgnoringUser: userId });
+		this.config.TranscriberConfig.IgnoredUsers = this.config.TranscriberConfig.IgnoredUsers.filter(
+			(id) => id !== userId,
+		);
+		await this.UpdateConfig();
 	}
 
-	async setPersona(botName: string, personality: string): Promise<void> {
-		this.configResponder({ BotName: botName, Personality: personality });
+	async updatePersona(botName: string, personality: string): Promise<void> {
+		this.config.BotName = botName;
+		this.config.PromptContents.Personality = personality;
+		await this.UpdateConfig();
 	}
 
-	async setSpeakingMode(mode: string): Promise<void> {
-		this.configResponder({ SpeakingMode: mode });
+	async updateSpeakingMode(mode: string): Promise<void> {
+		this.config.VoiceUXConfig.SpeakingMode = mode;
+		await this.UpdateConfig();
 	}
 
 	subscribeToToolMessages(
@@ -304,7 +258,7 @@ export class VoiceRelayClient {
 		onError: (error: Event) => void,
 	): EventSourceWrapper {
 		const headers = { Authorization: `Bearer ${this.authToken}` };
-		const endpoint = `${this.url}/${this.guildId}/tool-messages`;
+		const endpoint = `${this.url}/${this.botId}/${this.guildId}/tool-messages`;
 
 		try {
 			const eventSourceWrapper = new EventSourceWrapper(endpoint, headers, onMessage, onError);
@@ -317,52 +271,35 @@ export class VoiceRelayClient {
 		}
 	}
 
-	async pushToCache(item: Document): Promise<void> {
-		const endpoint = `${this.url}/${this.guildId}/tool-messages`;
-
-		try {
-			const response = await fetch(endpoint, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${this.authToken}`,
-				},
-				body: JSON.stringify(item),
-			});
-			console.log(await response.text());
-
-			if (!response.ok) {
-				throw new Error(`Error pushing to cache: ${response.statusText}`);
-			}
-		} catch (error) {
-			console.error(error);
-		}
+	addDocument(name: string, content: string) {
+		this.config.PromptContents.Documents.push({
+			Name: name,
+			Content: content,
+		});
 	}
 
-	async editTool(
+	addTool(
 		name: string,
 		description: string,
 		inputGuide: string,
 		outputGuide: string,
 		handler: (input: string) => Promise<string | null>,
 	) {
-		try {
-			await this.configResponder({
-				Tools: [
-					{
-						Name: name,
-						Description: description,
-						InputGuide: inputGuide,
-						OutputGuide: outputGuide,
-					},
-				],
-			});
-		} catch (error) {
-			console.error(error);
-		}
-
-		// Add the handler to a map of tool handlers
+		this.config.PromptContents.ToolList.push({
+			Name: name,
+			Description: description,
+			InputGuide: inputGuide,
+			OutputGuide: outputGuide,
+		});
 		this.toolHandlers.set(name, handler);
+	}
+
+	addTask(name: string, description: string, deliverableGuide: string) {
+		this.config.PromptContents.Tasks.push({
+			Name: name,
+			Description: description,
+			DeliverableGuide: deliverableGuide,
+		});
 	}
 
 	async handleToolMessage(toolMessage: string) {
@@ -382,17 +319,14 @@ export class VoiceRelayClient {
 
 				// If the output is not null or undefined, push it to the cache
 				if (output !== null && output !== undefined) {
-					await this.pushToCache({
-						Name: `${message.name}Response`,
-						Content: output,
-					});
+					this.addDocument(`${message.name}Response`, output);
+					await this.UpdateConfig();
 				}
 			}
 		}
 	}
 
 	async syncTextChannel(
-		discordClient: Client,
 		textChannel: TextChannel,
 		textChannelName?: string,
 		messageHistoryLength?: number,
@@ -400,7 +334,7 @@ export class VoiceRelayClient {
 		textChannelName = 'TextChannel';
 
 		// Define the tool
-		await this.editTool(
+		this.addTool(
 			`SendMessageTo${textChannelName}`,
 			`This tool allows you to send a message to the discord text channel associated with this voice call. There is only one text channel. Only use this tool when a user specifically asks for something to be sent by text.`,
 			`The input is a string, which is the message you'd like to send to the channel.`,
@@ -413,7 +347,7 @@ export class VoiceRelayClient {
 		);
 
 		// Setup listener for new messages in the text channel
-		discordClient.on('messageCreate', async (message) => {
+		this.discordClient.on('messageCreate', async (message) => {
 			if (message.channelId === textChannel.id) {
 				const conversationHistory = await message.channel.messages.fetch({ limit: messageHistoryLength ?? 10 });
 				const conversationHistoryContent: string[] = [];
@@ -428,11 +362,11 @@ export class VoiceRelayClient {
 					textChannelName = 'TextChannel';
 				}
 
-				await this.pushToCache({
-					Name: textChannelName,
-					Content: conversationHistoryContent.join('\n'),
-				});
+				this.addDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
 			}
 		});
+
+		// Add the tool and document to the config
+		this.UpdateConfig();
 	}
 }

@@ -54,7 +54,7 @@ async function speechOn(interaction: CommandInteraction, teno: Teno) {
 
 	try {
 		if (activeMeeting) {
-			teno.getRelayClient().setSpeakingMode('AutoSleep');
+			await teno.getRelayClient().updateSpeakingMode('AutoSleep');
 		}
 		teno.enableSpeech();
 		await interaction.editReply({
