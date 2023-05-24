@@ -93,13 +93,13 @@ export async function createMeeting({
 
 		const transcriptKey = newMeeting.getTranscript().getTranscriptKey();
 
-		const speakingModeBool = teno.getSpeechOn();
-		let speakingMode;
-		if (speakingModeBool) {
-			speakingMode = 'AutoSleep';
-		} else {
-			speakingMode = 'NeverSpeak';
-		}
+		// const speakingModeBool = teno.getSpeechOn();
+		// let speakingMode;
+		// if (speakingModeBool) {
+		// 	speakingMode = 'AutoSleep';
+		// } else {
+		// 	speakingMode = 'NeverSpeak';
+		// }
 
 		const threadChannel = (await teno.getClient().channels.fetch(newMeetingMessage.id)) as TextChannel;
 
@@ -107,7 +107,7 @@ export async function createMeeting({
 		try {
 			await relayClient.joinCall(voiceChannel.id, transcriptKey);
 			if (threadChannel) {
-				await relayClient.syncTextChannel(threadChannel, 'MeetingDiscussion', 10);
+				await relayClient.syncTextChannel(threadChannel, 10);
 			}
 		} catch (e) {
 			console.error(e);
