@@ -6,6 +6,7 @@ import invariant from 'tiny-invariant';
 import { createCommand } from '@/discord/createCommand.js';
 import type { Teno } from '@/models/teno.js';
 import { Meeting } from '@/models/meeting.js';
+import { DEFAULT_CONFIG } from '@/services/relaySDK.js';
 
 export const joinCommand = createCommand({
 	commandArgs: { name: 'join', description: 'Join a voice channel and start a meeting' },
@@ -105,10 +106,27 @@ export async function createMeeting({
 
 		// Send join request to voice relay
 		try {
-			await relayClient.joinCall(voiceChannel.id, transcriptKey);
+			await relayClient.joinCall(voiceChannel.id, transcriptKey, DEFAULT_CONFIG);
 			if (threadChannel) {
 				await relayClient.syncTextChannel(threadChannel, 10);
 			}
+
+			const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
+				const letterCount = str.replace(/[^A-Za-z]/g, '').length; // Only count alphabetic characters
+				if (letterCount % 2 === 0) {
+					return 'good';
+				} else {
+					return 'bad';
+				}
+			};
+
+			await relayClient.pushQueryTool(
+				'CheckString',
+				'Use this to check a string',
+				'Input string to check',
+				'Result will be good or bad, in the response document',
+				getLetterCountParity,
+			);
 		} catch (e) {
 			console.error(e);
 		}

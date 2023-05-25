@@ -87,6 +87,46 @@ interface TranscriberConfig {
 	IgnoredUsers: string[];
 }
 
+export const DEFAULT_CONFIG: Config = {
+	BotName: 'Bot',
+	PromptContents: {
+		Personality: 'Helpful Discord voice bot',
+		Tools: [],
+		Documents: [],
+		Tasks: [],
+	},
+	VoiceUXConfig: {
+		SpeakingMode: 'AutoSleep',
+		LinesBeforeSleep: 5,
+		BotNameConfidenceThreshold: 0.7,
+		AutoRespondInterval: 5, // When there are pending tasks, how long to wait before responding again
+	},
+	LLMConfig: {
+		LLMServiceName: 'openai',
+		LLMConfig: {
+			ApiKey: Config.OPENAI_API_KEY,
+			Model: 'gpt-4',
+		},
+	},
+	TTSConfig: {
+		TTSServiceName: 'azure',
+		TTSConfig: {
+			ApiKey: Config.AZURE_SPEECH_KEY,
+			Model: 'neural',
+			VoiceID: 'en-US-BrandonNeural',
+			Language: 'en-US',
+			Gender: 'Male',
+		},
+	},
+	TranscriptConfig: {
+		NumberOfTranscriptLines: 20,
+	},
+	TranscriberConfig: {
+		Keywords: [],
+		IgnoredUsers: [],
+	},
+};
+
 export class VoiceRelayClient {
 	private discordClient: Client;
 	private authToken: string;
@@ -105,49 +145,13 @@ export class VoiceRelayClient {
 		this.botId = botId;
 		this.botToken = botToken;
 		this.guildId = guildId;
-		this.config = {
-			BotName: 'Bot',
-			PromptContents: {
-				Personality: 'Helpful Discord voice bot',
-				Tools: [],
-				Documents: [],
-				Tasks: [],
-			},
-			VoiceUXConfig: {
-				SpeakingMode: 'AutoSleep',
-				LinesBeforeSleep: 4,
-				BotNameConfidenceThreshold: 0.7,
-				AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
-			},
-			LLMConfig: {
-				LLMServiceName: 'openai',
-				LLMConfig: {
-					ApiKey: Config.OPENAI_API_KEY,
-					Model: 'gpt-3.5-turbo',
-				},
-			},
-			TTSConfig: {
-				TTSServiceName: 'azure',
-				TTSConfig: {
-					ApiKey: Config.AZURE_SPEECH_KEY,
-					Model: 'neural',
-					VoiceID: 'en-US-BrandonNeural',
-					Language: 'en-US',
-					Gender: 'Male',
-				},
-			},
-			TranscriptConfig: {
-				NumberOfTranscriptLines: 20,
-			},
-			TranscriberConfig: {
-				Keywords: [],
-				IgnoredUsers: [],
-			},
-		};
+		this.config = DEFAULT_CONFIG;
 		this.toolEventEmitter = new EventEmitter();
 	}
 
-	async joinCall(channelId: string, transcriptKey: string): Promise<void> {
+	async joinCall(channelId: string, transcriptKey: string, config: Config): Promise<void> {
+		this.config = config;
+
 		const endpoint = `${this.url}/join`;
 
 		const body = {
@@ -224,7 +228,7 @@ export class VoiceRelayClient {
 				body: JSON.stringify(this.config),
 			});
 			console.log(await response.text());
-			console.log(`Updated config: ${JSON.stringify(this.config)}`);
+			console.log(`Updated prompt: ${JSON.stringify(this.config.PromptContents, null, 2)}`);
 
 			if (!response.ok) {
 				throw new Error(`Error updating config: ${response.statusText}`);
@@ -331,13 +335,13 @@ export class VoiceRelayClient {
 		this.addTask(taskName, taskDescription, deliverableGuide);
 
 		// Define tool's input and output guide
-		const toolInputGuide = `Input "done" when the task is complete, or "reject" if the task cannot be completed.`;
+		const toolInputGuide = `When the associated task is completed, input "done" into this tool. Input "reject" if the task cannot be completed.`;
 		const toolOutputGuide = `This tool does not return any output.`;
 
 		// Create the corresponding tool
 		this.addTool(
 			`${taskName}Tool`,
-			`This tool is used to handle the deliverable for the "${taskName}" task.`,
+			`This tool is used to signal completion of the "${taskName}" task.`,
 			toolInputGuide,
 			toolOutputGuide,
 		);
@@ -379,13 +383,13 @@ export class VoiceRelayClient {
 		this.addTask(taskName, taskDescription, deliverableGuide);
 
 		// Define tool's input and output guide
-		const toolInputGuide = `Provide the required input as per the task's deliverable guide, or input "reject" if the deliverable cannot be acquired.`;
+		const toolInputGuide = `When you have the deliverable described in the task's deliverable guide, input it into this tool. Input "reject" if the deliverable cannot be acquired.`;
 		const toolOutputGuide = `The tool does not return any output.`;
 
 		// Create the corresponding tool
 		this.addTool(
 			`${taskName}Tool`,
-			`This tool is used to handle the deliverable for the "${taskName}" task.`,
+			`This tool is used to send the deliverable for the "${taskName}" task when it has been acquired.`,
 			toolInputGuide,
 			toolOutputGuide,
 		);
@@ -427,7 +431,7 @@ export class VoiceRelayClient {
 		// Define the task parameters
 		const taskName = `Relay${documentName}`;
 		const taskDescription = `Relay the relevant information from the document "${documentName}" in the voice channel.`;
-		const deliverableGuide = `Input "done" in the related task when the relevant information in the document has been relayed.`;
+		const deliverableGuide = `Input "done" in the associated tool when the relevant information in the document has been relayed. Do not mention this task in the voice channel.`;
 
 		// Create the task with completion and handle the completion
 		try {
@@ -473,7 +477,7 @@ export class VoiceRelayClient {
 
 			// Create a document with the result and send it to the LLM
 			const documentName = `${toolName}Output`;
-			const documentContent = result;
+			const documentContent = `input: ` + query + `\noutput: ` + result;
 			await this.pushDocumentWithDeliveryConfirmationTool(documentName, documentContent);
 		});
 
@@ -487,7 +491,7 @@ export class VoiceRelayClient {
 	 * @param {string} toolName - The name of the tool.
 	 * @param {string} toolDescription - A description of the tool.
 	 * @param {string} toolInputGuide - A guide on what to input into the tool.
-	 * @param {(query: string) => Promise<void>} handler - A handler function to handle queries and produce actions without expecting a result.
+	 * @param {(input: string) => Promise<void>} handler - A handler function to handle uses of the tool without expecting a result.
 	 *
 	 * @returns {Promise<void>}
 	 */
@@ -496,7 +500,7 @@ export class VoiceRelayClient {
 		toolName: string,
 		toolDescription: string,
 		toolInputGuide: string,
-		handler: (query: string) => Promise<void>,
+		handler: (input: string) => Promise<void>,
 	): Promise<void> {
 		const toolOutputGuide = `This tool does not return any output.`;
 
@@ -504,9 +508,9 @@ export class VoiceRelayClient {
 		this.addTool(toolName, toolDescription, toolInputGuide, toolOutputGuide);
 
 		// Listen for tool events
-		this.toolEventEmitter.on(toolName, async (query: string) => {
-			// Handle the query and produce an action without expecting a result
-			await handler(query);
+		this.toolEventEmitter.on(toolName, async (input: string) => {
+			// Handle the tool message input
+			await handler(input);
 		});
 
 		// Update the bot's configuration to reflect the new tool
@@ -559,6 +563,47 @@ export class VoiceRelayClient {
 		return results;
 	}
 
+	// Config type:
+	// {
+	// 	BotName: 'Bot',
+	// 	PromptContents: {
+	// 		Personality: 'Helpful Discord voice bot',
+	// 		Tools: [],
+	// 		Documents: [],
+	// 		Tasks: [],
+	// 	},
+	// 	VoiceUXConfig: {
+	// 		SpeakingMode: 'AutoSleep',
+	// 		LinesBeforeSleep: 4,
+	// 		BotNameConfidenceThreshold: 0.7,
+	// 		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
+	// 	},
+	// 	LLMConfig: {
+	// 		LLMServiceName: 'openai',
+	// 		LLMConfig: {
+	// 			ApiKey: Config.OPENAI_API_KEY,
+	// 			Model: 'gpt-3.5-turbo',
+	// 		},
+	// 	},
+	// 	TTSConfig: {
+	// 		TTSServiceName: 'azure',
+	// 		TTSConfig: {
+	// 			ApiKey: Config.AZURE_SPEECH_KEY,
+	// 			Model: 'neural',
+	// 			VoiceID: 'en-US-BrandonNeural',
+	// 			Language: 'en-US',
+	// 			Gender: 'Male',
+	// 		},
+	// 	},
+	// 	TranscriptConfig: {
+	// 		NumberOfTranscriptLines: 20,
+	// 	},
+	// 	TranscriberConfig: {
+	// 		Keywords: [],
+	// 		IgnoredUsers: [],
+	// 	},
+	// };
+
 	addDocument(name: string, content: string) {
 		this.config.PromptContents.Documents.push({
 			Name: name,
@@ -595,9 +640,35 @@ export class VoiceRelayClient {
 		this.config.PromptContents.Tasks = this.config.PromptContents.Tasks.filter((task) => task.Name !== name);
 	}
 
+	setBotName(name: string) {
+		this.config.BotName = name;
+	}
+
+	setPersonality(personality: string) {
+		this.config.PromptContents.Personality = personality;
+	}
+
+	setSpeakingMode(mode: string) {
+		this.config.VoiceUXConfig.SpeakingMode = mode;
+	}
+
+	setLinesBeforeSleep(lines: number) {
+		this.config.VoiceUXConfig.LinesBeforeSleep = lines;
+	}
+
+	setBotNameConfidenceThreshold(threshold: number) {
+		this.config.VoiceUXConfig.BotNameConfidenceThreshold = threshold;
+	}
+
+	setAutoRespondInterval(interval: number) {
+		this.config.VoiceUXConfig.AutoRespondInterval = interval;
+	}
+
 	async ignoreUser(userId: string): Promise<void> {
-		this.config.TranscriberConfig.IgnoredUsers.push(userId);
-		await this.updateConfig();
+		if (!this.config.TranscriberConfig.IgnoredUsers.includes(userId)) {
+			this.config.TranscriberConfig.IgnoredUsers.push(userId);
+			await this.updateConfig();
+		}
 	}
 
 	async stopIgnoringUser(userId: string): Promise<void> {
