@@ -120,13 +120,15 @@ export async function createMeeting({
 				}
 			};
 
-			await relayClient.pushQueryTool(
-				'CheckString',
-				'Use this to check a string',
-				'Input string to check',
-				'Result will be good or bad, in the response document',
-				getLetterCountParity,
-			);
+			await relayClient.addToolWithHandler({
+				toolName: 'CheckString',
+				toolDescription: 'Use this to check a string',
+				toolInputGuide: 'Input string to check',
+				toolOutputGuide: 'Result will be good or bad, in the response document',
+				handler: getLetterCountParity,
+			});
+
+			await relayClient.getUserInput('FavoriteColor', "One of the user's favorite color");
 		} catch (e) {
 			console.error(e);
 		}

@@ -281,17 +281,15 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<void>}
 	 */
-
-	async syncTextChannel(textChannel: TextChannel, messageHistoryLength?: number): Promise<void> {
-		const textChannelName = textChannel.name;
-
-		// Define the tool
-		this.addTool(
-			`SendMessageTo${textChannelName}`,
-			`This tool allows you to send a message to the discord text channel associated with this voice call. There is only one text channel. Only use this tool when a user specifically asks for something to be sent by text.`,
-			`The input is a string, which is the message you'd like to send to the channel.`,
-			`This tool does not return any output.`,
-		);
+	async syncTextChannel(
+		textChannel: TextChannel,
+		messageHistoryLength?: number,
+		sendMessageTool?: boolean,
+		respondOnEveryMessage?: boolean,
+	): Promise<void> {
+		// Format the text channel name to be used as the document key
+		const words = textChannel.name.split(' ');
+		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
 
 		// Setup listener for new messages in the text channel
 		this.discordClient.on('messageCreate', async (message) => {
@@ -307,14 +305,31 @@ export class VoiceRelayClient {
 
 				this.removeDocument(`${textChannelName}`);
 				this.addDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
+
 				this.updateConfig();
+
+				if (respondOnEveryMessage) {
+					this.pushTaskWithCompletionTool(
+						`RelayNewMessageTo${textChannelName}`,
+						`Relay the relevant information from the most recent message in ${textChannelName} to the voice channel.`,
+						`Input "done" in the associated tool when the relevant information from the most recent message in ${textChannelName} has been relayed. Do not mention this task in the voice channel.`,
+					);
+				}
 			}
 		});
 
-		this.toolEventEmitter.on(`SendMessageTo${textChannelName}`, (message: string) => {
-			console.log(`Sending message to ${textChannelName}: ${message}`);
-			textChannel.send(message);
-		});
+		if (sendMessageTool) {
+			this.addTool(
+				`SendMessageTo${textChannelName}`,
+				`This tool allows you to send a message to the discord text channel associated with this voice call. There is only one text channel. Only use this tool when a user specifically asks for something to be sent by text.`,
+				`The input is a string, which is the message you'd like to send to the channel.`,
+				`This tool does not return any output.`,
+			);
+			this.toolEventEmitter.on(`SendMessageTo${textChannelName}`, (message: string) => {
+				console.log(`Sending message to ${textChannelName}: ${message}`);
+				textChannel.send(message);
+			});
+		}
 
 		// Add the tool and document to the config
 		this.updateConfig();
@@ -329,7 +344,6 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<void>}
 	 */
-
 	async pushTaskWithCompletionTool(taskName: string, taskDescription: string, deliverableGuide: string): Promise<void> {
 		// Create the task
 		this.addTask(taskName, taskDescription, deliverableGuide);
@@ -373,7 +387,6 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<string>} - Returns a promise resolving with the deliverable, or rejects if the deliverable cannot be acquired.
 	 */
-
 	async pushTaskWithDeliverableTool(
 		taskName: string,
 		taskDescription: string,
@@ -420,7 +433,6 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<void>}
 	 */
-
 	async pushDocumentWithDeliveryConfirmationTool(documentName: string, documentContent: string): Promise<void> {
 		// Create the document
 		this.addDocument(documentName, documentContent);
@@ -431,7 +443,7 @@ export class VoiceRelayClient {
 		// Define the task parameters
 		const taskName = `Relay${documentName}`;
 		const taskDescription = `Relay the relevant information from the document "${documentName}" in the voice channel.`;
-		const deliverableGuide = `Input "done" in the associated tool when the relevant information in the document has been relayed. Do not mention this task in the voice channel.`;
+		const deliverableGuide = `Input "done" in the associated tool when the relevant information in the document has been relayed. This will remove the document. Do not mention this task in the voice channel.`;
 
 		// Create the task with completion and handle the completion
 		try {
@@ -449,36 +461,38 @@ export class VoiceRelayClient {
 	}
 
 	/**
-	 * Pushes a query tool to the voice bot, and listens for tool events to handle queries and push results.
-	 *
-	 * @param {string} toolName - The name of the tool.
-	 * @param {string} toolDescription - A description of the tool.
-	 * @param {string} toolInputGuide - A guide on what to input into the tool.
-	 * @param {string} toolOutputGuide - A guide on the output of the tool.
-	 * @param {(query: string) => Promise<string>} handler - A handler function to handle queries and return results.
+	 * Pushes a tool to the voice bot and sets up a handler function for tool uses.
+	 * If the handler function returns a string, the tool will output that string as a document with a delivery confirmation task.
+	 * @param params - The parameters for the tool.
+	 * @param params.toolName - The name of the tool.
+	 * @param params.toolDescription - A description of the tool.
+	 * @param params.toolInputGuide - A guide on what to input into the tool.
+	 * @param params.toolOutputGuide - A guide on the output of the tool.
+	 * @param params.handler - A handler function to handle tool uses. If the handler returns a string, the tool will output that string as a document with a delivery confirmation task.
 	 *
 	 * @returns {Promise<void>}
 	 */
-
-	async pushQueryTool(
-		toolName: string,
-		toolDescription: string,
-		toolInputGuide: string,
-		toolOutputGuide: string,
-		handler: (query: string) => Promise<string>,
-	): Promise<void> {
+	async addToolWithHandler(params: {
+		toolName: string;
+		toolDescription: string;
+		toolInputGuide: string;
+		toolOutputGuide: string;
+		handler: (query: string) => Promise<string | void>;
+	}): Promise<void> {
 		// Create the tool
-		this.addTool(toolName, toolDescription, toolInputGuide, toolOutputGuide);
+		this.addTool(params.toolName, params.toolDescription, params.toolInputGuide, params.toolOutputGuide);
 
 		// Listen for tool events
-		this.toolEventEmitter.on(toolName, async (query: string) => {
+		this.toolEventEmitter.on(params.toolName, async (query: string) => {
 			// Handle the query and produce a result
-			const result = await handler(query);
+			const result = await params.handler(query);
 
-			// Create a document with the result and send it to the LLM
-			const documentName = `${toolName}Output`;
-			const documentContent = `input: ` + query + `\noutput: ` + result;
-			await this.pushDocumentWithDeliveryConfirmationTool(documentName, documentContent);
+			// Create a document with the result and send it to the LLM only if result is not void
+			if (result !== undefined) {
+				const documentName = `${params.toolName}Output`;
+				const documentContent = `input: ` + query + `\noutput: ` + result;
+				await this.pushDocumentWithDeliveryConfirmationTool(documentName, documentContent);
+			}
 		});
 
 		// Update the bot's configuration to reflect the new tool
@@ -486,55 +500,64 @@ export class VoiceRelayClient {
 	}
 
 	/**
-	 * Pushes an action tool to the voice bot, and listens for tool events to handle actions without expecting a result.
+	 * Creates a notes document and adds a tool that allows the LLM to write lines to the document.
 	 *
-	 * @param {string} toolName - The name of the tool.
-	 * @param {string} toolDescription - A description of the tool.
-	 * @param {string} toolInputGuide - A guide on what to input into the tool.
-	 * @param {(input: string) => Promise<void>} handler - A handler function to handle uses of the tool without expecting a result.
+	 * @param {string} notesDocName - The name of the notes document.
+	 * @param {string} notesDocDescription - A description of what the notes document should be used for.
 	 *
 	 * @returns {Promise<void>}
 	 */
+	async addNotesDoc(notesDocName: string, notesDocDescription: string): Promise<void> {
+		// Add a new document with the given name. The document's content starts empty.
+		this.addDocument(notesDocName, `${notesDocDescription}\n}`);
 
-	async pushActionTool(
-		toolName: string,
-		toolDescription: string,
-		toolInputGuide: string,
-		handler: (input: string) => Promise<void>,
-	): Promise<void> {
-		const toolOutputGuide = `This tool does not return any output.`;
+		// Define a tool that allows the LLM to write lines to the document.
+		const toolName = `WriteTo${notesDocName}`;
+		const toolDescription = `This tool allows you to add a line to the "${notesDocName}" notes document.`;
+		const toolInputGuide = 'Input the line you would like to add to the document.';
+		const toolOutputGuide = 'This tool does not return any output.';
 
-		// Create the tool
-		this.addTool(toolName, toolDescription, toolInputGuide, toolOutputGuide);
+		// Add the tool with a handler that writes the given input line to the document.
+		await this.addToolWithHandler({
+			toolName,
+			toolDescription,
+			toolInputGuide,
+			toolOutputGuide,
+			handler: async (line: string) => {
+				// Fetch the current content of the document.
+				const currentContent = this.getDocumentContent(notesDocName);
 
-		// Listen for tool events
-		this.toolEventEmitter.on(toolName, async (input: string) => {
-			// Handle the tool message input
-			await handler(input);
+				// Append the new line to the current content.
+				const updatedContent = currentContent + '\n' + line;
+
+				// Update the document with the new content.
+				this.updateDocument(notesDocName, updatedContent);
+			},
 		});
 
-		// Update the bot's configuration to reflect the new tool
+		// Update the LLM's configuration to reflect the new document and tool.
 		await this.updateConfig();
 	}
 
 	/**
-	 * Attempts to fill a field by pushing a task that requires a deliverable, and returns the deliverable or null if it cannot be acquired.
+	 * Attempts to get user input by pushing a task that requires a deliverable,
+	 * and returns the deliverable or null if it cannot be acquired.
 	 *
-	 * @param {string} fieldName - The name of the field to fill.
-	 * @param {string} fieldDescription - A description of the field.
+	 * @param {string} inputName - The name of the input to get.
+	 * @param {string} inputDescription - A description of the input.
 	 *
-	 * @returns {Promise<string|null>} - Returns a promise resolving with the deliverable, or null if the deliverable cannot be acquired.
+	 * @returns {Promise<string|null>} - Returns a promise resolving with the deliverable,
+	 * or null if the deliverable cannot be acquired.
 	 */
-
-	async fillField(fieldName: string, fieldDescription: string): Promise<string | null> {
+	async getUserInput(inputName: string, inputDescription: string): Promise<string | null> {
 		try {
 			return await this.pushTaskWithDeliverableTool(
-				`Get${fieldName}`,
-				`Get the value for the field "${fieldName}". Field description: ${fieldDescription}.`,
-				`Input the value for the field "${fieldName}" into the associated tool.`,
+				`Get${inputName}`,
+				`Get the value for "${inputName}". Description: ${inputDescription}.`,
+				`Input the value for "${inputName}" into the associated tool.`,
 			);
 		} catch (error) {
-			console.error(`Failed to fill field "${fieldName}":`, error);
+			console.error(`Failed to get user input "${inputName}":`, error);
 			return null;
 		}
 	}
@@ -546,14 +569,13 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<{[key: string]: string|null}>} - Returns a promise resolving with a dictionary mapping field names to their deliverables, or null if a deliverable cannot be acquired.
 	 */
-
 	async fillForm(fields: { [key: string]: string }): Promise<{ [key: string]: string | null }> {
 		const results: { [key: string]: string | null } = {};
 
 		for (const fieldName in fields) {
 			const fieldDescription = fields[fieldName];
 			if (fieldDescription) {
-				const result = await this.fillField(fieldName, fieldDescription);
+				const result = await this.getUserInput(fieldName, fieldDescription);
 				results[fieldName] = result;
 			} else {
 				results[fieldName] = null;
@@ -638,6 +660,25 @@ export class VoiceRelayClient {
 
 	removeTask(name: string) {
 		this.config.PromptContents.Tasks = this.config.PromptContents.Tasks.filter((task) => task.Name !== name);
+	}
+
+	getDocumentContent(name: string): string | null {
+		const document = this.config.PromptContents.Documents.find((doc) => doc.Name === name);
+		if (document) {
+			return document.Content;
+		} else {
+			console.error(`Document "${name}" not found.`);
+			return null;
+		}
+	}
+
+	updateDocument(name: string, newContent: string): void {
+		const document = this.config.PromptContents.Documents.find((doc) => doc.Name === name);
+		if (document) {
+			document.Content = newContent;
+		} else {
+			console.error(`Document "${name}" not found.`);
+		}
 	}
 
 	setBotName(name: string) {
