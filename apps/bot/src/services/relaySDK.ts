@@ -116,7 +116,7 @@ export const DEFAULT_CONFIG: Config = {
 		LLMServiceName: 'openai',
 		LLMConfig: {
 			ApiKey: Config.OPENAI_API_KEY,
-			Model: 'gpt-4',
+			Model: 'gpt-3.5-turbo',
 		},
 	},
 	TTSConfig: {
@@ -366,13 +366,13 @@ export class VoiceRelayClient {
 		this.addTask(taskName, taskDescription, deliverableGuide);
 
 		// Define tool's input and output guide
-		const toolInputGuide = `When the associated task is completed, input "done" into this tool. Input "reject" if the task cannot be completed.`;
+		const toolInputGuide = `When the associated task is completed, input 'done' into this tool. Input 'reject' if the task cannot be completed.`;
 		const toolOutputGuide = `This tool does not return any output.`;
 
 		// Create the corresponding tool
 		this.addTool(
 			`${taskName}Done`,
-			`This tool is used to signal completion of the "${taskName}" task.`,
+			`This tool is used to signal completion of the ${taskName} task.`,
 			toolInputGuide,
 			toolOutputGuide,
 		);
@@ -413,13 +413,13 @@ export class VoiceRelayClient {
 		this.addTask(taskName, taskDescription, deliverableGuide);
 
 		// Define tool's input and output guide
-		const toolInputGuide = `When you have the deliverable described in the task's deliverable guide, input it into this tool. Input "reject" if the deliverable cannot be acquired.`;
+		const toolInputGuide = `When you have the deliverable described in the task's deliverable guide, input it into this tool. Input 'reject' if the deliverable cannot be acquired.`;
 		const toolOutputGuide = `The tool does not return any output.`;
 
 		// Create the corresponding tool
 		this.addTool(
 			`${taskName}Input`,
-			`This tool is used to send the deliverable for the "${taskName}" task when it has been acquired.`,
+			`This tool is used to send the deliverable for the ${taskName} task when it has been acquired.`,
 			toolInputGuide,
 			toolOutputGuide,
 		);
@@ -459,8 +459,8 @@ export class VoiceRelayClient {
 
 		// Define the task parameters
 		const taskName = `Relay${documentName}`;
-		const taskDescription = `Relay the relevant information from the document "${documentName}" in the voice channel.`;
-		const deliverableGuide = `Input "done" in the associated tool when the relevant information in the document has been relayed. This will remove the document. Do not mention this task in the voice channel.`;
+		const taskDescription = `Relay the relevant information from the document ${documentName} in the voice channel.`;
+		const deliverableGuide = `Input 'done' in the associated tool when the relevant information (usually the output) in the document has been relayed. This will remove the document. Do not mention this task in the voice channel.`;
 
 		// Create the task with completion and handle the completion
 		try {
