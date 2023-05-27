@@ -24,10 +24,14 @@ interface Config {
 }
 
 interface PromptContents {
-	Personality: string;
-	Tools: Tool[];
-	Documents: Document[];
-	Tasks: Task[];
+	BotPrimer: string;
+	CustomTranscriptPrimer?: string;
+	CustomToolPrimer?: string;
+	CustomDocumentPrimer?: string;
+	CustomTaskPrimer?: string;
+	Tools?: Tool[];
+	Documents?: Document[];
+	Tasks?: Task[];
 }
 
 interface Tool {
@@ -88,9 +92,16 @@ interface TranscriberConfig {
 }
 
 export const DEFAULT_CONFIG: Config = {
-	BotName: 'Bot',
+	BotName: 'Teno',
 	PromptContents: {
-		Personality: 'Helpful Discord voice bot',
+		BotPrimer: 'You are a helpful Discord voice bot named Teno',
+		CustomTranscriptPrimer:
+			"Below is the transcript of the voice channel, up to the current moment. It may include transcription errors or dropped words (especially at the beginnings of lines), if you think a transcription was incorrect, infer the true words from context. The first sentence of your response should be as short as possible within reason. The transcript may also include information like your previous tool uses, and mark when others interrupted you to stop your words from playing (which may mean they want you to stop talking). If the last person to speak doesn't expect or want a response from you, or they are explicitly asking you to stop speaking, your response should only be the single character '^' with no spaces.",
+		CustomToolPrimer:
+			"Below is a list of available tools you can use. These are your tools. No one in the voice channel can use them, and they aren't visible to anyone else in the voice channel. Each tool has four attributes: `Name`: the tool's identifier, `Description`: explains the tool's purpose and when to use it, `Input Guide`: advises on how to format the input string, `Output Guide`: describes the tool's return value, if any. To use a tool, you will append a tool message at the end of your normal spoken response, separated by a pipe ('|'). The spoken response is a string of text to be read aloud via TTS. You don't need to write a spoken response to use a tool, your response can simply be a | and then a tool command, in which case your tool command will be processed without any speech playing in the voice channel. Write all tool commands in the form of a JSON array. Each array element is a JSON object representing a tool command, with two properties: `name` and `input`. You shouldn't explain to the other voice call members how you use the tools unless someone asks. Here's an example of a response that uses a tool:\n\nSure thing, I will send a message to the general channel. |[{ \"name\": \"SendMessageToGeneralChannel\", \"input\": \"Hello!\" }]\n\nRemember to write a '|' before writing your tool message. Review the `description`, `input guide`, and `output guide` of each tool carefully to use them effectively.",
+		CustomDocumentPrimer: 'Below is a list of documents for you to reference when responding in the voice channel.',
+		CustomTaskPrimer:
+			"Below is a list of pending tasks. These are tasks for you to do, no one else in the voice channel can see or do them. Each task is represented by its `Name`, `Description`, and `DeliverableGuide`. The `Description` details the task at hand, and the `DeliverableGuide` how to complete the task, whether its the use of a specific tool and/or relaying particular information to someone in the call. These are your tasks, but you may need to ask people in the call for information to complete them. Always take your pending tasks into account when responding, and make every effort to complete them. If the last line of the transcript is telling you to complete pending tasks, attempt to complete them, or mark them done using the associated tools if they are already complete. Do not talk about your tasks in the voice call unless people explicitly ask about them. If you are completing a task, you can simply write the tool message, you don't need to mention it in the voice channel.",
 		Tools: [],
 		Documents: [],
 		Tasks: [],
@@ -99,7 +110,7 @@ export const DEFAULT_CONFIG: Config = {
 		SpeakingMode: 'AutoSleep',
 		LinesBeforeSleep: 5,
 		BotNameConfidenceThreshold: 0.7,
-		AutoRespondInterval: 5, // When there are pending tasks, how long to wait before responding again
+		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
 	},
 	LLMConfig: {
 		LLMServiceName: 'openai',
@@ -246,6 +257,12 @@ export class VoiceRelayClient {
 			// Define the message handler internally
 			const onMessage = (toolMessage: string) => {
 				try {
+					if (!isValidJson(toolMessage)) {
+						console.error('Received invalid JSON:', toolMessage.substring(0, 100));
+
+						return;
+					}
+
 					const toolMessageJson = JSON.parse(toolMessage);
 
 					for (const message of toolMessageJson) {
@@ -354,7 +371,7 @@ export class VoiceRelayClient {
 
 		// Create the corresponding tool
 		this.addTool(
-			`${taskName}Tool`,
+			`${taskName}Done`,
 			`This tool is used to signal completion of the "${taskName}" task.`,
 			toolInputGuide,
 			toolOutputGuide,
@@ -365,9 +382,9 @@ export class VoiceRelayClient {
 
 		// Listen for tool events
 		return new Promise<void>((resolve, reject) => {
-			this.toolEventEmitter.once(`${taskName}Tool`, (input: string) => {
+			this.toolEventEmitter.once(`${taskName}Done`, (input: string) => {
 				this.removeTask(taskName);
-				this.removeTool(`${taskName}Tool`);
+				this.removeTool(`${taskName}Done`);
 				this.updateConfig();
 				if (input === 'done') {
 					resolve();
@@ -401,7 +418,7 @@ export class VoiceRelayClient {
 
 		// Create the corresponding tool
 		this.addTool(
-			`${taskName}Tool`,
+			`${taskName}Input`,
 			`This tool is used to send the deliverable for the "${taskName}" task when it has been acquired.`,
 			toolInputGuide,
 			toolOutputGuide,
@@ -412,9 +429,9 @@ export class VoiceRelayClient {
 
 		// Listen for tool events
 		return new Promise<string>((resolve, reject) => {
-			this.toolEventEmitter.once(`${taskName}Tool`, (input: string) => {
+			this.toolEventEmitter.once(`${taskName}Input`, (input: string) => {
 				this.removeTask(taskName);
-				this.removeTool(`${taskName}Tool`);
+				this.removeTool(`${taskName}Input`);
 				this.updateConfig();
 				if (input === 'reject') {
 					reject('Deliverable could not be acquired.');
@@ -554,7 +571,7 @@ export class VoiceRelayClient {
 			return await this.pushTaskWithDeliverableTool(
 				`Get${inputName}`,
 				`Get the value for "${inputName}". Description: ${inputDescription}.`,
-				`Input the value for "${inputName}" into the associated tool.`,
+				`Input the value for "${inputName}" into the Get${inputName}Input tool.`,
 			);
 		} catch (error) {
 			console.error(`Failed to get user input "${inputName}":`, error);
@@ -627,14 +644,14 @@ export class VoiceRelayClient {
 	// };
 
 	addDocument(name: string, content: string) {
-		this.config.PromptContents.Documents.push({
+		this.config.PromptContents.Documents?.push({
 			Name: name,
 			Content: content,
 		});
 	}
 
 	addTool(name: string, description: string, inputGuide: string, outputGuide: string) {
-		this.config.PromptContents.Tools.push({
+		this.config.PromptContents.Tools?.push({
 			Name: name,
 			Description: description,
 			InputGuide: inputGuide,
@@ -643,7 +660,7 @@ export class VoiceRelayClient {
 	}
 
 	addTask(name: string, description: string, deliverableGuide: string) {
-		this.config.PromptContents.Tasks.push({
+		this.config.PromptContents.Tasks?.push({
 			Name: name,
 			Description: description,
 			DeliverableGuide: deliverableGuide,
@@ -651,19 +668,25 @@ export class VoiceRelayClient {
 	}
 
 	removeDocument(name: string) {
-		this.config.PromptContents.Documents = this.config.PromptContents.Documents.filter((doc) => doc.Name !== name);
+		if (this.config.PromptContents.Documents) {
+			this.config.PromptContents.Documents = this.config.PromptContents.Documents.filter((doc) => doc.Name !== name);
+		}
 	}
 
 	removeTool(name: string) {
-		this.config.PromptContents.Tools = this.config.PromptContents.Tools.filter((tool) => tool.Name !== name);
+		if (this.config.PromptContents.Tools) {
+			this.config.PromptContents.Tools = this.config.PromptContents.Tools.filter((tool) => tool.Name !== name);
+		}
 	}
 
 	removeTask(name: string) {
-		this.config.PromptContents.Tasks = this.config.PromptContents.Tasks.filter((task) => task.Name !== name);
+		if (this.config.PromptContents.Tasks) {
+			this.config.PromptContents.Tasks = this.config.PromptContents.Tasks.filter((task) => task.Name !== name);
+		}
 	}
 
 	getDocumentContent(name: string): string | null {
-		const document = this.config.PromptContents.Documents.find((doc) => doc.Name === name);
+		const document = this.config.PromptContents.Documents?.find((doc) => doc.Name === name);
 		if (document) {
 			return document.Content;
 		} else {
@@ -673,7 +696,7 @@ export class VoiceRelayClient {
 	}
 
 	updateDocument(name: string, newContent: string): void {
-		const document = this.config.PromptContents.Documents.find((doc) => doc.Name === name);
+		const document = this.config.PromptContents.Documents?.find((doc) => doc.Name === name);
 		if (document) {
 			document.Content = newContent;
 		} else {
@@ -685,8 +708,8 @@ export class VoiceRelayClient {
 		this.config.BotName = name;
 	}
 
-	setPersonality(personality: string) {
-		this.config.PromptContents.Personality = personality;
+	setBotPrimer(botPrimer: string) {
+		this.config.PromptContents.BotPrimer = botPrimer;
 	}
 
 	setSpeakingMode(mode: string) {
@@ -721,12 +744,21 @@ export class VoiceRelayClient {
 
 	async updatePersona(botName: string, personality: string): Promise<void> {
 		this.config.BotName = botName;
-		this.config.PromptContents.Personality = personality;
+		this.config.PromptContents.BotPrimer = personality;
 		await this.updateConfig();
 	}
 
 	async updateSpeakingMode(mode: string): Promise<void> {
 		this.config.VoiceUXConfig.SpeakingMode = mode;
 		await this.updateConfig();
+	}
+}
+
+function isValidJson(json: string): boolean {
+	try {
+		JSON.parse(json);
+		return true;
+	} catch {
+		return false;
 	}
 }

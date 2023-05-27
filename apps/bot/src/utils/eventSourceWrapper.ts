@@ -24,11 +24,15 @@ export class EventSourceWrapper {
 		};
 
 		this.eventSource.onerror = (error) => {
-			console.error('EventSource failed:', error);
-			this.onError(error);
-			if (error.status === 503) {
-				// Try to reconnect
-				this.reconnect();
+			if (this.eventSource?.readyState === EventSource.CLOSED) {
+				console.log('Connection was closed');
+			} else {
+				console.error('EventSource failed:', error);
+				this.onError(error);
+				if (error.status === 503) {
+					// Try to reconnect
+					this.reconnect();
+				}
 			}
 		};
 	}
