@@ -20,7 +20,6 @@ async function personaOff(interaction: CommandInteraction, teno: Teno) {
 	const member = interaction.member;
 
 	try {
-		invariant(prompt);
 		invariant(member instanceof GuildMember);
 		invariant(typeof guildId === 'string');
 	} catch (e) {
@@ -35,7 +34,20 @@ async function personaOff(interaction: CommandInteraction, teno: Teno) {
 		const meeting = teno.getActiveMeeting();
 		invariant(meeting);
 
-		meeting.turnPersonaOff();
+		try {
+			await meeting.turnPersonaOff();
+		} catch (e) {
+			await interaction.editReply({
+				content: `Error turning off persona.`,
+				components: [],
+			});
+			return;
+		}
+
+		await interaction.editReply({
+			content: `Persona mode turned off.`,
+			components: [],
+		});
 	} catch (e) {
 		await interaction.editReply({
 			content: "You aren't in a meeting with me yet.",

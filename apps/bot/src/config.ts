@@ -4,7 +4,17 @@ dotenv.config();
 
 /** Typed union of env var keys defined in envKeys */
 type ENV_KEYS = (typeof envKeys)[number];
-const envKeys = ['TOKEN', 'DEEPGRAM', 'OPENAI_API_KEY', 'REDIS_URL', 'DATABASE_URL', 'AZURE_SPEECH_REGION'] as const;
+const envKeys = [
+	'TOKEN',
+	'DEEPGRAM',
+	'OPENAI_API_KEY',
+	'REDIS_URL',
+	'DATABASE_URL',
+	'AZURE_SPEECH_REGION',
+	'AZURE_SPEECH_KEY',
+	'VOICE_RELAY_AUTH_KEY',
+	'VOICE_RELAY_URL',
+] as const;
 
 // Create a zod schema from the envKeys array
 // Every key is required

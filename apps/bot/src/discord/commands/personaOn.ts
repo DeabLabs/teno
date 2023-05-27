@@ -48,11 +48,18 @@ async function personaOn(interaction: CommandInteraction, teno: Teno) {
 		const meeting = teno.getActiveMeeting();
 		invariant(meeting);
 
-		meeting.setPersona({ name, description });
-		console.log(meeting.getPersona()?.name);
+		try {
+			meeting.setPersona({ name, description });
+		} catch (e) {
+			interaction.editReply({
+				content: `Error setting up persona.`,
+				components: [],
+			});
+			return;
+		}
 
 		await interaction.editReply({
-			content: `Teno will now speak from the persona of ${meeting.getPersona()?.name}.`,
+			content: `Teno will now speak from the persona of ${name}.`,
 			components: [],
 		});
 		return;

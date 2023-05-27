@@ -1,4 +1,5 @@
 import type { Client, Guild, Interaction, Message } from 'discord.js';
+import { ChannelType } from 'discord.js';
 import { TextChannel } from 'discord.js';
 import { VoiceChannel } from 'discord.js';
 import { Events } from 'discord.js';
@@ -8,7 +9,9 @@ import invariant from 'tiny-invariant';
 
 import { interactionCommandHandlers, interactionMessageHandlers } from '@/discord/interactions.js';
 import type { RedisClient } from '@/bot.js';
-import { createMeeting } from '@/utils/createMeeting.js';
+import { createMeeting } from '@/discord/commands/join.js';
+import { VoiceRelayClient } from '@/services/relaySDK.js';
+import { Config } from '@/config.js';
 
 import type { Meeting } from './meeting.js';
 import { Responder } from './responder.js';
@@ -24,6 +27,8 @@ export class Teno {
 	private responder: Responder;
 	private speechOn = true;
 	private voiceConfig: VoiceService | null = null;
+
+	private relayClient: VoiceRelayClient;
 
 	constructor({
 		client,
@@ -47,6 +52,16 @@ export class Teno {
 			redisClient,
 			prismaClient,
 		});
+		if (!this.client.user) {
+			throw new Error('Client user is null');
+		}
+		this.relayClient = new VoiceRelayClient(
+			this.client,
+			Config.VOICE_RELAY_AUTH_KEY,
+			this.client.user.id,
+			Config.TOKEN,
+			guild.id,
+		);
 		this.initialize();
 	}
 
@@ -140,10 +155,23 @@ export class Teno {
 			}
 		});
 
+		// Listen for messages in threads
 		this.client.on(Events.MessageCreate, async (message: Message) => {
+			// Ignore messages from other guilds
 			if (!message.guildId || message.guildId != this.id) return;
+			// Ignore messages not in public threads
+			if (message.channel.type !== ChannelType.PublicThread) return;
+			// Ignore messages in threads without parent channels
+			const parentChannel = message.channel.parent;
+			if (!parentChannel) return;
+			// Ignore messages in threads not under bot messages
+			const parentMessage = await parentChannel.messages.fetch(message.channelId);
+			if (!parentMessage) return;
+			if (!parentMessage.author.bot) return;
+
 			for (const messageHandler of interactionMessageHandlers) {
 				const passedFilter = await messageHandler.filter(message, this);
+
 				if (passedFilter) {
 					messageHandler.handler(message, this);
 				}
@@ -293,6 +321,10 @@ export class Teno {
 
 	getRedisClient(): RedisClient {
 		return this.redisClient;
+	}
+
+	getRelayClient(): VoiceRelayClient {
+		return this.relayClient;
 	}
 
 	getMeetings() {

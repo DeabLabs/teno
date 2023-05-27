@@ -1,6 +1,5 @@
-import type { VoiceReceiver } from '@discordjs/voice';
-import { getVoiceConnection } from '@discordjs/voice';
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { ThreadAutoArchiveDuration } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
 import { channelMention } from 'discord.js';
@@ -11,13 +10,11 @@ import { userQueries, usageQueries } from 'database';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
-import { generateMeetingName, ACTIVATION_COMMAND } from '@/services/langchain.js';
-import { playFilePath } from '@/services/textToSpeech.js';
-import { startTalkingBoops } from '@/services/audioResources.js';
+import { generateMeetingName } from '@/services/langchain.js';
+import type { VoiceRelayClient } from '@/services/relaySDK.js';
 
 import type { Teno } from './teno.js';
 import { Transcript } from './transcript.js';
-import { Utterance } from './utterance.js';
 
 type MeetingArgs = {
 	id: number;
@@ -25,6 +22,7 @@ type MeetingArgs = {
 	voiceChannelId: string;
 	guildId: string;
 	prismaClient: PrismaClientType;
+	voiceRelayClient: VoiceRelayClient;
 	teno: Teno;
 	startTime: number;
 	transcript: Transcript;
@@ -49,10 +47,9 @@ export type Persona = {
 
 export class Meeting {
 	private prismaClient: PrismaClientType;
+	private voiceRelayClient: VoiceRelayClient;
 	private guildId: string;
 	private voiceChannelId: string;
-	private speaking: Set<string>;
-	private ignore: Set<string>;
 	private startTime: number;
 	private attendees: Set<string>;
 	private id: number;
@@ -66,11 +63,11 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
-	private activeUtterances = new Map<string, Utterance>();
 
 	private constructor({
 		guildId,
 		prismaClient,
+		voiceRelayClient,
 		startTime,
 		transcript,
 		id,
@@ -89,10 +86,9 @@ export class Meeting {
 		this.voiceChannelId = voiceChannelId;
 		this.startTime = startTime;
 		this.prismaClient = prismaClient;
+		this.voiceRelayClient = voiceRelayClient;
 		this.client = client;
-		this.speaking = new Set<string>();
 		this.attendees = new Set<string>();
-		this.ignore = new Set<string>();
 		this.transcript = transcript;
 		this.active = active;
 		this.authorName = authorName;
@@ -100,8 +96,8 @@ export class Meeting {
 		this.name = name;
 		this.teno = teno;
 
-		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 		this.renderMeetingMessage = this.renderMeetingMessage.bind(this);
+		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 
 		this.renderMeetingMessage();
 	}
@@ -159,6 +155,7 @@ export class Meeting {
 				meetingMessageId: args.meetingMessageId,
 				startTime: _meeting.createdAt.getTime(),
 				prismaClient: args.prismaClient,
+				voiceRelayClient: args.voiceRelayClient,
 				client: args.client,
 				transcript,
 				active: _meeting.active,
@@ -272,36 +269,17 @@ export class Meeting {
 				],
 			});
 
+			const thread = await meetingMessage.startThread({
+				name: 'Meeting discussion thread',
+				autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+			});
+
+			thread.send('Talk to Teno about the meeting here');
+
 			return meetingMessage;
 		} catch {
 			return null;
 		}
-	}
-
-	/**
-	 * Creates an utterance object for a user id and voice receiver and starts the recording and transcription pipeline
-	 * @param receiver The voice receiver
-	 * @param userId The user id
-	 * @param client The discord client
-	 */
-	public createUtterance(receiver: VoiceReceiver, userId: string) {
-		const user = this.client.users.cache.get(userId);
-		if (!user) {
-			console.error('User not found.');
-			return;
-		}
-
-		const utterance = new Utterance(
-			receiver,
-			userId,
-			user.username,
-			this.secondsSinceStart(),
-			this.onRecordingEnd.bind(this),
-			this.onTranscriptionComplete.bind(this),
-			this,
-		);
-		this.activeUtterances.set(userId, utterance);
-		utterance.process();
 	}
 
 	/**
@@ -313,93 +291,11 @@ export class Meeting {
 	}
 
 	/**
-	 * Called when an utterance has finished recording
-	 * @param utterance The utterance that has finished recording
-	 */
-	private onRecordingEnd(utterance: Utterance): void {
-		this.activeUtterances.delete(utterance.userId);
-		this.stoppedSpeaking(utterance.userId);
-	}
-
-	/**
-	 * Writes the transcribed utterance to the meeting's transcript
-	 * @param utterance The utterance to write to the meeting's transcript
-	 * @returns A promise that resolves when the utterance has been written to the transcript
-	 */
-	private async writeToTranscript(utterance: Utterance): Promise<void> {
-		if (utterance.textContent) {
-			await this.transcript.addUtterance(utterance);
-		} else {
-			return;
-		}
-	}
-
-	/**
-	 * Called when an utterance has been transcribed
-	 * @param utterance The utterance that has been transcribed
-	 */
-	private async onTranscriptionComplete(utterance: Utterance) {
-		if (!this.isIgnored(utterance.userId)) {
-			this.writeToTranscript(utterance);
-			// Respond to the transcript if the bot is expected to respond
-			// console.log(utterance.textContent);
-			if (utterance.textContent && utterance.textContent.length > 0) {
-				const speechOn = this.teno.getSpeechOn();
-				if (speechOn) {
-					// console.time('onTranscriptionComplete');
-					const responder = this.teno.getResponder();
-					// should the bot respond or should it stop talking?
-					const botAnalysis = await responder.isBotResponseExpected(this);
-
-					if (botAnalysis === ACTIVATION_COMMAND.SPEAK) {
-						if (!responder.isSpeaking() && !Array.from(this.activeUtterances.values()).some((u) => u.long)) {
-							playFilePath(responder.getAudioPlayer(), startTalkingBoops(), this.getConnection());
-							responder.respondToTranscript(this);
-						}
-					} else if (botAnalysis === ACTIVATION_COMMAND.STOP) {
-						responder.stopResponding();
-					}
-					// console.timeEnd('onTranscriptionComplete');
-				}
-			}
-		}
-	}
-
-	public addBotLine(answer: string, botName: string) {
-		const timestamp = Date.now();
-		const transcriptLine = Utterance.createTranscriptLine(
-			`${botName}:`,
-			this.teno.id,
-			answer,
-			(timestamp - this.startTime) / 1000,
-			timestamp,
-		);
-
-		this.transcript.appendTranscript(transcriptLine, timestamp);
-	}
-
-	/**
-	 * Get the voice connection for this meeting
-	 * @returns The voice connection for this meeting
-	 */
-	public getConnection() {
-		return getVoiceConnection(this.guildId);
-	}
-
-	/**
 	 * Get the meeting id
 	 * @returns The meeting's id
 	 */
 	public getId() {
 		return this.id;
-	}
-
-	/**
-	 * Remove a user from the speaking list, which includes all users currently speaking
-	 * @param userId The user to remove
-	 */
-	public stoppedSpeaking(userId: string): void {
-		this.speaking.delete(userId);
 	}
 
 	/**
@@ -426,12 +322,44 @@ export class Meeting {
 		this.attendees.add(userId);
 	}
 
+	private async handleVoiceStateUpdate(prevState: VoiceState) {
+		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
+		const tenoUser = this.client?.user?.id;
+		const vc = this.client.channels.cache.get(this.voiceChannelId);
+		const active = await this.getActive();
+		if (
+			prevState?.channel?.id === this.voiceChannelId &&
+			active &&
+			tenoUser &&
+			vc &&
+			vc.isVoiceBased() &&
+			// only end the meeting if the vc being updated is the meeting vc
+			vc.id === this.getVoiceChannelId() &&
+			vc.members.size === 1 &&
+			vc.members.has(tenoUser)
+		) {
+			this.endMeeting();
+
+			// Send join request to voice relay
+			try {
+				await this.voiceRelayClient.leaveCall();
+			} catch (e) {
+				console.error(e);
+			}
+			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
+		}
+	}
+
 	/**
 	 *  Add a user to the ignore list, which stops Teno from transcribing their speech
 	 * @param userId  The user to ignore
 	 */
 	public ignoreUser(userId: string): void {
-		this.ignore.add(userId);
+		try {
+			this.voiceRelayClient.ignoreUser(userId);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	/**
@@ -439,31 +367,11 @@ export class Meeting {
 	 * @param userId The user to stop ignoring
 	 */
 	public stopIgnoring(userId: string): void {
-		this.ignore.delete(userId);
-	}
-
-	/**
-	 * Returns true if the user is on the speaking list
-	 * @param userId The user to check
-	 * @returns True if the user is on the speaking list
-	 */
-	public isSpeaking(userId: string): boolean {
-		return this.speaking.has(userId);
-	}
-
-	/**
-	 * Adds a user to the speaking list, which includes all users currently speaking
-	 * @param userId The user to add to the speaking list
-	 */
-	public addSpeaking(userId: string) {
-		this.speaking.add(userId);
-	}
-
-	/**
-	 * Clears the speaking list, which includes all users currently speaking
-	 */
-	public clearSpeaking() {
-		this.speaking.clear();
+		try {
+			this.voiceRelayClient.stopIgnoringUser(userId);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	/**
@@ -472,17 +380,6 @@ export class Meeting {
 	 */
 	public isAttendee(userId: string): boolean {
 		return this.attendees.has(userId);
-	}
-
-	/**
-	 * Returns true if the user is on the ignore list
-	 * @param userId The user to check
-	 * @returns True if the user is on the ignore list
-	 * @returns False if the user is not on the ignore list
-	 * @returns Null if the user is not in the meeting
-	 */
-	public isIgnored(userId: string): boolean {
-		return this.ignore.has(userId);
 	}
 
 	/**
@@ -623,33 +520,9 @@ export class Meeting {
 				await this.setName(resolved.answer);
 			}
 		}
-		this.clearSpeaking();
-		this.teno.getResponder().stopSpeaking();
-		this.teno.getResponder().stopThinking();
+
 		await this.teno.syncSpeechOn();
 		this.teno.setActiveMeeting(null);
-	}
-
-	private async handleVoiceStateUpdate(prevState: VoiceState) {
-		// if teno is the only one in the channel, stop the meeting and remove teno from the channel
-		const tenoUser = this.client?.user?.id;
-		const vc = this.client.channels.cache.get(this.voiceChannelId);
-		const active = await this.getActive();
-		if (
-			prevState?.channel?.id === this.voiceChannelId &&
-			active &&
-			tenoUser &&
-			vc &&
-			vc.isVoiceBased() &&
-			// only end the meeting if the vc being updated is the meeting vc
-			vc.id === this.getVoiceChannelId() &&
-			vc.members.size === 1 &&
-			vc.members.has(tenoUser)
-		) {
-			this.endMeeting();
-			this.getConnection()?.destroy();
-			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
-		}
 	}
 
 	private async autoName() {
@@ -670,11 +543,29 @@ export class Meeting {
 		return resolved;
 	}
 
-	public setPersona(persona: Persona) {
+	public async setPersona(persona: Persona) {
+		try {
+			await this.voiceRelayClient.updatePersona(persona.name, persona.description);
+		} catch (e) {
+			console.error(e);
+			return;
+		}
+
 		this.persona = persona;
 	}
 
 	public turnPersonaOff() {
+		const botName = 'Teno';
+		const personality =
+			'You are a friendly, interesting and knowledgeable discord conversation bot. Your responses are concise and to the point, but you can go into detail if a user asks you to.';
+
+		try {
+			this.voiceRelayClient.updatePersona(botName, personality);
+		} catch (e) {
+			console.error(e);
+			return;
+		}
+
 		this.persona = null;
 	}
 
