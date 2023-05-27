@@ -111,24 +111,24 @@ export async function createMeeting({
 				await relayClient.syncTextChannel(threadChannel, 10);
 			}
 
-			const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
-				const letterCount = str.replace(/[^A-Za-z]/g, '').length; // Only count alphabetic characters
-				if (letterCount % 2 === 0) {
-					return 'good';
-				} else {
-					return 'bad';
-				}
-			};
+			// const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
+			// 	const letterCount = str.replace(/[^A-Za-z]/g, '').length; // Only count alphabetic characters
+			// 	if (letterCount % 2 === 0) {
+			// 		return 'good';
+			// 	} else {
+			// 		return 'bad';
+			// 	}
+			// };
 
-			await relayClient.addToolWithHandler({
-				toolName: 'CheckString',
-				toolDescription: 'Use this to check a string',
-				toolInputGuide: 'Input string to check',
-				toolOutputGuide: 'Result will be good or bad, in the response document',
-				handler: getLetterCountParity,
-			});
+			// await relayClient.addToolWithHandler({
+			// 	toolName: 'CheckString',
+			// 	toolDescription: 'Use this to check a string',
+			// 	toolInputGuide: 'Input string to check',
+			// 	toolOutputGuide: 'Result will be good or bad, in the response document',
+			// 	handler: getLetterCountParity,
+			// });
 
-			await relayClient.getUserInput('FavoriteColor', "One of the user's favorite color");
+			// await relayClient.getUserInput('FavoriteColor', "One of the user's favorite color");
 		} catch (e) {
 			console.error(e);
 		}
