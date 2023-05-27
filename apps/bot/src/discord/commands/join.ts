@@ -108,7 +108,7 @@ export async function createMeeting({
 		try {
 			await relayClient.joinCall(voiceChannel.id, transcriptKey, DEFAULT_CONFIG);
 			if (threadChannel) {
-				await relayClient.syncTextChannel(threadChannel, 10);
+				await relayClient.syncTextChannel(threadChannel, 10, true);
 			}
 
 			// const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
