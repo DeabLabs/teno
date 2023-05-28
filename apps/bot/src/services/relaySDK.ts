@@ -386,7 +386,7 @@ export class VoiceRelayClient {
 							message.reply(replyContent);
 						}
 					}
-				}, 500); // Wait for 0.5 seconds due to weird message content delay issue
+				}, 1000); // Wait due to weird message content delay issue
 			}
 		});
 	}
