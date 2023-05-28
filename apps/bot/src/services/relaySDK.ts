@@ -116,7 +116,7 @@ export const DEFAULT_CONFIG: Config = {
 		LLMServiceName: 'openai',
 		LLMConfig: {
 			ApiKey: Config.OPENAI_API_KEY,
-			Model: 'gpt-3.5-turbo',
+			Model: 'gpt-4',
 		},
 	},
 	TTSConfig: {
@@ -320,8 +320,7 @@ export class VoiceRelayClient {
 					}
 				});
 
-				this.removeDocument(`${textChannelName}`);
-				this.addDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
+				this.updateDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
 
 				this.updateConfig();
 
@@ -350,6 +349,91 @@ export class VoiceRelayClient {
 
 		// Add the tool and document to the config
 		this.updateConfig();
+	}
+
+	/**
+	 * Syncs a Discord text channel with the voice bot in a question-answer format.
+	 * Every new message is responded to using a reply from the bot.
+	 *
+	 * @param {TextChannel} textChannel - The Discord text channel to sync with the voice bot.
+	 * @param {string} responseDescription - What kind of response the user should be asked to provide.
+	 * @param {function} [filterFunction] - Optional. A function that takes a message and returns true if the message should be responded to, and false otherwise.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async syncUserResponseChannel(
+		textChannel: TextChannel,
+		responseDescription: string,
+		filterFunction?: (message: Message) => Promise<boolean>,
+	): Promise<void> {
+		// Format the text channel name to be used as the document key
+		const words = textChannel.name.split(' ');
+		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
+
+		// Add listener for new messages in the text channel
+		this.discordClient.on('messageCreate', async (message) => {
+			if (message.channelId === textChannel.id && message.author.id !== this.discordClient.user?.id) {
+				setTimeout(async () => {
+					const shouldRespond = filterFunction ? await filterFunction(message) : true;
+					if (shouldRespond) {
+						const content = message.content || '[non-text content]';
+						console.log('message: ' + content);
+						const replyContent = await this.getUserInput(
+							`ReplyToMessageFrom${textChannelName}`,
+							`${responseDescription}: ${content}`,
+						);
+						if (replyContent) {
+							message.reply(replyContent);
+						}
+					}
+				}, 500); // Wait for 0.5 seconds due to weird message content delay issue
+			}
+		});
+	}
+
+	/**
+	 * Syncs a Discord text channel with the voice bot. The bot's tool messages are sent into the channel, and the first reply to each message is returned to the handler function.
+	 *
+	 * @param {TextChannel} textChannel - The Discord text channel to sync with the voice bot.
+	 * @param {Object} params - The parameters for the tool.
+	 * @param {string} params.toolName - The name of the tool.
+	 * @param {string} params.toolDescription - A description of the tool.
+	 * @param {string} params.toolInputGuide - A guide on what to input into the tool.
+	 * @param {string} params.toolOutputGuide - A guide on the output of the tool.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async syncToolChannel(
+		textChannel: TextChannel,
+		params: {
+			toolName: string;
+			toolDescription: string;
+			toolInputGuide: string;
+			toolOutputGuide: string;
+		},
+	): Promise<void> {
+		// Use addToolWithHandler with a custom handler
+		this.addToolWithHandler({
+			...params,
+			handler: async (query: string) => {
+				// Send the bot's tool message into the channel
+				const botMessage = await textChannel.send(query);
+
+				// Create a promise that resolves once the bot's message is replied to
+				const replyPromise = new Promise<string>((resolve) => {
+					const filter = (message: Message) =>
+						Boolean(message.reference && message.reference.messageId === botMessage.id);
+
+					const collector = textChannel.createMessageCollector({ filter, max: 1 });
+					collector.on('collect', (reply) => {
+						resolve(reply.content);
+					});
+				});
+
+				// Wait for the reply and return it
+				return await replyPromise;
+			},
+		});
 	}
 
 	/**
@@ -530,7 +614,7 @@ export class VoiceRelayClient {
 
 		// Define a tool that allows the LLM to write lines to the document.
 		const toolName = `WriteTo${notesDocName}`;
-		const toolDescription = `This tool allows you to add a line to the "${notesDocName}" notes document.`;
+		const toolDescription = `This tool allows you to add a line to ${notesDocName}.`;
 		const toolInputGuide = 'Input the line you would like to add to the document.';
 		const toolOutputGuide = 'This tool does not return any output.';
 
@@ -570,7 +654,7 @@ export class VoiceRelayClient {
 		try {
 			return await this.pushTaskWithDeliverableTool(
 				`Get${inputName}`,
-				`Get the value for "${inputName}". Description: ${inputDescription}.`,
+				`Get the value for "${inputName}". Description: ${inputDescription}`,
 				`Input the value for "${inputName}" into the Get${inputName}Input tool.`,
 			);
 		} catch (error) {
@@ -601,47 +685,6 @@ export class VoiceRelayClient {
 
 		return results;
 	}
-
-	// Config type:
-	// {
-	// 	BotName: 'Bot',
-	// 	PromptContents: {
-	// 		Personality: 'Helpful Discord voice bot',
-	// 		Tools: [],
-	// 		Documents: [],
-	// 		Tasks: [],
-	// 	},
-	// 	VoiceUXConfig: {
-	// 		SpeakingMode: 'AutoSleep',
-	// 		LinesBeforeSleep: 4,
-	// 		BotNameConfidenceThreshold: 0.7,
-	// 		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
-	// 	},
-	// 	LLMConfig: {
-	// 		LLMServiceName: 'openai',
-	// 		LLMConfig: {
-	// 			ApiKey: Config.OPENAI_API_KEY,
-	// 			Model: 'gpt-3.5-turbo',
-	// 		},
-	// 	},
-	// 	TTSConfig: {
-	// 		TTSServiceName: 'azure',
-	// 		TTSConfig: {
-	// 			ApiKey: Config.AZURE_SPEECH_KEY,
-	// 			Model: 'neural',
-	// 			VoiceID: 'en-US-BrandonNeural',
-	// 			Language: 'en-US',
-	// 			Gender: 'Male',
-	// 		},
-	// 	},
-	// 	TranscriptConfig: {
-	// 		NumberOfTranscriptLines: 20,
-	// 	},
-	// 	TranscriberConfig: {
-	// 		Keywords: [],
-	// 		IgnoredUsers: [],
-	// 	},
-	// };
 
 	addDocument(name: string, content: string) {
 		this.config.PromptContents.Documents?.push({
@@ -712,6 +755,22 @@ export class VoiceRelayClient {
 		this.config.PromptContents.BotPrimer = botPrimer;
 	}
 
+	setCustomTranscriptPrimer(customTranscriptPrimer: string) {
+		this.config.PromptContents.CustomTranscriptPrimer = customTranscriptPrimer;
+	}
+
+	setCustomToolPrimer(customToolPrimer: string) {
+		this.config.PromptContents.CustomToolPrimer = customToolPrimer;
+	}
+
+	setCustomTaskPrimer(customTaskPrimer: string) {
+		this.config.PromptContents.CustomTaskPrimer = customTaskPrimer;
+	}
+
+	setCustomDocumentPrimer(customDocumentPrimer: string) {
+		this.config.PromptContents.CustomDocumentPrimer = customDocumentPrimer;
+	}
+
 	setSpeakingMode(mode: string) {
 		this.config.VoiceUXConfig.SpeakingMode = mode;
 	}
@@ -726,6 +785,23 @@ export class VoiceRelayClient {
 
 	setAutoRespondInterval(interval: number) {
 		this.config.VoiceUXConfig.AutoRespondInterval = interval;
+	}
+
+	setLLMServiceAndModel(serviceName: string, apiKey: string, model: string) {
+		this.config.LLMConfig.LLMServiceName = serviceName;
+		this.config.LLMConfig.LLMConfig.ApiKey = apiKey;
+		this.config.LLMConfig.LLMConfig.Model = model;
+	}
+
+	setNumberOfTranscriptLines(lines: number) {
+		this.config.TranscriptConfig.NumberOfTranscriptLines = lines;
+	}
+
+	async addKeyword(keyword: string): Promise<void> {
+		if (!this.config.TranscriberConfig.Keywords.includes(keyword)) {
+			this.config.TranscriberConfig.Keywords.push(keyword);
+			await this.updateConfig();
+		}
 	}
 
 	async ignoreUser(userId: string): Promise<void> {

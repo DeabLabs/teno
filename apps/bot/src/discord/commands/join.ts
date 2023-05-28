@@ -107,9 +107,17 @@ export async function createMeeting({
 		// Send join request to voice relay
 		try {
 			await relayClient.joinCall(voiceChannel.id, transcriptKey, DEFAULT_CONFIG);
-			if (threadChannel) {
-				await relayClient.syncTextChannel(threadChannel, 10, true);
-			}
+
+			// await relayClient.syncUserResponseChannel(threadChannel, 'Get the answer to the question');
+
+			// await relayClient.syncToolChannel(threadChannel, {
+			// 	toolName: 'Weather',
+			// 	toolDescription: 'Get the current weather in a city',
+			// 	toolInputGuide: 'Input the city you want to get the weather for.',
+			// 	toolOutputGuide: 'The weather will be in the response document',
+			// });
+
+			await relayClient.syncTextChannel(threadChannel, 10, true);
 
 			// const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
 			// 	const letterCount = str.replace(/[^A-Za-z]/g, '').length; // Only count alphabetic characters
