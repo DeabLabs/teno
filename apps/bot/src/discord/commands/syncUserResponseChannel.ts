@@ -16,25 +16,18 @@ export const syncUserResponseChannelCommand = createCommand({
 				required: true,
 				channelTypes: [ChannelType.GuildText],
 			},
-			{
-				name: 'response-description',
-				description: 'What kind of response the user should be asked to provide',
-				type: ApplicationCommandOptionType.String,
-				required: true,
-			},
 		],
 	},
-	handler: syncUserResponseChannel,
+	handler: syncUserResponseChannelHandler,
 });
 
-async function syncUserResponseChannel(interaction: CommandInteraction, teno: Teno) {
+async function syncUserResponseChannelHandler(interaction: CommandInteraction, teno: Teno) {
 	await interaction.deferReply({ ephemeral: true });
 
 	try {
 		const textChannel = interaction.options.get('text-channel')?.channel as TextChannel;
-		const responseDescription = interaction.options.get('response-description')?.value as string;
 
-		await teno.getRelayClient().syncUserResponseChannel(textChannel, responseDescription);
+		await teno.getRelayClient().syncUserResponseChannel(textChannel);
 
 		await interaction.editReply({ content: `User response channel synced successfully.` });
 	} catch (error) {

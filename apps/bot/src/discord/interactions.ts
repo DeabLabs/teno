@@ -21,6 +21,7 @@ import { personaOffCommand } from './commands/personaOff.js';
 import { messageInMeetingThreadHandler } from './messageHandlers/messageInMeetingThread.js';
 import { syncToolChannelCommand } from './commands/syncToolChannel.js';
 import { syncUserResponseChannelCommand } from './commands/syncUserResponseChannel.js';
+import { syncFeedChannelCommand } from './commands/syncFeedChannel.js';
 
 // Add new commands here
 const commandInteractions = [
@@ -45,6 +46,7 @@ const commandInteractions = [
 	personaOffCommand,
 	syncToolChannelCommand,
 	syncUserResponseChannelCommand,
+	syncFeedChannelCommand,
 ] as const;
 
 export const interactionCommandHandlers = new Map<string, Command>();

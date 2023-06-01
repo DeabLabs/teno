@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 
-import type { Client, Message, TextChannel } from 'discord.js';
+import type { Client, TextChannel } from 'discord.js';
+import { Message } from 'discord.js';
 
 import { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
 import { Config } from '@/config.js';
@@ -116,7 +117,7 @@ export const DEFAULT_CONFIG: Config = {
 		LLMServiceName: 'openai',
 		LLMConfig: {
 			ApiKey: Config.OPENAI_API_KEY,
-			Model: 'gpt-4',
+			Model: 'gpt-3.5-turbo',
 		},
 	},
 	TTSConfig: {
@@ -351,42 +352,65 @@ export class VoiceRelayClient {
 		this.updateConfig();
 	}
 
-	/**
-	 * Syncs a Discord text channel with the voice bot in a question-answer format.
-	 * Every new message is responded to using a reply from the bot.
-	 *
-	 * @param {TextChannel} textChannel - The Discord text channel to sync with the voice bot.
-	 * @param {string} responseDescription - What kind of response the user should be asked to provide.
-	 * @param {function} [filterFunction] - Optional. A function that takes a message and returns true if the message should be responded to, and false otherwise.
-	 *
-	 * @returns {Promise<void>}
-	 */
 	async syncUserResponseChannel(
 		textChannel: TextChannel,
-		responseDescription: string,
 		filterFunction?: (message: Message) => Promise<boolean>,
 	): Promise<void> {
+		// Add listener for new messages in the text channel
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let infoContext = '';
+
 		// Format the text channel name to be used as the document key
 		const words = textChannel.name.split(' ');
 		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
 
-		// Add listener for new messages in the text channel
+		if (firstPinnedMessage instanceof Message) {
+			infoContext = firstPinnedMessage.content;
+		}
+
 		this.discordClient.on('messageCreate', async (message) => {
 			if (message.channelId === textChannel.id && message.author.id !== this.discordClient.user?.id) {
-				setTimeout(async () => {
-					const shouldRespond = filterFunction ? await filterFunction(message) : true;
-					if (shouldRespond) {
-						const content = message.content || '[non-text content]';
-						console.log('message: ' + content);
-						const replyContent = await this.getUserInput(
-							`ReplyToMessageFrom${textChannelName}`,
-							`${responseDescription}: ${content}`,
-						);
-						if (replyContent) {
-							message.reply(replyContent);
-						}
+				const shouldRespond = filterFunction ? await filterFunction(message) : true;
+				if (shouldRespond) {
+					const content = message.content || '[non-text content]';
+					const replyContent = await this.pushTaskWithDeliverableTool(
+						`GetResponseTo${textChannelName}`,
+						`There's a new ${textChannelName}: ${content}. ${infoContext}. Get the response by asking for it in the voice channel.`,
+						`When you've acquired the response, input it into the RespondTo${textChannelName} tool.`,
+						`RespondTo${textChannelName}`,
+					);
+
+					if (replyContent) {
+						message.reply(replyContent);
 					}
-				}, 1000); // Wait due to weird message content delay issue
+				}
+			}
+		});
+	}
+
+	async syncFeedChannel(
+		textChannel: TextChannel,
+		filterFunction?: (message: Message) => Promise<boolean>,
+	): Promise<void> {
+		const infoName = textChannel.name.replace(/-/g, '');
+
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let infoContext = '';
+
+		if (firstPinnedMessage instanceof Message) {
+			infoContext = firstPinnedMessage.content;
+		}
+
+		this.discordClient.on('messageCreate', async (message) => {
+			if (message.channelId === textChannel.id && message.author.id !== this.discordClient.user?.id) {
+				const shouldRespond = filterFunction ? await filterFunction(message) : true;
+				if (shouldRespond) {
+					const infoContent = message.content || '[non-text content]';
+					const info = `${infoContext}: ${infoContent}`;
+					await this.pushInfo(infoName, info);
+				}
 			}
 		});
 	}
@@ -403,15 +427,23 @@ export class VoiceRelayClient {
 	 *
 	 * @returns {Promise<void>}
 	 */
-	async syncToolChannel(
-		textChannel: TextChannel,
-		params: {
-			toolName: string;
-			toolDescription: string;
-			toolInputGuide: string;
-			toolOutputGuide: string;
-		},
-	): Promise<void> {
+	async syncToolChannel(textChannel: TextChannel): Promise<void> {
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let pinnedMessageContent = '';
+
+		if (firstPinnedMessage instanceof Message) {
+			pinnedMessageContent = firstPinnedMessage.content;
+		}
+
+		// Define the tool parameters
+		const params = {
+			toolName: textChannel.name.replace(/-/g, ''),
+			toolDescription: pinnedMessageContent,
+			toolInputGuide: 'Refer to the tool description for how to format inputs.',
+			toolOutputGuide: 'Output response will be provided as a relay task description when it is ready.',
+		};
+
 		// Use addToolWithHandler with a custom handler
 		this.addToolWithHandler({
 			...params,
@@ -485,6 +517,7 @@ export class VoiceRelayClient {
 	 * @param {string} taskName - The name of the task.
 	 * @param {string} taskDescription - A description of the task.
 	 * @param {string} deliverableGuide - A guide on what the bot should input into the tool.
+	 * @param {string} [inputToolName] - Optional. The name of the tool. Defaults to `${taskName}Input`.
 	 *
 	 * @returns {Promise<string>} - Returns a promise resolving with the deliverable, or rejects if the deliverable cannot be acquired.
 	 */
@@ -492,6 +525,7 @@ export class VoiceRelayClient {
 		taskName: string,
 		taskDescription: string,
 		deliverableGuide: string,
+		inputToolName?: string,
 	): Promise<string> {
 		// Create the task
 		this.addTask(taskName, taskDescription, deliverableGuide);
@@ -500,9 +534,11 @@ export class VoiceRelayClient {
 		const toolInputGuide = `When you have the deliverable described in the task's deliverable guide, input it into this tool. Input 'reject' if the deliverable cannot be acquired.`;
 		const toolOutputGuide = `The tool does not return any output.`;
 
+		const toolName = inputToolName ?? `${taskName}Input`;
+
 		// Create the corresponding tool
 		this.addTool(
-			`${taskName}Input`,
+			toolName,
 			`This tool is used to send the deliverable for the ${taskName} task when it has been acquired.`,
 			toolInputGuide,
 			toolOutputGuide,
@@ -513,7 +549,7 @@ export class VoiceRelayClient {
 
 		// Listen for tool events
 		return new Promise<string>((resolve, reject) => {
-			this.toolEventEmitter.once(`${taskName}Input`, (input: string) => {
+			this.toolEventEmitter.once(toolName, (input: string) => {
 				this.removeTask(taskName);
 				this.removeTool(`${taskName}Input`);
 				this.updateConfig();
@@ -562,6 +598,29 @@ export class VoiceRelayClient {
 	}
 
 	/**
+	 * Pushes information to the voice bot by creating a task that directly contains the information.
+	 *
+	 * @param {string} infoName - The name of the information.
+	 * @param {string} infoContent - The content of the information.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async pushInfo(infoName: string, infoContent: string): Promise<void> {
+		// Define the task parameters
+		const taskName = `Relay${infoName}`;
+		const taskDescription = `Relay the following information in the voice channel:\n\n${infoContent}`;
+		const deliverableGuide = `Input 'done' in the associated tool when the information has been relayed. This will mark the task as complete. Do not mention this task in the voice channel.`;
+
+		// Create the task with completion and handle the completion
+		try {
+			await this.pushTaskWithCompletionTool(taskName, taskDescription, deliverableGuide);
+			console.log(`Information "${infoName}" has been delivered successfully.`);
+		} catch {
+			console.error(`Delivery of information "${infoName}" was rejected.`);
+		}
+	}
+
+	/**
 	 * Pushes a tool to the voice bot and sets up a handler function for tool uses.
 	 * If the handler function returns a string, the tool will output that string as a document with a delivery confirmation task.
 	 * @param params - The parameters for the tool.
@@ -588,11 +647,10 @@ export class VoiceRelayClient {
 			// Handle the query and produce a result
 			const result = await params.handler(query);
 
-			// Create a document with the result and send it to the LLM only if result is not void
 			if (result !== undefined) {
-				const documentName = `${params.toolName}Output`;
-				const documentContent = `input: ` + query + `\noutput: ` + result;
-				await this.pushDocumentWithDeliveryConfirmationTool(documentName, documentContent);
+				const infoName = `${params.toolName}Output`;
+				const infoContent = `input: ` + query + `\noutput: ` + result;
+				await this.pushInfo(infoName, infoContent);
 			}
 		});
 
@@ -654,8 +712,8 @@ export class VoiceRelayClient {
 		try {
 			return await this.pushTaskWithDeliverableTool(
 				`Get${inputName}`,
-				`Get the value for "${inputName}". Description: ${inputDescription}`,
-				`Input the value for "${inputName}" into the Get${inputName}Input tool.`,
+				`${inputName} is a piece of information you have to get from people in the voice channel. This is a description ${inputName}: ${inputDescription}. Ask for that information in the voice channel.`,
+				`When you've acquired it, input the ${inputName} into the Get${inputName}Input tool.`,
 			);
 		} catch (error) {
 			console.error(`Failed to get user input "${inputName}":`, error);

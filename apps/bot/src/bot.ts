@@ -42,7 +42,12 @@ console.log('Prisma Client Connected');
 // Initialize Discord client
 const botToken = Config.TOKEN;
 const client = new Client({
-	intents: [GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMessages, GatewayIntentBits.Guilds],
+	intents: [
+		GatewayIntentBits.GuildVoiceStates,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.MessageContent,
+	],
 });
 
 client.on(Events.ClientReady, () => console.log('App started'));
