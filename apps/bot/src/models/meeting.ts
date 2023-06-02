@@ -8,6 +8,7 @@ import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
+import { s } from 'vitest/dist/env-afee91f0.js';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -107,36 +108,12 @@ export class Meeting {
 			if (!interaction.isButton()) return;
 			if (interaction.customId === `${this.meetingMessageId}-speechoff`) {
 				await this.teno.getRelayClient().updateSpeakingMode('NeverSpeak');
-				this.updateMeetingMessage(false);
-				// Send ephemeral message to user
-				await interaction.reply({
-					content: 'Speech turned off',
-					ephemeral: true,
-				});
 			} else if (interaction.customId === `${this.meetingMessageId}-speechon`) {
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
-				this.updateMeetingMessage(false);
-				// Send ephemeral message to user
-				await interaction.reply({
-					content: 'Speech turned on',
-					ephemeral: true,
-				});
 			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondon`) {
 				await this.teno.getRelayClient().updateSpeakingMode('AlwaysSpeak');
-				this.updateMeetingMessage(false);
-				// Send ephemeral message to user
-				await interaction.reply({
-					content: 'Always respond turned on',
-					ephemeral: true,
-				});
 			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondoff`) {
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
-				this.updateMeetingMessage(false);
-				// Send ephemeral message to user
-				await interaction.reply({
-					content: 'Always respond turned off',
-					ephemeral: true,
-				});
 			}
 		});
 	}
@@ -237,6 +214,18 @@ export class Meeting {
 
 			const seconds = Math.floor(this.startTime / 1000);
 
+			const speechMode = this.teno.getRelayClient().getConfig().VoiceUXConfig.SpeakingMode;
+
+			let speechState = '';
+
+			if (speechMode === 'NeverSpeak') {
+				speechState = 'Asleep';
+			} else if (speechMode === 'AutoSleep') {
+				speechState = this.teno.getRelayClient().getState();
+			} else if (speechMode === 'AlwaysSpeak') {
+				speechState = 'Awake';
+			}
+
 			const embed = new EmbedBuilder()
 				.setColor('Green')
 				.setTitle(`Meeting ${done ? '' : 'started'} by ${this.authorName}`)
@@ -258,7 +247,7 @@ export class Meeting {
 					},
 					{
 						name: 'Speech state',
-						value: this.teno.getRelayClient().getState(),
+						value: speechState,
 					},
 				);
 
@@ -315,12 +304,12 @@ export class Meeting {
 	 * - Update the meeting message with current meeting state
 	 */
 	private async renderMeetingMessage() {
-		await this.updateMeetingMessage(!this.render);
+		this.updateMeetingMessage(!this.render);
 
 		if (this.render) {
 			this.meetingTimeout = setTimeout(() => {
 				this.renderMeetingMessage();
-			}, 5000);
+			}, 1000);
 		}
 	}
 
