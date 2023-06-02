@@ -111,7 +111,6 @@ export class Meeting {
 					content: 'Speech turned off',
 					ephemeral: true,
 				});
-				await this.updateMeetingMessage(false);
 			} else if (interaction.customId === `${this.meetingMessageId}-on`) {
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
 				// Send ephemeral message to user
@@ -119,7 +118,6 @@ export class Meeting {
 					content: 'Speech turned on',
 					ephemeral: true,
 				});
-				await this.updateMeetingMessage(false);
 			}
 		});
 	}
@@ -239,6 +237,10 @@ export class Meeting {
 						name: 'Started At',
 						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
 					},
+					{
+						name: 'Speech state',
+						value: this.teno.getRelayClient().getState() ?? 'Unknown',
+					},
 				);
 
 			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
@@ -261,7 +263,7 @@ export class Meeting {
 
 			const button = new ButtonBuilder().setCustomId(buttonId).setLabel(buttonLabel).setStyle(ButtonStyle.Primary);
 
-			const row = new ActionRowBuilder().addComponents(button);
+			const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
 
 			// Update message with embed and button
 			await message.edit({ embeds: [embed], content: '', components: [row] });

@@ -109,7 +109,7 @@ export const DEFAULT_CONFIG: Config = {
 	},
 	VoiceUXConfig: {
 		SpeakingMode: 'AutoSleep',
-		LinesBeforeSleep: 5,
+		LinesBeforeSleep: 4,
 		BotNameConfidenceThreshold: 0.7,
 		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
 	},
@@ -149,6 +149,7 @@ export class VoiceRelayClient {
 	private config: Config;
 	private toolEventEmitter: EventEmitter;
 	private toolEventSource?: EventSourceWrapper;
+	private state?: string;
 
 	constructor(discordClient: Client, authToken: string, botId: string, botToken: string, guildId: string) {
 		this.discordClient = discordClient;
@@ -163,6 +164,10 @@ export class VoiceRelayClient {
 
 	public getConfig(): Config {
 		return this.config;
+	}
+
+	public getState(): string | undefined {
+		return this.state;
 	}
 
 	async joinCall(channelId: string, transcriptKey: string, config: Config): Promise<void> {
@@ -268,11 +273,24 @@ export class VoiceRelayClient {
 						return;
 					}
 
+					console.log(`Received tool message: ${toolMessage}`);
+
 					const toolMessageJson = JSON.parse(toolMessage);
 
-					for (const message of toolMessageJson) {
-						// Emit an event named after the tool with the input as data
-						this.toolEventEmitter.emit(message.name, message.input);
+					console.log(`Parsed tool message: `, toolMessageJson);
+
+					if (toolMessageJson.Type == 'state') {
+						this.state = toolMessageJson.Data;
+						return;
+					}
+
+					if (toolMessageJson.Type == 'tool-message') {
+						const messages = JSON.parse(toolMessageJson.Data);
+						for (const message of messages) {
+							// Emit an event named after the tool with the input as data
+							this.toolEventEmitter.emit(message.name, message.input);
+							console.log(`Emitted tool event: ${message.name} with input: ${message.input}`);
+						}
 					}
 				} catch (error) {
 					console.error(`Error processing tool message:`, error);
