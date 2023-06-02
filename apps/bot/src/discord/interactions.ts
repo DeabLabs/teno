@@ -1,6 +1,4 @@
-import { autoRenameCommand } from './commands/autoRename.js';
 import { autojoinOffCommand } from './commands/autojoinOff.js';
-import { listCommand } from './commands/list.js';
 import { joinCommand } from './commands/join.js';
 import { leaveCommand } from './commands/leave.js';
 import { askCommand } from './commands/ask.js';
@@ -13,7 +11,6 @@ import { removeMeCommand } from './commands/removeMe.js';
 import { muteMeCommand } from './commands/muteMe.js';
 import { unmuteMeCommand } from './commands/unmuteMe.js';
 import { askPastCommand } from './commands/askPast.js';
-import { chimeInCommand } from './commands/chimeIn.js';
 import { speechOnCommand } from './commands/speechOn.js';
 import { speechOffCommand } from './commands/speechOff.js';
 import { personaOnCommand } from './commands/personaOn.js';
@@ -28,9 +25,7 @@ const commandInteractions = [
 	joinCommand,
 	leaveCommand,
 	askCommand,
-	autoRenameCommand,
 	renameCommand,
-	listCommand,
 	lockCommand,
 	unlockCommand,
 	autojoinOnCommand,
@@ -39,7 +34,6 @@ const commandInteractions = [
 	muteMeCommand,
 	unmuteMeCommand,
 	askPastCommand,
-	chimeInCommand,
 	speechOnCommand,
 	speechOffCommand,
 	personaOnCommand,
