@@ -1,4 +1,5 @@
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ThreadAutoArchiveDuration } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
@@ -100,6 +101,27 @@ export class Meeting {
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 
 		this.renderMeetingMessage();
+
+		this.teno.getClient().on('interactionCreate', async (interaction) => {
+			if (!interaction.isButton()) return;
+			if (interaction.customId === `${this.meetingMessageId}-off`) {
+				await this.teno.getRelayClient().updateSpeakingMode('NeverSpeak');
+				// Send ephemeral message to user
+				await interaction.reply({
+					content: 'Speech turned off',
+					ephemeral: true,
+				});
+				await this.updateMeetingMessage(false);
+			} else if (interaction.customId === `${this.meetingMessageId}-on`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+				// Send ephemeral message to user
+				await interaction.reply({
+					content: 'Speech turned on',
+					ephemeral: true,
+				});
+				await this.updateMeetingMessage(false);
+			}
+		});
 	}
 
 	getTeno = () => {
@@ -190,12 +212,7 @@ export class Meeting {
 		return null;
 	}
 
-	/**
-	 * - Get the text channel for the meeting message
-	 * - Update the meeting message with current meeting state
-	 */
-	private async renderMeetingMessage() {
-		const done = !(await this.getActive());
+	private async updateMeetingMessage(done: boolean) {
 		const result = await this.findMeetingMessage();
 
 		if (result) {
@@ -223,14 +240,42 @@ export class Meeting {
 						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
 					},
 				);
+
 			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
 
 			if (authorAvatarUrl) {
 				embed.setThumbnail(authorAvatarUrl);
 			}
 
-			await message.edit({ embeds: [embed], content: '' });
+			// Create button
+			const currentSpeechMode = this.teno.getRelayClient().getConfig().VoiceUXConfig.SpeakingMode;
+			let buttonId = '';
+			let buttonLabel = '';
+			if (currentSpeechMode === 'AutoSleep') {
+				buttonId = `${this.meetingMessageId}-off`;
+				buttonLabel = 'Turn Speech Off';
+			} else if (currentSpeechMode === 'NeverSpeak') {
+				buttonId = `${this.meetingMessageId}-on`;
+				buttonLabel = 'Turn Speech On';
+			}
+
+			const button = new ButtonBuilder().setCustomId(buttonId).setLabel(buttonLabel).setStyle(ButtonStyle.Primary);
+
+			const row = new ActionRowBuilder().addComponents(button);
+
+			// Update message with embed and button
+			await message.edit({ embeds: [embed], content: '', components: [row] });
 		}
+	}
+
+	/**
+	 * - Get the text channel for the meeting message
+	 * - Update the meeting message with current meeting state
+	 */
+	private async renderMeetingMessage() {
+		const done = !(await this.getActive());
+
+		await this.updateMeetingMessage(done);
 
 		if (!done) {
 			this.meetingTimeout = setTimeout(() => {

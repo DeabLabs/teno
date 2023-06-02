@@ -161,6 +161,10 @@ export class VoiceRelayClient {
 		this.toolEventEmitter = new EventEmitter();
 	}
 
+	public getConfig(): Config {
+		return this.config;
+	}
+
 	async joinCall(channelId: string, transcriptKey: string, config: Config): Promise<void> {
 		this.config = config;
 
@@ -239,8 +243,8 @@ export class VoiceRelayClient {
 				},
 				body: JSON.stringify(this.config),
 			});
-			console.log(await response.text());
-			console.log(`Updated prompt: ${JSON.stringify(this.config.PromptContents, null, 2)}`);
+			// console.log(await response.text());
+			// console.log(`Updated prompt: ${JSON.stringify(this.config.PromptContents, null, 2)}`);
 
 			if (!response.ok) {
 				throw new Error(`Error updating config: ${response.statusText}`);
