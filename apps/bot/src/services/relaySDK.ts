@@ -149,7 +149,7 @@ export class VoiceRelayClient {
 	private config: Config;
 	private toolEventEmitter: EventEmitter;
 	private toolEventSource?: EventSourceWrapper;
-	private state?: string;
+	private state: string;
 
 	constructor(discordClient: Client, authToken: string, botId: string, botToken: string, guildId: string) {
 		this.discordClient = discordClient;
@@ -160,13 +160,14 @@ export class VoiceRelayClient {
 		this.guildId = guildId;
 		this.config = DEFAULT_CONFIG;
 		this.toolEventEmitter = new EventEmitter();
+		this.state = 'Awake';
 	}
 
 	public getConfig(): Config {
 		return this.config;
 	}
 
-	public getState(): string | undefined {
+	public getState(): string {
 		return this.state;
 	}
 
@@ -269,15 +270,10 @@ export class VoiceRelayClient {
 				try {
 					if (!isValidJson(toolMessage)) {
 						console.error('Received invalid JSON:', toolMessage.substring(0, 100));
-
 						return;
 					}
 
-					console.log(`Received tool message: ${toolMessage}`);
-
 					const toolMessageJson = JSON.parse(toolMessage);
-
-					console.log(`Parsed tool message: `, toolMessageJson);
 
 					if (toolMessageJson.Type == 'state') {
 						this.state = toolMessageJson.Data;

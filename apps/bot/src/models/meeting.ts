@@ -64,6 +64,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
+	private render = true;
 
 	private constructor({
 		guildId,
@@ -104,18 +105,36 @@ export class Meeting {
 
 		this.teno.getClient().on('interactionCreate', async (interaction) => {
 			if (!interaction.isButton()) return;
-			if (interaction.customId === `${this.meetingMessageId}-off`) {
+			if (interaction.customId === `${this.meetingMessageId}-speechoff`) {
 				await this.teno.getRelayClient().updateSpeakingMode('NeverSpeak');
+				this.updateMeetingMessage(false);
 				// Send ephemeral message to user
 				await interaction.reply({
 					content: 'Speech turned off',
 					ephemeral: true,
 				});
-			} else if (interaction.customId === `${this.meetingMessageId}-on`) {
+			} else if (interaction.customId === `${this.meetingMessageId}-speechon`) {
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+				this.updateMeetingMessage(false);
 				// Send ephemeral message to user
 				await interaction.reply({
 					content: 'Speech turned on',
+					ephemeral: true,
+				});
+			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondon`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AlwaysSpeak');
+				this.updateMeetingMessage(false);
+				// Send ephemeral message to user
+				await interaction.reply({
+					content: 'Always respond turned on',
+					ephemeral: true,
+				});
+			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondoff`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+				this.updateMeetingMessage(false);
+				// Send ephemeral message to user
+				await interaction.reply({
+					content: 'Always respond turned off',
 					ephemeral: true,
 				});
 			}
@@ -239,7 +258,7 @@ export class Meeting {
 					},
 					{
 						name: 'Speech state',
-						value: this.teno.getRelayClient().getState() ?? 'Unknown',
+						value: this.teno.getRelayClient().getState(),
 					},
 				);
 
@@ -251,19 +270,40 @@ export class Meeting {
 
 			// Create button
 			const currentSpeechMode = this.teno.getRelayClient().getConfig().VoiceUXConfig.SpeakingMode;
-			let buttonId = '';
-			let buttonLabel = '';
+			let speechButtonId = '';
+			let speechButtonLabel = '';
+
+			let sleepButtonId = '';
+			let sleepButtonLabel = '';
+
 			if (currentSpeechMode === 'AutoSleep') {
-				buttonId = `${this.meetingMessageId}-off`;
-				buttonLabel = 'Turn Speech Off';
+				speechButtonId = `${this.meetingMessageId}-speechoff`;
+				speechButtonLabel = 'Turn Speech Off';
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondon`;
+				sleepButtonLabel = 'Never sleep';
 			} else if (currentSpeechMode === 'NeverSpeak') {
-				buttonId = `${this.meetingMessageId}-on`;
-				buttonLabel = 'Turn Speech On';
+				speechButtonId = `${this.meetingMessageId}-speechon`;
+				speechButtonLabel = 'Turn Speech On';
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondon`;
+				sleepButtonLabel = 'Never sleep';
+			} else if (currentSpeechMode === 'AlwaysSpeak') {
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondoff`;
+				sleepButtonLabel = 'Allow sleep';
+				speechButtonId = `${this.meetingMessageId}-speechoff`;
+				speechButtonLabel = 'Turn Speech Off';
 			}
 
-			const button = new ButtonBuilder().setCustomId(buttonId).setLabel(buttonLabel).setStyle(ButtonStyle.Primary);
+			const speechButton = new ButtonBuilder()
+				.setCustomId(speechButtonId)
+				.setLabel(speechButtonLabel)
+				.setStyle(ButtonStyle.Primary);
 
-			const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+			const sleepButton = new ButtonBuilder()
+				.setCustomId(sleepButtonId)
+				.setLabel(sleepButtonLabel)
+				.setStyle(ButtonStyle.Primary);
+
+			const row = new ActionRowBuilder<ButtonBuilder>().addComponents([speechButton, sleepButton]);
 
 			// Update message with embed and button
 			await message.edit({ embeds: [embed], content: '', components: [row] });
@@ -275,11 +315,9 @@ export class Meeting {
 	 * - Update the meeting message with current meeting state
 	 */
 	private async renderMeetingMessage() {
-		const done = !(await this.getActive());
+		await this.updateMeetingMessage(!this.render);
 
-		await this.updateMeetingMessage(done);
-
-		if (!done) {
+		if (this.render) {
 			this.meetingTimeout = setTimeout(() => {
 				this.renderMeetingMessage();
 			}, 5000);
@@ -570,6 +608,7 @@ export class Meeting {
 
 		await this.teno.syncSpeechOn();
 		this.teno.setActiveMeeting(null);
+		this.render = false;
 	}
 
 	private async autoName() {
