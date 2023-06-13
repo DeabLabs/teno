@@ -131,7 +131,7 @@ export const DEFAULT_CONFIG: Config = {
 		},
 	},
 	TranscriptConfig: {
-		NumberOfTranscriptLines: 20,
+		NumberOfTranscriptLines: 30,
 	},
 	TranscriberConfig: {
 		Keywords: [],
@@ -327,6 +327,9 @@ export class VoiceRelayClient {
 		const words = textChannel.name.split(' ');
 		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
 
+		// Create the document
+		this.addDocument(textChannelName, '');
+
 		// Setup listener for new messages in the text channel
 		this.discordClient.on('messageCreate', async (message) => {
 			if (message.channelId === textChannel.id) {
@@ -338,6 +341,8 @@ export class VoiceRelayClient {
 						conversationHistoryContent.unshift(`${msg.author.username}: ${msg.content}`);
 					}
 				});
+
+				// console.log(`Updating document ${textChannelName} with new message: ${message.content}`);
 
 				this.updateDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
 

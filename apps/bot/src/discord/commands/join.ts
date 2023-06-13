@@ -136,6 +136,38 @@ export async function createMeeting({
 			// 	handler: getLetterCountParity,
 			// });
 
+			// await relayClient.addToolWithHandler({
+			// 	toolName: 'CreateGoogleDoc',
+			// 	toolDescription: 'Create a google doc',
+			// 	toolInputGuide: 'Input the content of the google doc',
+			// 	toolOutputGuide: 'This tool has no output',
+			// 	handler: async (content: string) => {
+			// 		const url = 'https://api.furl.ai/nreesegolden-281663/webhooks/31db4d67-6caa-423c-a941-a062516a61b8/execute';
+
+			// 		const body = {
+			// 			name: `run`,
+			// 			inputs: {
+			// 				content,
+			// 				email: `nreesegolden@gmail.com`,
+			// 			},
+			// 		};
+
+			// 		const options: RequestInit = {
+			// 			method: 'POST',
+			// 			headers: {
+			// 				'Content-Type': 'application/json',
+			// 				Accept: 'application/json',
+			// 			},
+			// 			body: JSON.stringify(body),
+			// 		};
+
+			// 		const response = await fetch(url, options);
+			// 		if (!response.ok) {
+			// 			throw new Error(`HTTP error! status: ${response.status}`);
+			// 		}
+			// 	},
+			// });
+
 			// await relayClient.getUserInput('FavoriteColor', "One of the user's favorite color");
 		} catch (e) {
 			console.error(e);
