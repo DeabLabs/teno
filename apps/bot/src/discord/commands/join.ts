@@ -107,9 +107,17 @@ export async function createMeeting({
 		// Send join request to voice relay
 		try {
 			await relayClient.joinCall(voiceChannel.id, transcriptKey, DEFAULT_CONFIG);
-			if (threadChannel) {
-				await relayClient.syncTextChannel(threadChannel, 10, true);
-			}
+
+			// await relayClient.syncUserResponseChannel(threadChannel, 'Get the answer to the question');
+
+			// await relayClient.syncToolChannel(threadChannel, {
+			// 	toolName: 'Weather',
+			// 	toolDescription: 'Get the current weather in a city',
+			// 	toolInputGuide: 'Input the city you want to get the weather for.',
+			// 	toolOutputGuide: 'The weather will be in the response document',
+			// });
+
+			await relayClient.syncTextChannel(threadChannel, 10, true);
 
 			// const getLetterCountParity: (str: string) => Promise<string> = async (str: string) => {
 			// 	const letterCount = str.replace(/[^A-Za-z]/g, '').length; // Only count alphabetic characters
@@ -126,6 +134,38 @@ export async function createMeeting({
 			// 	toolInputGuide: 'Input string to check',
 			// 	toolOutputGuide: 'Result will be good or bad, in the response document',
 			// 	handler: getLetterCountParity,
+			// });
+
+			// await relayClient.addToolWithHandler({
+			// 	toolName: 'CreateGoogleDoc',
+			// 	toolDescription: 'Create a google doc',
+			// 	toolInputGuide: 'Input the content of the google doc',
+			// 	toolOutputGuide: 'This tool has no output',
+			// 	handler: async (content: string) => {
+			// 		const url = 'https://api.furl.ai/nreesegolden-281663/webhooks/31db4d67-6caa-423c-a941-a062516a61b8/execute';
+
+			// 		const body = {
+			// 			name: `run`,
+			// 			inputs: {
+			// 				content,
+			// 				email: `nreesegolden@gmail.com`,
+			// 			},
+			// 		};
+
+			// 		const options: RequestInit = {
+			// 			method: 'POST',
+			// 			headers: {
+			// 				'Content-Type': 'application/json',
+			// 				Accept: 'application/json',
+			// 			},
+			// 			body: JSON.stringify(body),
+			// 		};
+
+			// 		const response = await fetch(url, options);
+			// 		if (!response.ok) {
+			// 			throw new Error(`HTTP error! status: ${response.status}`);
+			// 		}
+			// 	},
 			// });
 
 			// await relayClient.getUserInput('FavoriteColor', "One of the user's favorite color");

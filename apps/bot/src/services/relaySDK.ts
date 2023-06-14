@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 
-import type { Client, Message, TextChannel } from 'discord.js';
+import type { Client, TextChannel } from 'discord.js';
+import { Message } from 'discord.js';
 
 import { EventSourceWrapper } from '@/utils/eventSourceWrapper.js';
 import { Config } from '@/config.js';
@@ -108,7 +109,7 @@ export const DEFAULT_CONFIG: Config = {
 	},
 	VoiceUXConfig: {
 		SpeakingMode: 'AutoSleep',
-		LinesBeforeSleep: 5,
+		LinesBeforeSleep: 4,
 		BotNameConfidenceThreshold: 0.7,
 		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
 	},
@@ -130,7 +131,7 @@ export const DEFAULT_CONFIG: Config = {
 		},
 	},
 	TranscriptConfig: {
-		NumberOfTranscriptLines: 20,
+		NumberOfTranscriptLines: 30,
 	},
 	TranscriberConfig: {
 		Keywords: [],
@@ -148,6 +149,7 @@ export class VoiceRelayClient {
 	private config: Config;
 	private toolEventEmitter: EventEmitter;
 	private toolEventSource?: EventSourceWrapper;
+	private state: string;
 
 	constructor(discordClient: Client, authToken: string, botId: string, botToken: string, guildId: string) {
 		this.discordClient = discordClient;
@@ -158,6 +160,15 @@ export class VoiceRelayClient {
 		this.guildId = guildId;
 		this.config = DEFAULT_CONFIG;
 		this.toolEventEmitter = new EventEmitter();
+		this.state = 'Awake';
+	}
+
+	public getConfig(): Config {
+		return this.config;
+	}
+
+	public getState(): string {
+		return this.state;
 	}
 
 	async joinCall(channelId: string, transcriptKey: string, config: Config): Promise<void> {
@@ -238,8 +249,8 @@ export class VoiceRelayClient {
 				},
 				body: JSON.stringify(this.config),
 			});
-			console.log(await response.text());
-			console.log(`Updated prompt: ${JSON.stringify(this.config.PromptContents, null, 2)}`);
+			// console.log(await response.text());
+			// console.log(`Updated prompt: ${JSON.stringify(this.config.PromptContents, null, 2)}`);
 
 			if (!response.ok) {
 				throw new Error(`Error updating config: ${response.statusText}`);
@@ -259,15 +270,23 @@ export class VoiceRelayClient {
 				try {
 					if (!isValidJson(toolMessage)) {
 						console.error('Received invalid JSON:', toolMessage.substring(0, 100));
-
 						return;
 					}
 
 					const toolMessageJson = JSON.parse(toolMessage);
 
-					for (const message of toolMessageJson) {
-						// Emit an event named after the tool with the input as data
-						this.toolEventEmitter.emit(message.name, message.input);
+					if (toolMessageJson.Type == 'state') {
+						this.state = toolMessageJson.Data;
+						return;
+					}
+
+					if (toolMessageJson.Type == 'tool-message') {
+						const messages = JSON.parse(toolMessageJson.Data);
+						for (const message of messages) {
+							// Emit an event named after the tool with the input as data
+							this.toolEventEmitter.emit(message.name, message.input);
+							console.log(`Emitted tool event: ${message.name} with input: ${message.input}`);
+						}
 					}
 				} catch (error) {
 					console.error(`Error processing tool message:`, error);
@@ -308,6 +327,9 @@ export class VoiceRelayClient {
 		const words = textChannel.name.split(' ');
 		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
 
+		// Create the document
+		this.addDocument(textChannelName, '');
+
 		// Setup listener for new messages in the text channel
 		this.discordClient.on('messageCreate', async (message) => {
 			if (message.channelId === textChannel.id) {
@@ -320,8 +342,9 @@ export class VoiceRelayClient {
 					}
 				});
 
-				this.removeDocument(`${textChannelName}`);
-				this.addDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
+				// console.log(`Updating document ${textChannelName} with new message: ${message.content}`);
+
+				this.updateDocument(`${textChannelName}`, conversationHistoryContent.join('\n'));
 
 				this.updateConfig();
 
@@ -350,6 +373,122 @@ export class VoiceRelayClient {
 
 		// Add the tool and document to the config
 		this.updateConfig();
+	}
+
+	async syncUserResponseChannel(
+		textChannel: TextChannel,
+		filterFunction?: (message: Message) => Promise<boolean>,
+	): Promise<void> {
+		// Add listener for new messages in the text channel
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let infoContext = '';
+
+		// Format the text channel name to be used as the document key
+		const words = textChannel.name.split(' ');
+		const textChannelName = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join('');
+
+		if (firstPinnedMessage instanceof Message) {
+			infoContext = firstPinnedMessage.content;
+		}
+
+		this.discordClient.on('messageCreate', async (message) => {
+			if (message.channelId === textChannel.id && message.author.id !== this.discordClient.user?.id) {
+				const shouldRespond = filterFunction ? await filterFunction(message) : true;
+				if (shouldRespond) {
+					const content = message.content || '[non-text content]';
+					const replyContent = await this.pushTaskWithDeliverableTool(
+						`GetResponseTo${textChannelName}`,
+						`There's a new ${textChannelName}: ${content}. ${infoContext}. Get the response by asking for it in the voice channel.`,
+						`When you've acquired the response, input it into the RespondTo${textChannelName} tool.`,
+						`RespondTo${textChannelName}`,
+					);
+
+					if (replyContent) {
+						message.reply(replyContent);
+					}
+				}
+			}
+		});
+	}
+
+	async syncFeedChannel(
+		textChannel: TextChannel,
+		filterFunction?: (message: Message) => Promise<boolean>,
+	): Promise<void> {
+		const infoName = textChannel.name.replace(/-/g, '');
+
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let infoContext = '';
+
+		if (firstPinnedMessage instanceof Message) {
+			infoContext = firstPinnedMessage.content;
+		}
+
+		this.discordClient.on('messageCreate', async (message) => {
+			if (message.channelId === textChannel.id && message.author.id !== this.discordClient.user?.id) {
+				const shouldRespond = filterFunction ? await filterFunction(message) : true;
+				if (shouldRespond) {
+					const infoContent = message.content || '[non-text content]';
+					const info = `${infoContext}: ${infoContent}`;
+					await this.pushInfo(infoName, info);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Syncs a Discord text channel with the voice bot. The bot's tool messages are sent into the channel, and the first reply to each message is returned to the handler function.
+	 *
+	 * @param {TextChannel} textChannel - The Discord text channel to sync with the voice bot.
+	 * @param {Object} params - The parameters for the tool.
+	 * @param {string} params.toolName - The name of the tool.
+	 * @param {string} params.toolDescription - A description of the tool.
+	 * @param {string} params.toolInputGuide - A guide on what to input into the tool.
+	 * @param {string} params.toolOutputGuide - A guide on the output of the tool.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async syncToolChannel(textChannel: TextChannel): Promise<void> {
+		const pinnedMessages = await textChannel.messages.fetchPinned();
+		const firstPinnedMessage = pinnedMessages.first();
+		let pinnedMessageContent = '';
+
+		if (firstPinnedMessage instanceof Message) {
+			pinnedMessageContent = firstPinnedMessage.content;
+		}
+
+		// Define the tool parameters
+		const params = {
+			toolName: textChannel.name.replace(/-/g, ''),
+			toolDescription: pinnedMessageContent,
+			toolInputGuide: 'Refer to the tool description for how to format inputs.',
+			toolOutputGuide: 'Output response will be provided as a relay task description when it is ready.',
+		};
+
+		// Use addToolWithHandler with a custom handler
+		this.addToolWithHandler({
+			...params,
+			handler: async (query: string) => {
+				// Send the bot's tool message into the channel
+				const botMessage = await textChannel.send(query);
+
+				// Create a promise that resolves once the bot's message is replied to
+				const replyPromise = new Promise<string>((resolve) => {
+					const filter = (message: Message) =>
+						Boolean(message.reference && message.reference.messageId === botMessage.id);
+
+					const collector = textChannel.createMessageCollector({ filter, max: 1 });
+					collector.on('collect', (reply) => {
+						resolve(reply.content);
+					});
+				});
+
+				// Wait for the reply and return it
+				return await replyPromise;
+			},
+		});
 	}
 
 	/**
@@ -401,6 +540,7 @@ export class VoiceRelayClient {
 	 * @param {string} taskName - The name of the task.
 	 * @param {string} taskDescription - A description of the task.
 	 * @param {string} deliverableGuide - A guide on what the bot should input into the tool.
+	 * @param {string} [inputToolName] - Optional. The name of the tool. Defaults to `${taskName}Input`.
 	 *
 	 * @returns {Promise<string>} - Returns a promise resolving with the deliverable, or rejects if the deliverable cannot be acquired.
 	 */
@@ -408,6 +548,7 @@ export class VoiceRelayClient {
 		taskName: string,
 		taskDescription: string,
 		deliverableGuide: string,
+		inputToolName?: string,
 	): Promise<string> {
 		// Create the task
 		this.addTask(taskName, taskDescription, deliverableGuide);
@@ -416,9 +557,11 @@ export class VoiceRelayClient {
 		const toolInputGuide = `When you have the deliverable described in the task's deliverable guide, input it into this tool. Input 'reject' if the deliverable cannot be acquired.`;
 		const toolOutputGuide = `The tool does not return any output.`;
 
+		const toolName = inputToolName ?? `${taskName}Input`;
+
 		// Create the corresponding tool
 		this.addTool(
-			`${taskName}Input`,
+			toolName,
 			`This tool is used to send the deliverable for the ${taskName} task when it has been acquired.`,
 			toolInputGuide,
 			toolOutputGuide,
@@ -429,7 +572,7 @@ export class VoiceRelayClient {
 
 		// Listen for tool events
 		return new Promise<string>((resolve, reject) => {
-			this.toolEventEmitter.once(`${taskName}Input`, (input: string) => {
+			this.toolEventEmitter.once(toolName, (input: string) => {
 				this.removeTask(taskName);
 				this.removeTool(`${taskName}Input`);
 				this.updateConfig();
@@ -478,6 +621,29 @@ export class VoiceRelayClient {
 	}
 
 	/**
+	 * Pushes information to the voice bot by creating a task that directly contains the information.
+	 *
+	 * @param {string} infoName - The name of the information.
+	 * @param {string} infoContent - The content of the information.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async pushInfo(infoName: string, infoContent: string): Promise<void> {
+		// Define the task parameters
+		const taskName = `Relay${infoName}`;
+		const taskDescription = `Relay the following information in the voice channel:\n\n${infoContent}`;
+		const deliverableGuide = `Input 'done' in the associated tool when the information has been relayed. This will mark the task as complete. Do not mention this task in the voice channel.`;
+
+		// Create the task with completion and handle the completion
+		try {
+			await this.pushTaskWithCompletionTool(taskName, taskDescription, deliverableGuide);
+			console.log(`Information "${infoName}" has been delivered successfully.`);
+		} catch {
+			console.error(`Delivery of information "${infoName}" was rejected.`);
+		}
+	}
+
+	/**
 	 * Pushes a tool to the voice bot and sets up a handler function for tool uses.
 	 * If the handler function returns a string, the tool will output that string as a document with a delivery confirmation task.
 	 * @param params - The parameters for the tool.
@@ -504,11 +670,10 @@ export class VoiceRelayClient {
 			// Handle the query and produce a result
 			const result = await params.handler(query);
 
-			// Create a document with the result and send it to the LLM only if result is not void
 			if (result !== undefined) {
-				const documentName = `${params.toolName}Output`;
-				const documentContent = `input: ` + query + `\noutput: ` + result;
-				await this.pushDocumentWithDeliveryConfirmationTool(documentName, documentContent);
+				const infoName = `${params.toolName}Output`;
+				const infoContent = `input: ` + query + `\noutput: ` + result;
+				await this.pushInfo(infoName, infoContent);
 			}
 		});
 
@@ -530,7 +695,7 @@ export class VoiceRelayClient {
 
 		// Define a tool that allows the LLM to write lines to the document.
 		const toolName = `WriteTo${notesDocName}`;
-		const toolDescription = `This tool allows you to add a line to the "${notesDocName}" notes document.`;
+		const toolDescription = `This tool allows you to add a line to ${notesDocName}.`;
 		const toolInputGuide = 'Input the line you would like to add to the document.';
 		const toolOutputGuide = 'This tool does not return any output.';
 
@@ -570,8 +735,8 @@ export class VoiceRelayClient {
 		try {
 			return await this.pushTaskWithDeliverableTool(
 				`Get${inputName}`,
-				`Get the value for "${inputName}". Description: ${inputDescription}.`,
-				`Input the value for "${inputName}" into the Get${inputName}Input tool.`,
+				`${inputName} is a piece of information you have to get from people in the voice channel. This is a description ${inputName}: ${inputDescription}. Ask for that information in the voice channel.`,
+				`When you've acquired it, input the ${inputName} into the Get${inputName}Input tool.`,
 			);
 		} catch (error) {
 			console.error(`Failed to get user input "${inputName}":`, error);
@@ -601,47 +766,6 @@ export class VoiceRelayClient {
 
 		return results;
 	}
-
-	// Config type:
-	// {
-	// 	BotName: 'Bot',
-	// 	PromptContents: {
-	// 		Personality: 'Helpful Discord voice bot',
-	// 		Tools: [],
-	// 		Documents: [],
-	// 		Tasks: [],
-	// 	},
-	// 	VoiceUXConfig: {
-	// 		SpeakingMode: 'AutoSleep',
-	// 		LinesBeforeSleep: 4,
-	// 		BotNameConfidenceThreshold: 0.7,
-	// 		AutoRespondInterval: 10, // When there are pending tasks, how long to wait before responding again
-	// 	},
-	// 	LLMConfig: {
-	// 		LLMServiceName: 'openai',
-	// 		LLMConfig: {
-	// 			ApiKey: Config.OPENAI_API_KEY,
-	// 			Model: 'gpt-3.5-turbo',
-	// 		},
-	// 	},
-	// 	TTSConfig: {
-	// 		TTSServiceName: 'azure',
-	// 		TTSConfig: {
-	// 			ApiKey: Config.AZURE_SPEECH_KEY,
-	// 			Model: 'neural',
-	// 			VoiceID: 'en-US-BrandonNeural',
-	// 			Language: 'en-US',
-	// 			Gender: 'Male',
-	// 		},
-	// 	},
-	// 	TranscriptConfig: {
-	// 		NumberOfTranscriptLines: 20,
-	// 	},
-	// 	TranscriberConfig: {
-	// 		Keywords: [],
-	// 		IgnoredUsers: [],
-	// 	},
-	// };
 
 	addDocument(name: string, content: string) {
 		this.config.PromptContents.Documents?.push({
@@ -712,6 +836,22 @@ export class VoiceRelayClient {
 		this.config.PromptContents.BotPrimer = botPrimer;
 	}
 
+	setCustomTranscriptPrimer(customTranscriptPrimer: string) {
+		this.config.PromptContents.CustomTranscriptPrimer = customTranscriptPrimer;
+	}
+
+	setCustomToolPrimer(customToolPrimer: string) {
+		this.config.PromptContents.CustomToolPrimer = customToolPrimer;
+	}
+
+	setCustomTaskPrimer(customTaskPrimer: string) {
+		this.config.PromptContents.CustomTaskPrimer = customTaskPrimer;
+	}
+
+	setCustomDocumentPrimer(customDocumentPrimer: string) {
+		this.config.PromptContents.CustomDocumentPrimer = customDocumentPrimer;
+	}
+
 	setSpeakingMode(mode: string) {
 		this.config.VoiceUXConfig.SpeakingMode = mode;
 	}
@@ -726,6 +866,23 @@ export class VoiceRelayClient {
 
 	setAutoRespondInterval(interval: number) {
 		this.config.VoiceUXConfig.AutoRespondInterval = interval;
+	}
+
+	setLLMServiceAndModel(serviceName: string, apiKey: string, model: string) {
+		this.config.LLMConfig.LLMServiceName = serviceName;
+		this.config.LLMConfig.LLMConfig.ApiKey = apiKey;
+		this.config.LLMConfig.LLMConfig.Model = model;
+	}
+
+	setNumberOfTranscriptLines(lines: number) {
+		this.config.TranscriptConfig.NumberOfTranscriptLines = lines;
+	}
+
+	async addKeyword(keyword: string): Promise<void> {
+		if (!this.config.TranscriberConfig.Keywords.includes(keyword)) {
+			this.config.TranscriberConfig.Keywords.push(keyword);
+			await this.updateConfig();
+		}
 	}
 
 	async ignoreUser(userId: string): Promise<void> {

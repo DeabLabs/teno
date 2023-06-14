@@ -1,4 +1,5 @@
 import type { Client, TextChannel, VoiceBasedChannel, VoiceState } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ThreadAutoArchiveDuration } from 'discord.js';
 import { bold } from 'discord.js';
 import { time } from 'discord.js';
@@ -7,6 +8,7 @@ import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
+import { s } from 'vitest/dist/env-afee91f0.js';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -63,6 +65,7 @@ export class Meeting {
 	private teno: Teno;
 	private meetingTimeout: NodeJS.Timeout | null = null;
 	private persona: Persona | null = null;
+	private render = true;
 
 	private constructor({
 		guildId,
@@ -100,6 +103,19 @@ export class Meeting {
 		this.client.on('voiceStateUpdate', this.handleVoiceStateUpdate.bind(this));
 
 		this.renderMeetingMessage();
+
+		this.teno.getClient().on('interactionCreate', async (interaction) => {
+			if (!interaction.isButton()) return;
+			if (interaction.customId === `${this.meetingMessageId}-speechoff`) {
+				await this.teno.getRelayClient().updateSpeakingMode('NeverSpeak');
+			} else if (interaction.customId === `${this.meetingMessageId}-speechon`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondon`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AlwaysSpeak');
+			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondoff`) {
+				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+			}
+		});
 	}
 
 	getTeno = () => {
@@ -190,18 +206,25 @@ export class Meeting {
 		return null;
 	}
 
-	/**
-	 * - Get the text channel for the meeting message
-	 * - Update the meeting message with current meeting state
-	 */
-	private async renderMeetingMessage() {
-		const done = !(await this.getActive());
+	private async updateMeetingMessage(done: boolean) {
 		const result = await this.findMeetingMessage();
 
 		if (result) {
 			const { message } = result;
 
 			const seconds = Math.floor(this.startTime / 1000);
+
+			const speechMode = this.teno.getRelayClient().getConfig().VoiceUXConfig.SpeakingMode;
+
+			let speechState = '';
+
+			if (speechMode === 'NeverSpeak') {
+				speechState = 'Asleep';
+			} else if (speechMode === 'AutoSleep') {
+				speechState = this.teno.getRelayClient().getState();
+			} else if (speechMode === 'AlwaysSpeak') {
+				speechState = 'Awake';
+			}
 
 			const embed = new EmbedBuilder()
 				.setColor('Green')
@@ -222,20 +245,71 @@ export class Meeting {
 						name: 'Started At',
 						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
 					},
+					{
+						name: 'Speech state',
+						value: speechState,
+					},
 				);
+
 			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
 
 			if (authorAvatarUrl) {
 				embed.setThumbnail(authorAvatarUrl);
 			}
 
-			await message.edit({ embeds: [embed], content: '' });
-		}
+			// Create button
+			const currentSpeechMode = this.teno.getRelayClient().getConfig().VoiceUXConfig.SpeakingMode;
+			let speechButtonId = '';
+			let speechButtonLabel = '';
 
-		if (!done) {
+			let sleepButtonId = '';
+			let sleepButtonLabel = '';
+
+			if (currentSpeechMode === 'AutoSleep') {
+				speechButtonId = `${this.meetingMessageId}-speechoff`;
+				speechButtonLabel = 'Turn Speech Off';
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondon`;
+				sleepButtonLabel = 'Never sleep';
+			} else if (currentSpeechMode === 'NeverSpeak') {
+				speechButtonId = `${this.meetingMessageId}-speechon`;
+				speechButtonLabel = 'Turn Speech On';
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondon`;
+				sleepButtonLabel = 'Never sleep';
+			} else if (currentSpeechMode === 'AlwaysSpeak') {
+				sleepButtonId = `${this.meetingMessageId}-alwaysrespondoff`;
+				sleepButtonLabel = 'Allow sleep';
+				speechButtonId = `${this.meetingMessageId}-speechoff`;
+				speechButtonLabel = 'Turn Speech Off';
+			}
+
+			const speechButton = new ButtonBuilder()
+				.setCustomId(speechButtonId)
+				.setLabel(speechButtonLabel)
+				.setStyle(ButtonStyle.Primary);
+
+			const sleepButton = new ButtonBuilder()
+				.setCustomId(sleepButtonId)
+				.setLabel(sleepButtonLabel)
+				.setStyle(ButtonStyle.Primary);
+
+			const row = new ActionRowBuilder<ButtonBuilder>().addComponents([speechButton, sleepButton]);
+
+			// Update message with embed and button
+			await message.edit({ embeds: [embed], content: '', components: [row] });
+		}
+	}
+
+	/**
+	 * - Get the text channel for the meeting message
+	 * - Update the meeting message with current meeting state
+	 */
+	private async renderMeetingMessage() {
+		this.updateMeetingMessage(!this.render);
+
+		if (this.render) {
 			this.meetingTimeout = setTimeout(() => {
 				this.renderMeetingMessage();
-			}, 5000);
+			}, 1000);
 		}
 	}
 
@@ -523,6 +597,7 @@ export class Meeting {
 
 		await this.teno.syncSpeechOn();
 		this.teno.setActiveMeeting(null);
+		this.render = false;
 	}
 
 	private async autoName() {

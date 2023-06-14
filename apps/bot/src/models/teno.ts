@@ -146,8 +146,6 @@ export class Teno {
 					if (commands.length) {
 						const promises = commands.map((c) => c.handler(interaction, this));
 						await Promise.allSettled(promises);
-					} else {
-						await interaction.reply('Unknown button submission');
 					}
 				} catch (error) {
 					console.warn(error);
