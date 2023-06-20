@@ -1,14 +1,11 @@
-import type { ActionArgs, LoaderArgs } from '@remix-run/node';
+import type { LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
-import { Configuration, OpenAIApi } from 'openai';
-import { OpenAIStream, StreamingTextResponse } from 'ai';
 
 import { prisma } from '@/server/database.server';
 import { checkAuth } from '@/server/auth.utils.server';
 import { Chat } from '@/components/chat';
-import { Config } from '@/server/config.server';
 
 /**
  * - Link to individual meeting ✅
@@ -32,10 +29,20 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 				},
 			},
 		},
+		include: {
+			transcript: {
+				select: {
+					redisKey: true,
+				},
+			},
+		},
 	});
 
 	const safeMeeting = z.object({
 		name: z.string(),
+		transcript: z.object({
+			redisKey: z.string(),
+		}),
 	});
 
 	return json({
@@ -53,7 +60,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 // 	const config = new Configuration({
 // 		apiKey: Config.OPENAI_API_KEY,
 // 	});
-// 	const openai = new OpenAIApi(config, undefined, );
+// 	const openai = new OpenAIApi(config, undefined);
 
 // 	const response = await openai.createChatCompletion({
 // 		model: 'gpt-3.5-turbo',
@@ -67,8 +74,6 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 
 const DashboardMeeting = () => {
 	const { meeting } = useLoaderData<typeof loader>();
-
-	console.log({ meeting });
 
 	return (
 		<div className="flex flex-col w-full gap-8">

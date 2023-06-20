@@ -1,5 +1,3 @@
-'use client';
-
 import { useChat, type Message } from 'ai/react';
 
 import { cn } from '@/lib/utils';
@@ -14,6 +12,9 @@ export interface ChatProps extends React.ComponentProps<'div'> {
 	id?: string;
 	meeting: {
 		name: string;
+		transcript: {
+			redisKey: string;
+		};
 	};
 }
 
@@ -24,6 +25,7 @@ export function Chat({ id, initialMessages, className, meeting }: ChatProps) {
 		id,
 		body: {
 			id,
+			transcriptId: meeting.transcript.redisKey,
 		},
 	});
 	return (
