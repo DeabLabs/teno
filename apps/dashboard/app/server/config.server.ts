@@ -14,6 +14,7 @@ const envKeys = [
 	'DISCORD_CLIENT_ID',
 	'DISCORD_CLIENT_SECRET',
 	'REDIS_URL',
+	'OPENAI_API_KEY',
 ] as const;
 
 // Create a zod schema from the envKeys array

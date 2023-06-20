@@ -2,6 +2,7 @@ import type { LinksFunction } from '@remix-run/node';
 import type { V2_MetaFunction } from '@remix-run/react';
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 
+import { TooltipProvider } from './components/ui/tooltip';
 import styles from './tailwind.css';
 
 export const links: LinksFunction = () => [
@@ -23,7 +24,9 @@ export default function App() {
 				<Links />
 			</head>
 			<body className="dark:bg-gray-900 antialiased dark:text-gray-50 font-sans min-h-screen bg-white text-gray-900">
-				<Outlet />
+				<TooltipProvider>
+					<Outlet />
+				</TooltipProvider>
 				<ScrollRestoration />
 				<Scripts />
 				<LiveReload />
