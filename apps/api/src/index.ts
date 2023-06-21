@@ -8,6 +8,8 @@ import fastifyWebResponse from 'fastify-web-response';
 import { createRedisClient, transcriptQueries } from 'kv';
 import z from 'zod';
 
+import { constrainLinesToTokenLimit } from './tokens.js';
+
 const app = fastify({ logger: true });
 
 const config = new Configuration({
@@ -49,17 +51,12 @@ app.post('/api/chat', async (request) => {
 			),
 			transcriptId: z.string(),
 		})
-		// @ts-expect-error parse body as json
-		.parse(JSON.parse(request.body));
+		.parse(request.body);
 
-	// load transcript set from redis, turn it into a string
+	// Load transcript set from Redis, turn it into a string
 	const transcriptArray = await transcriptQueries.getTranscriptArray(redisClient, { transcriptKey: transcriptId });
-	const transcript = transcriptArray.join('\n');
-
-	const newMessages = [
-		{
-			role: 'system',
-			content: `You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
+	const transcript = transcriptArray;
+	const prompt = `You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
   The transcript contains one or many users, with each user's speaking turns separated by a newline.
   Each line also contains the user's name, how many seconds into the call they spoke, and the text they spoke.
   The transcript may include transcription errors, like mispelled words and broken sentences. If a user asks for quotes, you are encouraged to edit the quotes for transcription errors based on context as you see fit.
@@ -67,16 +64,21 @@ app.post('/api/chat', async (request) => {
   In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
   Limit all unnecessary prose.
   Here is the transcript so far, surrounded by \`\`\`:
-  \`\`\`${transcript}\`\`\``,
+  \`\`\`{transcript}\`\`\``;
+
+	const newMessages = [
+		{
+			role: 'system',
+			content: prompt.replace('{transcript}', constrainLinesToTokenLimit(transcript, prompt, 6000).join('\n')),
 		},
 		...messages,
 	];
 
 	const response = await openai.createChatCompletion({
-		model: 'gpt-3.5-turbo-16k',
-		stream: true,
-		max_tokens: 16000,
+		// model: 'gpt-3.5-turbo-16k',
+		model: 'gpt-4',
 		messages: newMessages,
+		stream: true,
 	});
 	const stream = OpenAIStream(response);
 

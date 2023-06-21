@@ -1101,10 +1101,15 @@
     tslib "^2.5.0"
     ws "^8.13.0"
 
-"@dqbd/tiktoken@^1.0.2", "@dqbd/tiktoken@^1.0.4":
+"@dqbd/tiktoken@^1.0.4":
   version "1.0.6"
   resolved "https://registry.npmjs.org/@dqbd/tiktoken/-/tiktoken-1.0.6.tgz"
   integrity sha512-umSdeZTy/SbPPKVuZKV/XKyFPmXSN145CcM3iHjBbmhlohBJg7vaDp4cPCW+xNlWL6L2U1sp7T2BD+di2sUKdA==
+
+"@dqbd/tiktoken@^1.0.7":
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/@dqbd/tiktoken/-/tiktoken-1.0.7.tgz#612871cf91eba5599c804f100c573aa4d8596f57"
+  integrity sha512-bhR5k5W+8GLzysjk8zTMVygQZsgvf7W1F0IlL4ZQ5ugjo5rCyiwGM5d8DYriXspytfu98tv59niang3/T+FoDw==
 
 "@dword-design/dedent@^0.7.0":
   version "0.7.0"
@@ -3338,16 +3343,6 @@ ahocorasick@1.0.2:
   resolved "https://registry.npmjs.org/ahocorasick/-/ahocorasick-1.0.2.tgz"
   integrity sha512-hCOfMzbFx5IDutmWLAt6MZwOUjIfSM9G9FyVxytmE4Rs/5YDPWQrD/+IR1w+FweD9H2oOZEnv36TmkjhNURBVA==
 
-ai@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/ai/-/ai-2.0.0.tgz#5db11f5d316eb02735b24eaa265f6f05637bd73d"
-  integrity sha512-/sMZINwvf7wzpH017stx4V4+GZn/shT4Hx+kcmFCSq953DZfKqugrdzuRqLGg7NqAOHhRtyuHtdMvLYHrIXOZw==
-  dependencies:
-    eventsource-parser "1.0.0"
-    nanoid "^3.3.6"
-    sswr "^1.10.0"
-    swr "2.1.5"
-
 ai@^2.1.3:
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/ai/-/ai-2.1.3.tgz#5c13ab641a49a88af34779c5bf7c0080f185a40a"
@@ -5481,7 +5476,7 @@ expr-eval@^2.0.2:
 
 express@^4.17.1:
   version "4.18.2"
-  resolved "https://registry.npmjs.org/express/-/express-4.18.2.tgz"
+  resolved "https://registry.yarnpkg.com/express/-/express-4.18.2.tgz#3fabe08296e930c796c19e3c516979386ba9fd59"
   integrity sha512-5/PsL6iGPdfQ/lKM1UuielYgv3BUoJfz1aUwU9vHZ+J7gyvwdQXFEBIEIaxeGf0GIcreATNyBExtalisDbuMqQ==
   dependencies:
     accepts "~1.3.8"
