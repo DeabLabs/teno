@@ -65,11 +65,12 @@ app.post('/api/chat', async (request) => {
   Limit all unnecessary prose.
   Here is the transcript so far, surrounded by \`\`\`:
   \`\`\`{transcript}\`\`\``;
+	const content = prompt.replace('{transcript}', constrainLinesToTokenLimit(transcript, prompt, 6000).join('\n'));
 
 	const newMessages = [
 		{
 			role: 'system',
-			content: prompt.replace('{transcript}', constrainLinesToTokenLimit(transcript, prompt, 6000).join('\n')),
+			content,
 		},
 		...messages,
 	];
