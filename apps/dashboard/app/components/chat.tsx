@@ -20,7 +20,7 @@ export interface ChatProps extends React.ComponentProps<'div'> {
 
 export function Chat({ id, initialMessages, className, meeting }: ChatProps) {
 	const { messages, append, reload, stop, isLoading, input, setInput } = useChat({
-		api: 'http://localhost:8090/api/chat',
+		api: '/api/chat',
 		headers: {
 			'Content-Type': 'application/json',
 		},
