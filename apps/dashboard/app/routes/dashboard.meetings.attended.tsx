@@ -1,6 +1,6 @@
-import type { LoaderArgs } from '@remix-run/node';
-import { defer } from '@remix-run/node';
-import { json } from '@remix-run/node';
+import type { LoaderArgs } from '@vercel/remix';
+import { defer } from '@vercel/remix';
+import { json } from '@vercel/remix';
 import { Await, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
 import { Suspense } from 'react';
 

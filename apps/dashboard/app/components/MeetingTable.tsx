@@ -1,6 +1,6 @@
 import type { FormMethod, SubmitFunction } from '@remix-run/react';
 import { Link } from '@remix-run/react';
-import type { SerializeFrom } from '@remix-run/node';
+import type { SerializeFrom } from '@vercel/remix';
 import { Form } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';

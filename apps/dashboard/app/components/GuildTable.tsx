@@ -1,6 +1,6 @@
 import type { SubmitFunction } from '@remix-run/react';
 import { Link } from '@remix-run/react';
-import type { SerializeFrom } from '@remix-run/node';
+import type { SerializeFrom } from '@vercel/remix';
 import clsx from 'clsx';
 
 import type { Guild as UnserializedGuild } from '@/server/database.server';

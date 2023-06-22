@@ -9,8 +9,7 @@
 		},
 		"build": {
 			"dependsOn": ["^build", "db:generate"],
-			"outputs": ["dist/**", "build/**", "public/build/**"],
-			"cache": false
+			"outputs": ["dist/**", "build/**", "public/build/**", "api/**"]
 		},
 		"db:generate": {
 			"cache": false
