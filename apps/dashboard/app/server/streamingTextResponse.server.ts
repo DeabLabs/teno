@@ -8,14 +8,30 @@ const toNativeReadable = createReadableStreamWrapper(ReadableStream);
 
 export class StreamingTextResponse extends Response {
 	constructor(res: ReadableStream, init?: ResponseInit) {
-		super(res as any, {
-			...init,
-			status: 200,
-			headers: {
-				'Content-Type': 'text/plain; charset=utf-8',
-				...init?.headers,
-			},
-		});
+		const headers: HeadersInit = {
+			'Content-Type': 'text/plain; charset=utf-8',
+			...init?.headers,
+		};
+		const extendedHeaders = new ExtendedHeaders(headers);
+		super(res, { ...init, status: 200, headers: extendedHeaders });
+	}
+}
+
+class ExtendedHeaders extends Headers {
+	raw() {
+		const rawHeaders = {};
+		const headerEntries = this.entries();
+		for (const [key, value] of headerEntries) {
+			const headerKey = key.toLowerCase();
+			if (rawHeaders.hasOwnProperty(headerKey)) {
+				// @ts-expect-error
+				rawHeaders[headerKey].push(value);
+			} else {
+				// @ts-expect-error
+				rawHeaders[headerKey] = [value];
+			}
+		}
+		return rawHeaders;
 	}
 }
 
