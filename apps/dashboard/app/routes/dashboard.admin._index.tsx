@@ -52,7 +52,7 @@ const AdminActionButton = ({ intent, value: _, ...props }: AdminActionButtonProp
 	return (
 		<Button
 			className="flex flex-1 basis-auto gap-2"
-			variant="subtle"
+			variant="outline"
 			name="intent"
 			value={intent}
 			{...props}
