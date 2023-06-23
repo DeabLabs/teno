@@ -1,11 +1,12 @@
 import type { ActionArgs } from '@vercel/remix';
-import { OpenAIStream, StreamingTextResponse } from 'ai';
 import { transcriptQueries } from 'kv';
 import { createRedisClient } from 'kv';
 import { Configuration, OpenAIApi } from 'openai-edge';
 import { z } from 'zod';
 
+import { OpenAIStream, StreamingTextResponse } from '@/server/streamingTextResponse.server';
 import { constrainLinesToTokenLimit } from '@/server/tokens.server';
+import { checkAuth } from '@/server/auth.utils.server';
 
 const oConfig = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY ?? '',
@@ -22,6 +23,8 @@ redisClient.on('error', (err) => {
 });
 
 export const action = async ({ request }: ActionArgs) => {
+	checkAuth(request);
+
 	const { messages, transcriptId } = z
 		.object({
 			messages: z.array(
