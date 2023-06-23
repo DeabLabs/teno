@@ -6,7 +6,7 @@ dotenv.config();
 // Every key is required
 const envKeyObject = {
 	DATABASE_URL: z.string().min(1),
-	VERCEL_URL: z.string().min(1),
+	DASHBOARD_URL: z.string().min(1),
 	DASHBOARD_PROTOCOL: z.string().min(1),
 	DASHBOARD_SECRET: z.string().min(1),
 	DASHBOARD_PORT: z.string().optional(),

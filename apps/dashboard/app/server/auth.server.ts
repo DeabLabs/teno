@@ -21,7 +21,7 @@ export interface DiscordUser {
 
 export const auth = new Authenticator<DiscordUser>(sessionStorage);
 
-const DASHBOARD_URL = `${Config.DASHBOARD_PROTOCOL}://${Config.VERCEL_URL}${
+const DASHBOARD_URL = `${Config.DASHBOARD_PROTOCOL}://${Config.DASHBOARD_URL}${
 	Config.DASHBOARD_PORT ? `:${Config.DASHBOARD_PORT}` : ''
 }`;
 
