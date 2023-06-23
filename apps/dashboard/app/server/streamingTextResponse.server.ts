@@ -12,27 +12,33 @@ export class StreamingTextResponse extends Response {
 			'Content-Type': 'text/plain; charset=utf-8',
 			...init?.headers,
 		};
-		const extendedHeaders = new ExtendedHeaders(headers);
-		super(res, { ...init, status: 200, headers: extendedHeaders });
+		super(res, { ...init, status: 200, headers });
+		this.getRequestHeaders();
+	}
+
+	getRequestHeaders() {
+		return addRawHeaders(this.headers);
 	}
 }
 
-class ExtendedHeaders extends Headers {
-	raw() {
+function addRawHeaders(headers: Headers) {
+	// @ts-expect-error shame on me
+	headers.raw = function () {
 		const rawHeaders = {};
-		const headerEntries = this.entries();
+		const headerEntries = headers.entries();
 		for (const [key, value] of headerEntries) {
 			const headerKey = key.toLowerCase();
 			if (rawHeaders.hasOwnProperty(headerKey)) {
-				// @ts-expect-error
+				// @ts-expect-error shame on me
 				rawHeaders[headerKey].push(value);
 			} else {
-				// @ts-expect-error
+				// @ts-expect-error shame on me
 				rawHeaders[headerKey] = [value];
 			}
 		}
 		return rawHeaders;
-	}
+	};
+	return headers;
 }
 
 function parseOpenAIStream(): (data: string) => string | void {

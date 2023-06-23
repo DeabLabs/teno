@@ -70,5 +70,7 @@ export const action = async ({ request }: ActionArgs) => {
 	});
 	const stream = OpenAIStream(response);
 
-	return new StreamingTextResponse(stream);
+	const sResponse = new StreamingTextResponse(stream);
+
+	return sResponse;
 };
