@@ -21,11 +21,15 @@ export interface DiscordUser {
 
 export const auth = new Authenticator<DiscordUser>(sessionStorage);
 
+const DASHBOARD_URL = `${Config.DASHBOARD_PROTOCOL}://${Config.VERCEL_URL}${
+	Config.DASHBOARD_PORT ? `:${Config.DASHBOARD_PORT}` : ''
+}`;
+
 const discordStrategy = new DiscordStrategy(
 	{
 		clientID: Config.DISCORD_CLIENT_ID,
 		clientSecret: Config.DISCORD_CLIENT_SECRET,
-		callbackURL: `${Config.DASHBOARD_URL}/auth/discord/callback`,
+		callbackURL: `${DASHBOARD_URL}/auth/discord/callback`,
 		// Provide all the scopes you want as an array
 		scope: ['identify', 'email', 'guilds'],
 	},
