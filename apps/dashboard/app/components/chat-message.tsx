@@ -19,7 +19,7 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
 			>
 				{message.role === 'user' ? <IconUser /> : <IconOpenAI />}
 			</div>
-			<div className="ml-4 flex-1 space-y-2 overflow-hidden px-1">{message.content}</div>
+			<div className="ml-4 flex-1 space-y-2 overflow-hidden px-1 whitespace-pre-line">{message.content}</div>
 		</div>
 	);
 }
