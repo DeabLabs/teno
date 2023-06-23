@@ -1,5 +1,6 @@
 import type { FormMethod, SubmitFunction } from '@remix-run/react';
-import type { SerializeFrom } from '@remix-run/node';
+import { Link } from '@remix-run/react';
+import type { SerializeFrom } from '@vercel/remix';
 import { Form } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
@@ -172,7 +173,9 @@ const MeetingTable = ({ meetings, onSubmit, loading, userId }: MeetingTableProps
 													selectedMeeting.includes(meeting) ? 'text-indigo-200' : secondaryText,
 												)}
 											>
-												{meeting.name}
+												<Link to={`/dashboard/meeting/${meeting.id}`} className="text-indigo-200 underline">
+													{meeting.name}
+												</Link>
 											</td>
 											{/* display the duration of the meeting, converted from milliseconds to hours:minutes:seconds using date-fns */}
 											<td className="whitespace-nowrap px-3 py-4 text-sm">{formatMeetingDuration(meeting.duration)}</td>

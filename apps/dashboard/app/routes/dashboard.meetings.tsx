@@ -1,4 +1,4 @@
-import type { LoaderArgs } from '@remix-run/node';
+import type { LoaderArgs } from '@vercel/remix';
 import { Outlet, useLocation, useNavigate } from '@remix-run/react';
 
 import { checkAuth } from '@/server/auth.utils.server';

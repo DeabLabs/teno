@@ -2,27 +2,19 @@ import dotenv from 'dotenv';
 import { parseEnv, z } from 'znv';
 dotenv.config();
 
-/** Typed union of env var keys defined in envKeys */
-type ENV_KEYS = (typeof envKeys)[number];
-const envKeys = [
-	'DATABASE_URL',
-	'DASHBOARD_URL',
-	'DASHBOARD_PORT',
-	'DASHBOARD_PROTOCOL',
-	'DASHBOARD_HOST',
-	'DASHBOARD_SECRET',
-	'DISCORD_CLIENT_ID',
-	'DISCORD_CLIENT_SECRET',
-	'REDIS_URL',
-] as const;
-
 // Create a zod schema from the envKeys array
 // Every key is required
-const envKeyObject = envKeys.reduce((acc, curr) => {
-	acc[curr] = z.string().min(1, `Missing ${curr} in .env file`);
-	return acc;
-}, {} as Record<ENV_KEYS, z.ZodString>);
-
+const envKeyObject = {
+	DATABASE_URL: z.string().min(1),
+	DASHBOARD_URL: z.string().min(1),
+	DASHBOARD_PROTOCOL: z.string().min(1),
+	DASHBOARD_SECRET: z.string().min(1),
+	DASHBOARD_PORT: z.string().optional(),
+	DISCORD_CLIENT_ID: z.string().min(1),
+	DISCORD_CLIENT_SECRET: z.string().min(1),
+	REDIS_URL: z.string().min(1),
+	OPENAI_API_KEY: z.string().min(1),
+};
 /**
  * An object of environment variables.
  *

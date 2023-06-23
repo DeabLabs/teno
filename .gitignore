@@ -143,3 +143,4 @@ transcripts
 redis-data
 .turbo
 build
+.vercel

@@ -1,6 +1,6 @@
-import type { ActionArgs, LoaderArgs } from '@remix-run/node';
-import { redirect } from '@remix-run/node';
-import { json } from '@remix-run/node';
+import type { ActionArgs, LoaderArgs } from '@vercel/remix';
+import { redirect } from '@vercel/remix';
+import { json } from '@vercel/remix';
 import { Form, useNavigation } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
@@ -52,7 +52,7 @@ const AdminActionButton = ({ intent, value: _, ...props }: AdminActionButtonProp
 	return (
 		<Button
 			className="flex flex-1 basis-auto gap-2"
-			variant="subtle"
+			variant="outline"
 			name="intent"
 			value={intent}
 			{...props}
