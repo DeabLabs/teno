@@ -4,6 +4,7 @@ import { createReadableStreamWrapper } from '@mattiasbuelens/web-streams-adapter
 
 // @ts-expect-error bad types
 const toPolyfillReadable = createReadableStreamWrapper(PolyfillReadableStream);
+const toNativeReadable = createReadableStreamWrapper(ReadableStream);
 
 export class StreamingTextResponse extends Response {
 	constructor(res: ReadableStream, init?: ResponseInit) {
@@ -39,5 +40,5 @@ export function OpenAIStream(response: Response): ReadableStream<any> {
 	const responseBodyStream = toPolyfillReadable(response.body);
 
 	// @ts-expect-error bad types
-	return responseBodyStream.pipeThrough(createEventStreamTransformer(parseOpenAIStream()));
+	return toNativeReadable(responseBodyStream.pipeThrough(createEventStreamTransformer(parseOpenAIStream())));
 }
