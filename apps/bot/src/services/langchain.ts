@@ -16,14 +16,22 @@ const gptTurbo = new ChatOpenAI({
 	openAIApiKey: Config.OPENAI_API_KEY,
 });
 
+const gptTurbo16 = new ChatOpenAI({
+	temperature: 0.9,
+	modelName: 'gpt-3.5-turbo-16k',
+	openAIApiKey: Config.OPENAI_API_KEY,
+});
+
 const models = {
 	'gpt-4': gptFour,
 	'gpt-3.5-turbo': gptTurbo,
+	'gpt-3.5-turbo-16k': gptTurbo16,
 } as const;
 
 const modelTokenLimits = {
 	'gpt-4': 8000,
 	'gpt-3.5-turbo': 4000,
+	'gpt-3.5-turbo-16k': 16000,
 } as const;
 
 export type SupportedModels = keyof typeof models;
@@ -129,7 +137,7 @@ Use the content of the previous lines for context, but your evaluation is about 
 
 const meetingNamePrompt = ChatPromptTemplate.fromPromptMessages([
 	HumanMessagePromptTemplate.fromTemplate(
-		'Read transcript of a meeting below. Respond with only a descriptive name for the meeting that communicates the topics discussed. The name should NOT include the words "meeting", "call", "discussion" or anything like that, that context is implied.\n\n[Transcript start]\n{transcript}',
+		'Read transcript of a meeting below. Respond with only a descriptive name for the meeting that communicates the topics discussed. The name should NOT include the words "meeting", "call", "discussion" or anything like that, that context is implied. Do not include quotes around the meeting name, only respond with the name itself.\n\n[Transcript start]\n{transcript}',
 	),
 ]);
 
