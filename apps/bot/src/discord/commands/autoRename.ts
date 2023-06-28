@@ -106,7 +106,7 @@ async function handleRenameMeetingSelect(interaction: StringSelectMenuInteractio
 		invariant(transcript);
 
 		const transcriptText = await transcript.getCleanedTranscript();
-		const resolved = await generateMeetingName(transcriptText, 'gpt-4');
+		const resolved = await generateMeetingName(transcriptText, 'gpt-3.5-turbo-16k');
 		if (resolved.status === 'error') {
 			throw new Error(resolved.error);
 		}

@@ -107,13 +107,46 @@ export class Meeting {
 		this.teno.getClient().on('interactionCreate', async (interaction) => {
 			if (!interaction.isButton()) return;
 			if (interaction.customId === `${this.meetingMessageId}-speechoff`) {
+				await interaction.deferReply({
+					ephemeral: true,
+				});
 				await this.teno.getRelayClient().updateSpeakingMode('NeverSpeak');
+				await interaction.editReply({
+					content: 'Teno will no longer respond to the conversation with text-to-speech.',
+				});
 			} else if (interaction.customId === `${this.meetingMessageId}-speechon`) {
+				await interaction.deferReply({
+					ephemeral: true,
+				});
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+				await interaction.editReply({
+					content: 'Teno will now respond to the conversation with text-to-speech.',
+				});
 			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondon`) {
+				await interaction.deferReply({
+					ephemeral: true,
+				});
 				await this.teno.getRelayClient().updateSpeakingMode('AlwaysSpeak');
+				await interaction.editReply({
+					content: 'Teno will now always respond to the conversation with text-to-speech.',
+				});
 			} else if (interaction.customId === `${this.meetingMessageId}-alwaysrespondoff`) {
+				await interaction.deferReply({
+					ephemeral: true,
+				});
 				await this.teno.getRelayClient().updateSpeakingMode('AutoSleep');
+				await interaction.editReply({
+					content: 'Teno will now respond to the conversation with text-to-speech.',
+				});
+			} else if (interaction.customId === `${this.meetingMessageId}-leave`) {
+				await interaction.deferReply({
+					ephemeral: true,
+				});
+				await this.teno.getRelayClient().leaveCall();
+				await this.endMeeting();
+				await interaction.editReply({
+					content: 'Teno has left the call.',
+				});
 			}
 		});
 	}
@@ -226,30 +259,35 @@ export class Meeting {
 				speechState = 'Awake';
 			}
 
-			const embed = new EmbedBuilder()
-				.setColor('Green')
-				.setTitle(`Meeting ${done ? '' : 'started'} by ${this.authorName}`)
-				.setDescription(!done ? bold('📝 Teno is listening...') : bold(`✅ ${this.getName()}`))
-				.addFields(
-					{
-						name: 'Channel',
-						value: channelMention(this.voiceChannelId),
-						inline: true,
-					},
-					{
-						name: 'Attendees',
-						value: String(this.attendees.size),
-						inline: true,
-					},
-					{
-						name: 'Started At',
-						value: `${time(seconds)}\n(${time(seconds, 'R')})`,
-					},
-					{
-						name: 'Speech state',
-						value: speechState,
-					},
-				);
+			const embed = new EmbedBuilder().setColor('Green').addFields(
+				{
+					name: 'Channel',
+					value: channelMention(this.voiceChannelId),
+					inline: true,
+				},
+				{
+					name: 'Attendees',
+					value: String(this.attendees.size),
+					inline: true,
+				},
+				{
+					name: 'Started At',
+					value: `${time(seconds)}\n(${time(seconds, 'R')})`,
+				},
+				...(done
+					? []
+					: [
+							{
+								name: 'Speech state',
+								value: speechState,
+							},
+					  ]),
+			);
+			if (done) {
+				embed.setTitle(this.getName()).setDescription(bold(`✅ Meeting over`));
+			} else {
+				embed.setTitle(`Meeting started by ${this.authorName}`).setDescription(bold('📝 Teno is listening...'));
+			}
 
 			const authorAvatarUrl = this.client.users.cache.get(this.authorDiscordId)?.avatarURL();
 
@@ -264,6 +302,9 @@ export class Meeting {
 
 			let sleepButtonId = '';
 			let sleepButtonLabel = '';
+
+			const leaveButtonId = `${this.meetingMessageId}-leave`;
+			const leaveButtonLabel = 'Leave call';
 
 			if (currentSpeechMode === 'AutoSleep') {
 				speechButtonId = `${this.meetingMessageId}-speechoff`;
@@ -292,10 +333,15 @@ export class Meeting {
 				.setLabel(sleepButtonLabel)
 				.setStyle(ButtonStyle.Primary);
 
-			const row = new ActionRowBuilder<ButtonBuilder>().addComponents([speechButton, sleepButton]);
+			const leaveButton = new ButtonBuilder()
+				.setCustomId(leaveButtonId)
+				.setLabel(leaveButtonLabel)
+				.setStyle(ButtonStyle.Danger);
+
+			const row = new ActionRowBuilder<ButtonBuilder>().addComponents([speechButton, sleepButton, leaveButton]);
 
 			// Update message with embed and button
-			await message.edit({ embeds: [embed], content: '', components: [row] });
+			await message.edit({ embeds: [embed], content: '', components: done ? [] : [row] });
 		}
 	}
 
@@ -604,7 +650,7 @@ export class Meeting {
 		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
 
-		const resolved = await generateMeetingName(transcript, 'gpt-4');
+		const resolved = await generateMeetingName(transcript, 'gpt-3.5-turbo-16k');
 
 		if (resolved.status === 'success') {
 			usageQueries.createUsageEvent(this.prismaClient, {
