@@ -3,7 +3,7 @@ import { useChat, type Message } from 'ai/react';
 import { cn } from '@/lib/utils';
 
 import { ChatScrollAnchor } from './chat-scroll-anchor';
-import { EmptyScreen } from './empty-screen';
+import { MeetingTitleCard } from './meeting-title-card';
 import { ChatList } from './chat-list';
 import { ChatPanel } from './chat-panel';
 
@@ -11,6 +11,7 @@ export interface ChatProps extends React.ComponentProps<'div'> {
 	initialMessages?: Message[];
 	id?: string;
 	meeting: {
+		id: number;
 		name: string;
 		transcript: {
 			redisKey: string;
@@ -34,13 +35,12 @@ export function Chat({ id, initialMessages, className, meeting }: ChatProps) {
 	return (
 		<>
 			<div className={cn('pb-[200px] pt-4 md:pt-10', className)}>
-				{messages.length ? (
+				<MeetingTitleCard setInput={setInput} meeting={meeting} />
+				{messages.length > 0 && (
 					<>
 						<ChatList messages={messages} />
 						<ChatScrollAnchor trackVisibility={isLoading} />
 					</>
-				) : (
-					<EmptyScreen setInput={setInput} meeting={meeting} />
 				)}
 			</div>
 			<ChatPanel
