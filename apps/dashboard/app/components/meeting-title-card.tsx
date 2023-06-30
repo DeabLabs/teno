@@ -1,6 +1,5 @@
 import type { UseChatHelpers } from 'ai/react';
 import { DownloadIcon } from 'lucide-react';
-import { Form } from '@remix-run/react';
 
 import { TooltipTrigger } from './ui/tooltip';
 import { Tooltip } from './ui/tooltip';
@@ -78,7 +77,7 @@ export function MeetingTitleCard({
 				<div className="mt-4 flex justify-end">
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button size={'icon'} name="action" value="download" type="button" onClick={handleClick}>
+							<Button variant="ghost" size={'icon'} name="action" value="download" type="button" onClick={handleClick}>
 								<DownloadIcon size={'1rem'} />
 							</Button>
 						</TooltipTrigger>
