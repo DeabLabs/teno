@@ -92,7 +92,7 @@ async function ask(interaction: CommandInteraction, teno: Teno) {
 
 		// Format prompt with username prepended
 		const promptWithUsername = `${interaction.user.username}: ${prompt}`;
-		const answerOutput = await answerQuestionOnTranscript(promptWithUsername, transcriptLines, 'gpt-3.5-turbo-16k');
+		const answerOutput = await answerQuestionOnTranscript(promptWithUsername, transcriptLines);
 
 		if (answerOutput.status === 'error') {
 			throw new Error(answerOutput.error);

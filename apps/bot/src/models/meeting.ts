@@ -650,7 +650,7 @@ export class Meeting {
 		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
 
-		const resolved = await generateMeetingName(transcript, 'gpt-3.5-turbo-16k');
+		const resolved = await generateMeetingName(transcript);
 
 		if (resolved.status === 'success') {
 			usageQueries.createUsageEvent(this.prismaClient, {

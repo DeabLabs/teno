@@ -105,11 +105,7 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 		const typingInterval = setInterval(sendTypingToChannel, 1000); // 10 seconds in milliseconds (since sendTyping lasts for 10 seconds)
 
 		try {
-			const answerOutput = await answerQuestionOnTranscript(
-				conversationHistoryContent,
-				transcriptLines,
-				'gpt-3.5-turbo-16k',
-			);
+			const answerOutput = await answerQuestionOnTranscript(conversationHistoryContent, transcriptLines);
 
 			if (answerOutput.status === 'error') {
 				throw new Error(answerOutput.error);

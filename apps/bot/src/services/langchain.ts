@@ -2,7 +2,7 @@ import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate } from 'langchain/prompts';
 
 import { Config } from '@/config.js';
-import { constrainLinesToTokenLimit } from '@/utils/tokens.js';
+import { constrainLinesToTokenLimit, countMessageTokens, sumMessageTokens } from '@/utils/tokens.js';
 
 const gptFour = new ChatOpenAI({
 	temperature: 0.9,
@@ -35,6 +35,56 @@ const modelTokenLimits = {
 } as const;
 
 export type SupportedModels = keyof typeof models;
+
+// this many tokens will be reserved for the prompt when shortening the transcript
+const PROMPT_TOKEN_BUFFER = 500;
+const RESPONSE_TOKEN_BUFFER = 2000;
+
+export const optimizeTranscriptModel = (
+	transcriptLines: string[],
+	{ forceModel, extraPromptBuffer }: { forceModel?: SupportedModels; extraPromptBuffer?: number } = {},
+): { model: SupportedModels; llm: ChatOpenAI; shortenedTranscript: string[] } => {
+	const PROMPT_TOKENS = extraPromptBuffer ? PROMPT_TOKEN_BUFFER + extraPromptBuffer : PROMPT_TOKEN_BUFFER;
+
+	if (forceModel) {
+		return {
+			model: forceModel,
+			shortenedTranscript: constrainLinesToTokenLimit(
+				transcriptLines,
+				PROMPT_TOKENS,
+				modelTokenLimits[forceModel],
+				RESPONSE_TOKEN_BUFFER,
+			),
+			llm: models[forceModel],
+		};
+	}
+
+	// given some formatted prompt string, determine which model to use based on its size and available token limits
+	const transcriptTokens = sumMessageTokens(transcriptLines);
+
+	if (transcriptTokens <= modelTokenLimits['gpt-4'] - PROMPT_TOKENS - RESPONSE_TOKEN_BUFFER) {
+		console.log('Using gpt-4');
+		return { model: 'gpt-4', shortenedTranscript: transcriptLines, llm: gptFour };
+	}
+
+	if (transcriptTokens <= modelTokenLimits['gpt-3.5-turbo-16k'] - PROMPT_TOKENS - RESPONSE_TOKEN_BUFFER) {
+		console.log('Using gpt-3.5-turbo-16k');
+		return { model: 'gpt-3.5-turbo-16k', shortenedTranscript: transcriptLines, llm: gptTurbo16 };
+	}
+
+	console.log('Using gpt-3.5-turbo-16k, with shortened transcript');
+
+	return {
+		model: 'gpt-3.5-turbo-16k',
+		shortenedTranscript: constrainLinesToTokenLimit(
+			transcriptLines,
+			PROMPT_TOKENS,
+			modelTokenLimits['gpt-3.5-turbo-16k'],
+			RESPONSE_TOKEN_BUFFER,
+		),
+		llm: gptTurbo16,
+	};
+};
 
 // const attachStreamingTokenHandler = (
 // 	llm: ChatOpenAI,
@@ -157,10 +207,7 @@ export type AnswerOutput =
 export async function answerQuestionOnTranscript(
 	conversationHistory: string | string[],
 	transcriptLines: string[],
-	model: SupportedModels,
 ): Promise<AnswerOutput> {
-	const llm = models[model];
-
 	// Return the contents of the file at the given filepath as a string
 	if (!transcriptLines || transcriptLines.length === 0) {
 		transcriptLines = ['Empty transcript'];
@@ -174,7 +221,9 @@ export async function answerQuestionOnTranscript(
 
 	const conversationHistoryString = conversationHistory.join('\n');
 
-	const shortenedTranscript = constrainLinesToTokenLimit(transcriptLines, secretary.promptMessages.join('')).join('\n');
+	const { llm, shortenedTranscript } = optimizeTranscriptModel(transcriptLines, {
+		extraPromptBuffer: countMessageTokens(conversationHistoryString),
+	});
 
 	const secretaryFormat = await secretary.formatPromptValue({
 		transcript: shortenedTranscript,
@@ -300,16 +349,12 @@ export async function personaChimeInOnTranscript(
 	};
 }
 
-export async function generateMeetingName(transcriptLines: string[], model: SupportedModels): Promise<AnswerOutput> {
-	const llm = models[model];
+export async function generateMeetingName(transcriptLines: string[]): Promise<AnswerOutput> {
 	if (!transcriptLines || transcriptLines.length === 0) {
 		return { status: 'error', error: 'No transcript found' };
 	}
-	const shortenedTranscript = constrainLinesToTokenLimit(
-		transcriptLines,
-		meetingNamePrompt.promptMessages.join(''),
-		modelTokenLimits[model],
-	).join('\n');
+
+	const { llm, shortenedTranscript } = optimizeTranscriptModel(transcriptLines);
 
 	const response = await llm.generatePrompt([
 		await meetingNamePrompt.formatPromptValue({

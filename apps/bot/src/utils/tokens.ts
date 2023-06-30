@@ -35,7 +35,7 @@ export const sumMessageTokens = (messages: string[]) =>
  */
 export const constrainLinesToTokenLimit = (
 	lines: string[],
-	prompt: string,
+	prompt: string | number,
 	maxTokens = 4000,
 	responseTokens = 1024,
 ) => {
@@ -44,7 +44,7 @@ export const constrainLinesToTokenLimit = (
 	}
 
 	const max = maxTokens - responseTokens;
-	const promptTokenLength = countMessageTokens(prompt);
+	const promptTokenLength = typeof prompt === 'string' ? countMessageTokens(prompt) : prompt;
 	const lineTokensLength = sumMessageTokens(lines);
 
 	let tokens = promptTokenLength + lineTokensLength;
