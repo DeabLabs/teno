@@ -1,9 +1,8 @@
 import type { ActionArgs } from '@vercel/remix';
-import { transcriptQueries } from 'kv';
-import { createRedisClient } from 'kv';
 import { Configuration, OpenAIApi } from 'openai-edge';
 import { z } from 'zod';
 
+import { transcriptQueries, redis } from '@/server/kv.server';
 import { OpenAIStream, StreamingTextResponse } from '@/server/streamingTextResponse.server';
 import { constrainLinesToTokenLimit } from '@/server/tokens.server';
 import { checkAuth } from '@/server/auth.utils.server';
@@ -12,15 +11,6 @@ const oConfig = new Configuration({
 	apiKey: process.env.OPENAI_API_KEY ?? '',
 });
 const openai = new OpenAIApi(oConfig);
-
-// Initialize Redis client
-const redisClient = createRedisClient(process.env.REDIS_URL ?? '', {
-	lazyConnect: true,
-});
-
-redisClient.on('error', (err) => {
-	console.log('Redis Client Error', err);
-});
 
 export const action = async ({ request }: ActionArgs) => {
 	checkAuth(request);
@@ -40,7 +30,7 @@ export const action = async ({ request }: ActionArgs) => {
 		.parse(await request.json());
 
 	// Load transcript set from Redis, turn it into a string
-	const transcriptArray = await transcriptQueries.getTranscriptArray(redisClient, { transcriptKey: transcriptId });
+	const transcriptArray = await transcriptQueries.getTranscriptArray(redis, { transcriptKey: transcriptId });
 	const transcript = transcriptArray;
 	const prompt = `You are a helpful discord bot named Teno (might be transcribed "ten o", "tanno", "tunnel", ect.), and you will be given a rough transcript of a voice call.
   The transcript contains one or many users, which may include you, with each user's speaking turns separated by a newline.

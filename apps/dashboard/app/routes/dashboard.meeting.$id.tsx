@@ -10,8 +10,8 @@ import { Chat } from '@/components/chat';
 /**
  * - Link to individual meeting ✅
  * - individual meeting page ✅
- * - style the page
- * - conversation action so people can talk with transcript
+ * - style the page ✅
+ * - conversation action so people can talk with transcript ✅
  * - fetch transcript for download (stretch goal)
  */
 
@@ -39,6 +39,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 	});
 
 	const safeMeeting = z.object({
+		id: z.number(),
 		name: z.string(),
 		transcript: z.object({
 			redisKey: z.string(),
@@ -50,27 +51,6 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 		meeting: safeMeeting.parse(meeting),
 	});
 };
-
-// export const action = async ({ request }: ActionArgs) => {
-// 	// TODO conversate with the transcript
-// 	const { messages } = await request.json();
-
-// 	console.log({ messages, key: Config.OPENAI_API_KEY });
-
-// 	const config = new Configuration({
-// 		apiKey: Config.OPENAI_API_KEY,
-// 	});
-// 	const openai = new OpenAIApi(config, undefined);
-
-// 	const response = await openai.createChatCompletion({
-// 		model: 'gpt-3.5-turbo',
-// 		messages,
-// 		stream: true,
-// 	});
-
-// 	const stream = OpenAIStream(response);
-// 	return new StreamingTextResponse(stream);
-// };
 
 const DashboardMeeting = () => {
 	const { meeting } = useLoaderData<typeof loader>();
