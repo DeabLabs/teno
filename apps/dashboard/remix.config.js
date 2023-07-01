@@ -6,7 +6,7 @@ module.exports = {
 	// server. This does not understand the vercel lambda module format,
 	// so we default back to the standard build output.
 	serverBuildPath: 'api/index.js',
-	serverDependenciesToBundle: ['database', 'kv'],
+	serverDependenciesToBundle: ['database', 'kv', 'llm'],
 	// appDirectory: "app",
 	// assetsBuildDirectory: "public/build",
 	// publicPath: "/build/",
@@ -17,4 +17,5 @@ module.exports = {
 		v2_normalizeFormMethod: true,
 		v2_routeConvention: true,
 	},
+	serverModuleFormat: 'cjs',
 };

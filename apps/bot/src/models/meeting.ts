@@ -8,7 +8,6 @@ import { EmbedBuilder } from 'discord.js';
 import invariant from 'tiny-invariant';
 import type { PrismaClientType } from 'database';
 import { userQueries, usageQueries } from 'database';
-import { s } from 'vitest/dist/env-afee91f0.js';
 
 import type { RedisClient } from '@/bot.js';
 import { makeTranscriptKey } from '@/utils/transcriptUtils.js';
@@ -650,7 +649,7 @@ export class Meeting {
 		console.log('Generating automatic meeting name');
 		const transcript = await this.getTranscript().getCleanedTranscript();
 
-		const resolved = await generateMeetingName(transcript, 'gpt-3.5-turbo-16k');
+		const resolved = await generateMeetingName(transcript);
 
 		if (resolved.status === 'success') {
 			usageQueries.createUsageEvent(this.prismaClient, {

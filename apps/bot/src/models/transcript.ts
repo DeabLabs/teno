@@ -1,8 +1,8 @@
 import type { PrismaClientType } from 'database';
 import { transcriptQueries } from 'kv';
+import { countMessageTokens } from 'llm';
 
 import type { RedisClient } from '@/bot.js';
-import { countMessageTokens } from '@/utils/tokens.js';
 
 type TranscriptArgs = {
 	id: number;

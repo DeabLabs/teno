@@ -46,6 +46,7 @@ export class Responder {
 		});
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	public async respondToTranscript(meeting: Meeting) {
 		throw new Error('Not implemented');
 	}
