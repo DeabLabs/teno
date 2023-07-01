@@ -1,10 +1,11 @@
 import type { ActionArgs } from '@vercel/remix';
+import type { ChatCompletionRequestMessage } from 'openai-edge';
 import { Configuration, OpenAIApi } from 'openai-edge';
 import { z } from 'zod';
+import { countMessageTokens, optimizeTranscriptModel } from 'llm';
 
 import { transcriptQueries, redis } from '@/server/kv.server';
 import { OpenAIStream, StreamingTextResponse } from '@/server/streamingTextResponse.server';
-import { constrainLinesToTokenLimit } from '@/server/tokens.server';
 import { checkAuth } from '@/server/auth.utils.server';
 
 const oConfig = new Configuration({
@@ -40,9 +41,12 @@ export const action = async ({ request }: ActionArgs) => {
   In your responses, DO NOT include phrases like "based on the transcript" or "according to the transcript", the user already understands the context.
   Here is the transcript so far, surrounded by \`\`\`:
   \`\`\`{transcript}\`\`\``;
-	const content = prompt.replace('{transcript}', constrainLinesToTokenLimit(transcript, prompt, 15000).join('\n'));
+	const { model, shortenedTranscript } = optimizeTranscriptModel(transcript, {
+		promptTokenBuffer: countMessageTokens(prompt),
+	});
+	const content = prompt.replace('{transcript}', shortenedTranscript.join('\n'));
 
-	const newMessages = [
+	const newMessages: ChatCompletionRequestMessage[] = [
 		{
 			role: 'system',
 			content,
@@ -51,9 +55,7 @@ export const action = async ({ request }: ActionArgs) => {
 	];
 
 	const response = await openai.createChatCompletion({
-		model: 'gpt-3.5-turbo-16k',
-		// model: 'gpt-4',
-		// @ts-expect-error
+		model,
 		messages: newMessages,
 		stream: true,
 	});

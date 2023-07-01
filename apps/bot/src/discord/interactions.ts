@@ -1,3 +1,4 @@
+import { autoRenameCommand } from './commands/autoRename.js';
 import { autojoinOffCommand } from './commands/autojoinOff.js';
 import { joinCommand } from './commands/join.js';
 import { leaveCommand } from './commands/leave.js';
@@ -28,6 +29,7 @@ const commandInteractions = [
 	renameCommand,
 	lockCommand,
 	unlockCommand,
+	autoRenameCommand,
 	autojoinOnCommand,
 	autojoinOffCommand,
 	removeMeCommand,
