@@ -66,7 +66,7 @@ export const constrainLinesToTokenLimit = (
 	});
 
 	if (tokens > max) {
-		throw new Error('Could not shorten messages enough to fit within max tokens');
+		console.error('Could not shorten messages enough to fit within max tokens');
 	}
 
 	console.log('Transcript was shortened to fit');

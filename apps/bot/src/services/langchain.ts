@@ -221,18 +221,29 @@ export async function answerQuestionOnTranscript(
 
 	const conversationHistoryString = conversationHistory.join('\n');
 
-	const { llm, shortenedTranscript } = optimizeTranscriptModel(transcriptLines, {
+	const { llm, shortenedTranscript, model } = optimizeTranscriptModel(transcriptLines, {
 		extraPromptBuffer: countMessageTokens(conversationHistoryString),
 	});
 
-	const secretaryFormat = await secretary.formatPromptValue({
+	let secretaryFormat = await secretary.formatPromptValue({
 		transcript: shortenedTranscript,
 		conversationHistory: conversationHistoryString,
 	});
 
-	const secretaryMessages = secretaryFormat.toChatMessages();
+	if (countMessageTokens(secretaryFormat.toString()) > modelTokenLimits[model] - RESPONSE_TOKEN_BUFFER) {
+		console.log('shortening conversation history');
+		const { shortenedTranscript: shortenedConversationHistory } = optimizeTranscriptModel(conversationHistory, {
+			extraPromptBuffer: sumMessageTokens(shortenedTranscript),
+		});
+		secretaryFormat = await secretary.formatPromptValue({
+			transcript: shortenedTranscript,
+			conversationHistory: shortenedConversationHistory,
+		});
+	}
 
-	// console.log('Prompt', secretaryMessages);
+	console.log(countMessageTokens(secretaryFormat.toString()));
+
+	const secretaryMessages = secretaryFormat.toChatMessages();
 
 	const answer = await llm.generate([secretaryMessages]);
 

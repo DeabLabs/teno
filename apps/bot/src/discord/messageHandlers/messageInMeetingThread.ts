@@ -59,7 +59,7 @@ export const messageInMeetingThreadHandler = createMessageHandler(
 
 async function messageInMeetingThread(message: Message, teno: Teno) {
 	try {
-		const conversationHistory = await message.channel.messages.fetch({ limit: 10 });
+		const conversationHistory = await message.channel.messages.fetch({ limit: 100 });
 
 		invariant(message);
 
@@ -84,6 +84,8 @@ async function messageInMeetingThread(message: Message, teno: Teno) {
 				conversationHistoryContent.unshift(`${msg.author.username}: ${msg.content}`);
 			}
 		});
+
+		console.log('meeting thread');
 
 		let transcriptLines = [''];
 
