@@ -1,6 +1,6 @@
 import type { LoaderArgs } from '@vercel/remix';
 import { json } from '@vercel/remix';
-import { useLoaderData } from '@remix-run/react';
+import { Outlet, useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
 
 import { prisma } from '@/server/database.server';
@@ -12,7 +12,7 @@ import { Chat } from '@/components/chat';
  * - individual meeting page ✅
  * - style the page ✅
  * - conversation action so people can talk with transcript ✅
- * - fetch transcript for download (stretch goal)
+ * - fetch transcript for download (stretch goal) ✅
  */
 
 export const loader = async ({ params, request }: LoaderArgs) => {
@@ -57,7 +57,12 @@ const DashboardMeeting = () => {
 
 	return (
 		<div className="flex flex-col w-full gap-8">
-			<Chat meeting={meeting} />
+			{/* three columns, the middle column takes more width than the outer two */}
+			<div className="grid grid-cols-[1fr_minmax(0,_2fr)_1fr]">
+				<Outlet />
+				<Chat meeting={meeting} />
+				<div></div>
+			</div>
 		</div>
 	);
 };
