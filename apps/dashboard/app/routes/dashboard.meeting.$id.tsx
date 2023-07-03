@@ -58,10 +58,10 @@ const DashboardMeeting = () => {
 	return (
 		<div className="flex flex-col w-full gap-8">
 			{/* three columns, the middle column takes more width than the outer two */}
-			<div className="grid grid-cols-[1fr_minmax(0,_2fr)_1fr]">
+			<div className="grid md:grid-cols-[1fr_minmax(0,_2fr)_1fr]">
 				<Outlet />
 				<Chat meeting={meeting} />
-				<div></div>
+				<div className="hidden sm:block"></div>
 			</div>
 		</div>
 	);

@@ -14,7 +14,7 @@ const DashboardMeetingSummary = () => {
 	const { summary, attendees, actionItems } = useLoaderData<typeof loader>();
 
 	return (
-		<div className={cn('pb-[200px] pt-4 md:pt-10 max-h-[calc(100vh-65px)] overflow-y-auto ')}>
+		<div className={cn('pb-[200px] pt-4 md:pt-10 max-h-[calc(100vh-65px)] overflow-y-auto hidden md:block')}>
 			<div className="mx-auto max-w-2xl px-4 flex flex-col gap-4">
 				<div className="rounded-lg border bg-background p-8 min-h-[280px]">
 					<h1 className="mb-2 text-lg font-semibold">Meeting Summary</h1>
