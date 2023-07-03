@@ -173,7 +173,11 @@ const MeetingTable = ({ meetings, onSubmit, loading, userId }: MeetingTableProps
 													selectedMeeting.includes(meeting) ? 'text-indigo-200' : secondaryText,
 												)}
 											>
-												<Link to={`/dashboard/meeting/${meeting.id}`} className="text-indigo-200 underline">
+												<Link
+													prefetch="none"
+													to={`/dashboard/meeting/${meeting.id}/summary`}
+													className="text-indigo-200 underline"
+												>
 													{meeting.name}
 												</Link>
 											</td>

@@ -53,7 +53,7 @@ export function MeetingTitleCard({
 	};
 	return (
 		<div className="mx-auto max-w-2xl px-4">
-			<div className="rounded-lg border bg-background p-8">
+			<div className="rounded-lg border bg-background p-8 min-h-[280px]">
 				<h1 className="mb-2 text-lg font-semibold">{meeting.name}</h1>
 				<p className="mb-2 leading-normal text-muted-foreground">
 					This is a private space for you to dig into this meeting with Teno.
