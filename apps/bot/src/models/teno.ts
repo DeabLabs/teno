@@ -177,7 +177,15 @@ export class Teno {
 		});
 
 		this.client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-			if (!newState.guild.id || newState.guild.id != this.id || !(newState.channel instanceof VoiceChannel)) return;
+			if (
+				!newState.guild.id ||
+				newState.guild.id != this.id ||
+				!(newState.channel instanceof VoiceChannel) ||
+				newState.member?.id === this.client?.user?.id ||
+				// ignore if the user count is the same
+				newState.channel.members.size === oldState.channel?.members.size
+			)
+				return;
 
 			const channelId = newState.channelId;
 			// if a user joins a voice channel, and the user has autojoin enabled for that channel, and teno is not already in another channel, join the channel
