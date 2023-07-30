@@ -141,7 +141,6 @@ export class Meeting {
 				await interaction.deferReply({
 					ephemeral: true,
 				});
-				await this.teno.getRelayClient().leaveCall();
 				await this.endMeeting();
 				await interaction.editReply({
 					content: 'Teno has left the call.',
@@ -459,12 +458,6 @@ export class Meeting {
 		) {
 			this.endMeeting();
 
-			// Send join request to voice relay
-			try {
-				await this.voiceRelayClient.leaveCall();
-			} catch (e) {
-				console.error(e);
-			}
 			this.client.removeListener('voiceStateUpdate', this.handleVoiceStateUpdate);
 		}
 	}
@@ -626,6 +619,13 @@ export class Meeting {
 		if (!active) {
 			console.log('Meeting not active');
 			return;
+		}
+
+		// Send join request to voice relay
+		try {
+			await this.voiceRelayClient.leaveCall();
+		} catch (e) {
+			console.error(e);
 		}
 
 		console.log('Ending meeting', this.getId());
