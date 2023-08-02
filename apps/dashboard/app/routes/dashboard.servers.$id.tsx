@@ -1,6 +1,5 @@
 import type { ActionArgs, LoaderArgs } from '@vercel/remix';
-import { json } from '@vercel/remix';
-import { redirect } from '@vercel/remix';
+import { json, redirect } from '@vercel/remix';
 import React, { useState } from 'react';
 import invariant from 'tiny-invariant';
 import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from '@remix-run/react';

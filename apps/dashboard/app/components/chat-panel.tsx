@@ -4,7 +4,6 @@ import { IconRefresh, IconStop } from './ui/icons';
 import { Button } from './ui/Button';
 import { PromptForm } from './prompt-form';
 import { ButtonScrollToBottom } from './button-scroll-to-bottom';
-import { FooterText } from './footer';
 
 export interface ChatPanelProps
 	extends Pick<UseChatHelpers, 'append' | 'isLoading' | 'reload' | 'messages' | 'stop' | 'input' | 'setInput'> {

@@ -9096,7 +9096,7 @@ remix-auth-oauth2@^1.0.0:
     remix-auth "^3.4.0"
     uuid "^8.3.2"
 
-remix-auth@^3.0.0, remix-auth@^3.4.0:
+remix-auth@^3.0.0, remix-auth@^3.4.0, remix-auth@^3.5.0:
   version "3.5.0"
   resolved "https://registry.yarnpkg.com/remix-auth/-/remix-auth-3.5.0.tgz#ccbc2e8fdf8b2f4c8ec84fdd296a3ef928bfdc89"
   integrity sha512-+0kFPhqNPQ4mjhDXViY5mG4jvWHWMsG1IXFiCj3T58BKQGynonk93vTFZ5/CCDzGFBjTsRpcA+mXCUW5LY8MdQ==
