@@ -25,7 +25,7 @@ We used to use Docker Compose to run required services (Redis, Database, etc).
 We now host our services on the cloud:
 
 - Redis with https://upstash.com
-- Database with https://planetscale.com
+- Database with https://supabase.com/
 
 We may still deploy Teno to a Docker container in the future, but the services will probably
 stay third party.
