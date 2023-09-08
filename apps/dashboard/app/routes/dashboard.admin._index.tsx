@@ -1,6 +1,5 @@
 import type { ActionArgs, LoaderArgs } from '@vercel/remix';
-import { redirect } from '@vercel/remix';
-import { json } from '@vercel/remix';
+import { redirect, json } from '@vercel/remix';
 import { Form, useNavigation } from '@remix-run/react';
 import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';

@@ -23,12 +23,5 @@ async function leave(interaction: CommandInteraction, teno: Teno) {
 	const activeMeeting = teno.getMeeting(activeMeetingDb?.id);
 	activeMeeting?.endMeeting();
 
-	// Send leave request to voice relay
-	try {
-		await teno.getRelayClient().leaveCall();
-	} catch (e) {
-		console.error(e);
-	}
-
 	await interaction.reply({ ephemeral: true, content: 'Left the channel!' });
 }

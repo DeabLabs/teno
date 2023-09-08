@@ -1,6 +1,5 @@
 import type { ActionArgs, LoaderArgs } from '@vercel/remix';
-import { json } from '@vercel/remix';
-import { redirect } from '@vercel/remix';
+import { json, redirect } from '@vercel/remix';
 import { useActionData, useLoaderData, useNavigation, useSubmit } from '@remix-run/react';
 import React, { useEffect } from 'react';
 import clsx from 'clsx';

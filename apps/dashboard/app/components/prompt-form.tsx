@@ -1,15 +1,12 @@
 import * as React from 'react';
-import { Link } from '@remix-run/react';
 import Textarea from 'react-textarea-autosize';
 import type { UseChatHelpers } from 'ai/react';
-import { ClientOnly } from 'remix-utils';
 
 import { useEnterSubmit } from '@/lib/hooks/use-enter-submit';
-import { cn } from '@/lib/utils';
 
-import { Button, buttonVariants } from './ui/Button';
+import { Button } from './ui/Button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { IconArrowElbow, IconPlus } from './ui/icons';
+import { IconArrowElbow } from './ui/icons';
 
 export interface PromptProps extends Pick<UseChatHelpers, 'input' | 'setInput'> {
 	onSubmit: (value: string) => void;

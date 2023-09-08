@@ -1,11 +1,9 @@
 import type { UseChatHelpers } from 'ai/react';
 import { DownloadIcon } from 'lucide-react';
 
-import { TooltipTrigger } from './ui/tooltip';
-import { Tooltip } from './ui/tooltip';
+import { TooltipTrigger, Tooltip, TooltipContent } from './ui/tooltip';
 import { IconArrowRight } from './ui/icons';
 import { Button } from './ui/Button';
-import { TooltipContent } from './ui/tooltip';
 
 const exampleMessages = [
 	{
